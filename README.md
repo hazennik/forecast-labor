@@ -1,0 +1,2 @@
+# forecast-labor
+A full-stack, real-time U.S. labor-market forecasting engine built for institutional-grade accuracy and SN41 mining. Includes data ingestion pipelines, X-13 seasonal adjustment, feature engineering, dynamic factor and MIDAS models, quantile ML forecasts, revision modeling, calibration, and a miner adapter that generates probability distributions for SN41 tasks. Designed to outperform government estimates, deliver top-tier model accuracy, and serve as a production-ready research asset for hedge funds, macro desks, and prediction markets.
