@@ -1,0 +1,27 @@
+Proprietary License  
+All Rights Reserved
+
+Copyright © 2025 [Infral AI]
+
+This software and all associated files, code, models, data structures, 
+pipelines, documentation, and related assets (collectively, the “Software”) 
+are the exclusive property of the copyright holder.
+
+Unauthorized copying, reproduction, modification, distribution, reverse 
+engineering, public display, sale, or use of the Software, in whole or in part, 
+is strictly prohibited without prior written permission from the copyright holder.
+
+The Software is provided solely for personal, non-commercial evaluation 
+and development purposes unless a separate written agreement grants 
+additional rights. No other rights or licenses—express, implied, or 
+otherwise—are granted.
+
+Any attempt to bypass technical protections, extract model parameters, 
+reuse portions of the codebase, or deploy the Software in a commercial, 
+competitive, production, or revenue-generating context without explicit 
+written permission is strictly prohibited.
+
+The copyright holder reserves all rights not expressly granted.
+
+For licensing or commercial inquiries, contact:
+[Your Contact Information]
