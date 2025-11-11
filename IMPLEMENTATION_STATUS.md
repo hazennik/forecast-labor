@@ -46,8 +46,8 @@ Last Updated: 2025-11-10
 - [x] Data models: `IngestionMetadata`, `ETLConfig`
 - [x] Enums: `DataSource`, `IngestionStatus`
 
-### First Data Pipeline (100%)
-- [x] **UI Claims ETL** - Complete, production-ready
+### Data Pipelines (100% - 7/7) ✅
+- [x] **UI Claims ETL** - Complete, production-ready ✅
   - Extract from DOL API
   - Validate schema and data quality
   - Transform and clean data
@@ -57,26 +57,72 @@ Last Updated: 2025-11-10
   - Full logging and error handling
   - National + 50 states + DC
 
-### Scripts (10%)
-- [x] `seed_public_data.py` - Initial data seeding (UI Claims working)
+- [x] **Treasury Withholdings ETL** - Complete, production-ready ✅
+  - Extract from Treasury Fiscal Data API
+  - Daily withholding data (90-day lookback)
+  - Business day flagging
+  - Pay period indicators
+  - Rolling averages (5-day, 20-day)
+  - Monthly aggregation support
+  - Full error handling
+
+- [x] **BLS CES ETL** - Complete, production-ready ✅
+  - Extract from BLS API (20+ series)
+  - Nonfarm Payrolls (primary target)
+  - Sector breakdowns (retail, leisure, manufacturing, etc.)
+  - Wage and hours data
+  - Month-over-month and year-over-year changes
+  - Revision tracking (preliminary flags)
+  - 10-year history
+  - Rate limiting and batch processing
+
+- [x] **BLS LAUS ETL** - Complete, production-ready ✅
+  - Extract from BLS API (100+ series)
+  - State-level employment and unemployment
+  - Labor force and participation rates
+  - National and all 50 states + DC
+  - Month-over-month and year-over-year changes
+  - Hierarchical reconciliation ready
+  - 10-year history
+
+- [x] **Strikes ETL** - Complete, production-ready ✅
+  - Extract from BLS Work Stoppages
+  - Major strikes (1,000+ workers)
+  - Workers involved and days idle
+  - Industry affected
+  - Monthly aggregation
+  - Impact scoring for forecast adjustments
+
+- [x] **Weather ETL** - Complete, production-ready ✅
+  - Extract from NOAA Storm Events
+  - Hurricanes, severe storms, floods, wildfires
+  - Deaths, injuries, damages
+  - Monthly aggregation
+  - Employment impact scoring
+  - High-impact month flagging
+
+- [x] **CNBFS ETL** - Complete, production-ready ✅
+  - Extract from Census Business Formation Stats
+  - Total business applications
+  - High-propensity applications (with planned wages)
+  - Business formations (EINs)
+  - Monthly frequency
+  - Leading indicator for hiring
+
+### Scripts (100%) ✅
+- [x] `seed_public_data.py` - Initial data seeding (all 7 sources)
+- [x] `test_pipelines.py` - Pipeline validation (all 7 sources)
 
 ---
 
-## 🚧 IN PROGRESS (Next Steps)
-
-### Additional Data Pipelines (0%)
-- [ ] Treasury Withholdings ETL
-- [ ] BLS CES (Nonfarm Payrolls) ETL
-- [ ] BLS LAUS (State Employment) ETL
-- [ ] Strikes ETL
-- [ ] Weather/NOAA ETL
-- [ ] Census Business Formation Stats ETL
+## 🚧 IN PROGRESS (Next Steps - Phase 3)
 
 ### Validation Framework (0%)
 - [ ] Great Expectations suite
 - [ ] Schema validators
 - [ ] Freshness checks
 - [ ] Data quality rules
+- [ ] Automated data quality reports
 
 ### Seasonal Adjustment (0%)
 - [ ] X-13 service wrapper
@@ -152,13 +198,27 @@ Each pipeline will be production-ready before moving to the next.
 - **Foundation:** 100% ✅
 - **Infrastructure:** 100% ✅
 - **ETL Framework:** 100% ✅
-- **Data Pipelines:** 14% (1/7 complete)
-- **Overall Project:** ~25% complete
+- **Data Pipelines:** 100% ✅ (7/7 complete)
+  - ✅ UI Claims (weekly unemployment)
+  - ✅ Treasury Withholdings (daily payroll proxy)
+  - ✅ BLS CES (monthly NFP - primary target)
+  - ✅ BLS LAUS (state employment)
+  - ✅ Strikes (work stoppages)
+  - ✅ Weather (NOAA disruptions)
+  - ✅ CNBFS (business formations)
+- **Validation:** 0%
+- **Seasonal Adjustment:** 0%
+- **Feature Engineering:** 0%
+- **Models:** 0%
+- **Overall Project:** ~35% complete
 
 **Estimated Timeline:**
-- Foundation: ✅ Complete (Week 1)
-- Data Pipelines: 🚧 In Progress (Week 2-4)
-- Models: Weeks 4-8
-- SN41: Weeks 8-12
+- ✅ Phase 1: Foundation (Week 1) - COMPLETE
+- ✅ Phase 2: Data Pipelines (Week 2) - COMPLETE
+- 🚧 Phase 3: Validation + Seasonal Adjustment (Week 3-4)
+- Phase 4: Feature Engineering (Week 4-5)
+- Phase 5: Core Models (Week 5-8)
+- Phase 6: Backtesting (Week 8-10)
+- Phase 7: SN41 Integration (Week 10-12)
 - Full MVP: 10-12 weeks
 

@@ -104,25 +104,44 @@ exit
 ## What's Working Now
 
 ✅ **Infrastructure:**
-- All services running
-- Database initialized
-- Object storage ready
+- All 9 services running
+- Database initialized with complete schema
+- Object storage ready (MinIO)
+- MLflow tracking configured
+- Prefect orchestration ready
 
-✅ **Data Pipeline:**
-- UI Claims ETL (weekly unemployment data)
-- Vintage snapshot management
-- Data validation
+✅ **Data Pipelines (ALL 7):**
+- UI Claims ETL (weekly unemployment - national + states)
+- Treasury Withholdings ETL (daily payroll tax collections)
+- BLS CES ETL (monthly NFP + 20 sector series)
+- BLS LAUS ETL (state employment + unemployment rates)
+- Strikes ETL (work stoppages and labor disruptions)
+- Weather ETL (NOAA storm events and disasters)
+- CNBFS ETL (business formations and applications)
+- Complete vintage snapshot management
+- Full validation and error handling
 
 ---
 
 ## What's Next
 
-🚧 **Coming Soon:**
-1. Additional data sources (Treasury, CES, LAUS)
-2. Seasonal adjustment (X-13)
-3. Feature engineering
-4. Model training
-5. SN41 integration
+🚧 **Phase 3 (Weeks 3-4):**
+1. Data validation framework (Great Expectations)
+2. Seasonal adjustment service (X-13)
+3. Regressor builders (holidays, strikes, weather)
+
+**Phase 4 (Weeks 4-5):**
+4. Feature engineering (MIDAS lags, aggregations)
+5. Feature registry and storage
+
+**Phase 5 (Weeks 5-8):**
+6. Model training (DFM, MIDAS, GBM quantile)
+7. Revision modeling
+8. Calibration layer
+
+**Phase 6-7 (Weeks 8-12):**
+9. Backtesting framework
+10. SN41 integration and mining
 
 ---
 
