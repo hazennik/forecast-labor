@@ -1,0 +1,351 @@
+# ===========================
+# FORECAST-LABOR DOCKER COMPOSE
+# ===========================
+# Multi-service stack for labor market forecasting + SN41 mining
+# Services: MinIO, Postgres, MLflow, Prefect, X-13, Models, Miner, Dashboard
+
+version: '3.8'
+
+services:
+  # ----------------------------
+  # OBJECT STORAGE (MinIO - S3-compatible)
+  # ----------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: forecast-minio
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console UI
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - forecast-net
+
+  # MinIO bucket initialization
+  minio-init:
+    image: minio/mc:latest
+    container_name: forecast-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin123};
+      mc mb myminio/forecast-labor --ignore-existing;
+      mc mb myminio/mlflow-artifacts --ignore-existing;
+      mc mb myminio/vintages --ignore-existing;
+      mc mb myminio/features --ignore-existing;
+      echo 'MinIO buckets initialized';
+      "
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # DATABASE (PostgreSQL)
+  # ----------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: forecast-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-forecast_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forecast_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-forecast_labor}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forecast_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # ML TRACKING (MLflow)
+  # ----------------------------
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.5.0
+    container_name: forecast-mlflow
+    depends_on:
+      - postgres
+      - minio
+    ports:
+      - "5000:5000"
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER:-forecast_user}:${POSTGRES_PASSWORD:-forecast_pass_change_me}@postgres:5432/mlflow
+      MLFLOW_ARTIFACT_ROOT: s3://mlflow-artifacts
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    command: >
+      mlflow server
+      --backend-store-uri postgresql://${POSTGRES_USER:-forecast_user}:${POSTGRES_PASSWORD:-forecast_pass_change_me}@postgres:5432/mlflow
+      --default-artifact-root s3://mlflow-artifacts
+      --host 0.0.0.0
+      --port 5000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # WORKFLOW ORCHESTRATION (Prefect)
+  # ----------------------------
+  prefect:
+    image: prefecthq/prefect:2-python3.9
+    container_name: forecast-prefect
+    depends_on:
+      - postgres
+    ports:
+      - "4200:4200"
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://${POSTGRES_USER:-forecast_user}:${POSTGRES_PASSWORD:-forecast_pass_change_me}@postgres:5432/prefect
+      PREFECT_API_URL: http://0.0.0.0:4200/api
+    command: prefect server start --host 0.0.0.0
+    volumes:
+      - prefect-data:/root/.prefect
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # X-13 SEASONAL ADJUSTMENT SERVICE
+  # ----------------------------
+  x13:
+    build:
+      context: ./infra/x13
+      dockerfile: Dockerfile
+    container_name: forecast-x13
+    depends_on:
+      - minio
+      - postgres
+    environment:
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-forecast_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forecast_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-forecast_labor}
+    volumes:
+      - ./seasonal:/app/seasonal
+      - ./data:/app/data
+    working_dir: /app
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # ETL SERVICE
+  # ----------------------------
+  etl:
+    build:
+      context: .
+      dockerfile: ./infra/etl/Dockerfile
+    container_name: forecast-etl
+    depends_on:
+      - minio
+      - postgres
+      - prefect
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-forecast_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forecast_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-forecast_labor}
+      BLS_API_KEY: ${BLS_API_KEY:-}
+      NOAA_API_KEY: ${NOAA_API_KEY:-}
+      PREFECT_API_URL: ${PREFECT_API_URL:-http://prefect:4200/api}
+    volumes:
+      - ./etl:/app/etl
+      - ./data:/app/data
+      - ./scripts:/app/scripts
+    working_dir: /app
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # MODELS SERVICE (Training + Inference)
+  # ----------------------------
+  models:
+    build:
+      context: .
+      dockerfile: ./infra/models/Dockerfile
+    container_name: forecast-models
+    depends_on:
+      - minio
+      - postgres
+      - mlflow
+      - x13
+      - etl
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-forecast_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forecast_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-forecast_labor}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    volumes:
+      - ./models_src:/app/models_src
+      - ./features:/app/features
+      - ./backtests:/app/backtests
+      - ./recon:/app/recon
+      - ./data:/app/data
+      - ./scripts:/app/scripts
+    working_dir: /app
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # SN41 MINER SERVICE
+  # ----------------------------
+  miner:
+    build:
+      context: .
+      dockerfile: ./infra/miner/Dockerfile
+    container_name: forecast-miner
+    depends_on:
+      - models
+      - postgres
+    ports:
+      - "8080:8080"  # Health check endpoint
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      SN41_MINER_ENABLED: ${SN41_MINER_ENABLED:-false}
+      SN41_HOTKEY_PATH: ${SN41_HOTKEY_PATH:-/sn41/keys/hotkey}
+      SN41_COLDKEY_PATH: ${SN41_COLDKEY_PATH:-/sn41/keys/coldkey}
+      SN41_NETWORK: ${SN41_NETWORK:-finney}
+      SN41_NETUID: ${SN41_NETUID:-41}
+      SN41_SUBMISSION_WINDOW_HOURS: ${SN41_SUBMISSION_WINDOW_HOURS:-48}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-forecast_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forecast_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-forecast_labor}
+    volumes:
+      - ./sn41:/app/sn41
+      - ./data:/app/data
+      - ./scripts:/app/scripts
+    working_dir: /app
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # DASHBOARD (Streamlit)
+  # ----------------------------
+  dashboard:
+    build:
+      context: .
+      dockerfile: ./infra/dashboards/Dockerfile
+    container_name: forecast-dashboard
+    depends_on:
+      - postgres
+      - mlflow
+      - minio
+    ports:
+      - "8501:8501"
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-forecast_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forecast_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-forecast_labor}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - ./dashboards_src:/app/dashboards_src
+      - ./data:/app/data
+    working_dir: /app
+    command: streamlit run /app/dashboards_src/streamlit/app.py --server.port=8501 --server.address=0.0.0.0
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # AI AGENTS (Optional - Local LLM)
+  # ----------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: forecast-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - forecast-net
+    profiles:
+      - agents
+
+  # ----------------------------
+  # AGENTS RUNNER (Optional)
+  # ----------------------------
+  agents:
+    build:
+      context: .
+      dockerfile: ./infra/agents/Dockerfile
+    container_name: forecast-agents
+    depends_on:
+      - postgres
+      - ollama
+    environment:
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AGENT_AUTONOMY_LEVEL: ${AGENT_AUTONOMY_LEVEL:-1}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-forecast_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forecast_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-forecast_labor}
+    volumes:
+      - ./agents_src:/app/agents_src
+      - ./:/app/repo  # Access to entire repo for PR operations
+    working_dir: /app
+    networks:
+      - forecast-net
+    profiles:
+      - agents
+
+# ----------------------------
+# VOLUMES
+# ----------------------------
+volumes:
+  minio-data:
+    driver: local
+  postgres-data:
+    driver: local
+  prefect-data:
+    driver: local
+  ollama-data:
+    driver: local
+
+# ----------------------------
+# NETWORKS
+# ----------------------------
+networks:
+  forecast-net:
+    driver: bridge
+

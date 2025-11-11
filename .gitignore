@@ -1,0 +1,64 @@
+# Data directories (local data lake - never commit)
+/data/
+/zone1/artifacts/
+/zone2/logs/
+
+# Secrets and keys (CRITICAL - never commit)
+/sn41/keys/
+**/*.env
+.env
+.env.local
+.env.server
+/secrets/
+
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs and temp files
+*.log
+*.prof
+*.out
+.pytest_cache/
+.coverage
+htmlcov/
+
+# MLflow artifacts (stored in object storage, not git)
+mlruns/
+mlartifacts/
+
+# Database files (local dev only)
+*.db
+*.sqlite
+
+# Terraform state (if using IaC)
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Docker volumes and build artifacts
+docker-compose.override.yml
+
