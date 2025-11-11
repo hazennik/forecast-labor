@@ -166,16 +166,18 @@ def mock_minio_client() -> Mock:
 # =====================
 
 @pytest.fixture
-def etl_config(test_vintage_date: date) -> ETLConfig:
+def etl_config(temp_dir: Path) -> ETLConfig:
     """Create a test ETL configuration."""
     return ETLConfig(
         source_name="test_source",
-        vintage_date=test_vintage_date,
-        output_path="data/raw/test_source",
-        enable_validation=True,
+        raw_data_path=temp_dir / "raw",
+        vintage_path=temp_dir / "vintages",
+        frequency="daily",
+        retention_days=365,
+        validate_schema=True,
+        create_vintage=True,
+        enable_validators=False,
         fail_on_validation_error=False,
-        max_retries=3,
-        timeout=30,
     )
 
 

@@ -364,7 +364,7 @@ class ValidationReportGenerator:
         return f"""
                 <tr>
                     <td>{result.validator_name}</td>
-                    <td>{result.check_name}</td>
+                    <td>{result.rule_name}</td>
                     <td class="{status_class}">{status_text}</td>
                     <td class="severity-{result.severity.value}">{result.severity.value}</td>
                     <td>{result.message}</td>
@@ -379,12 +379,12 @@ class ValidationReportGenerator:
         for result in results:
             data.append({
                 "validator": result.validator_name,
-                "check": result.check_name,
+                "check": result.rule_name,
                 "passed": result.passed,
                 "severity": result.severity.value,
                 "message": result.message,
                 "timestamp": result.timestamp.isoformat(),
-                "metadata": str(result.metadata) if result.metadata else ""
+                "details": str(result.details) if result.details else ""
             })
         
         return pd.DataFrame(data)
@@ -392,26 +392,28 @@ class ValidationReportGenerator:
 
 # Example usage
 if __name__ == "__main__":
+    from etl.validators.base_validator import ValidationStatus
+    
     # Create sample validation results
     sample_results = [
         ValidationResult(
             validator_name="SchemaValidator",
-            check_name="required_columns",
-            passed=True,
+            rule_name="required_columns",
+            status=ValidationStatus.PASSED,
             severity=ValidationSeverity.ERROR,
             message="All required columns present"
         ),
         ValidationResult(
             validator_name="FreshnessValidator",
-            check_name="data_age",
-            passed=False,
+            rule_name="data_age",
+            status=ValidationStatus.FAILED,
             severity=ValidationSeverity.WARNING,
             message="Data is 3 days old (threshold: 2 days)"
         ),
         ValidationResult(
             validator_name="QualityValidator",
-            check_name="missing_values",
-            passed=True,
+            rule_name="missing_values",
+            status=ValidationStatus.PASSED,
             severity=ValidationSeverity.ERROR,
             message="Missing values within acceptable range (2.3%)"
         ),

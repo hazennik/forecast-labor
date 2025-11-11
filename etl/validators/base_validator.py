@@ -38,6 +38,12 @@ class ValidationResult:
     message: str
     details: Dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
+    validator_name: str = ""  # Added for backward compatibility with report generator
+    
+    @property
+    def passed(self) -> bool:
+        """Check if validation passed (for backward compatibility)"""
+        return self.status == ValidationStatus.PASSED
     
     def is_blocking(self) -> bool:
         """Check if this result should block the pipeline"""
@@ -52,6 +58,7 @@ class ValidationResult:
             "message": self.message,
             "details": self.details,
             "timestamp": self.timestamp.isoformat(),
+            "validator_name": self.validator_name,
         }
 
 

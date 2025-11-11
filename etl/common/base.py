@@ -14,6 +14,9 @@ import pandas as pd
 from loguru import logger
 from pydantic import BaseModel, Field
 
+# Import for validation framework integration
+from etl.validators.base_validator import ValidationSeverity
+
 
 class DataSource(str, Enum):
     """Supported data sources"""
@@ -157,10 +160,10 @@ class BaseETL(ABC):
                 
                 # Check for critical failures
                 for result in results:
-                    if not result.passed and result.severity.value == "CRITICAL":
+                    if not result.passed and result.severity == ValidationSeverity.CRITICAL:
                         has_critical_failure = True
                         logger.error(f"CRITICAL validation failure: {result.message}")
-                    elif not result.passed and result.severity.value == "ERROR":
+                    elif not result.passed and result.severity == ValidationSeverity.ERROR:
                         logger.warning(f"ERROR validation failure: {result.message}")
                 
             except Exception as e:

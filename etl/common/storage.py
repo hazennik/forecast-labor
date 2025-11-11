@@ -228,4 +228,74 @@ class StorageClient:
         except S3Error as e:
             logger.error(f"Error deleting {bucket_name}/{object_name}: {e}")
             return False
+    
+    def read_parquet(self, object_path: str, bucket_name: str = "data") -> "pd.DataFrame":
+        """
+        Read parquet file from storage
+        
+        Args:
+            object_path: Path to parquet file in storage
+            bucket_name: Bucket name (default: data)
+            
+        Returns:
+            pd.DataFrame: Loaded DataFrame
+        """
+        import pandas as pd
+        import tempfile
+        
+        try:
+            # Download to temporary file
+            with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+            
+            if self.download_file(bucket_name, object_path, tmp_path):
+                df = pd.read_parquet(tmp_path)
+                tmp_path.unlink()  # Clean up temp file
+                logger.info(f"Read parquet from {bucket_name}/{object_path}")
+                return df
+            else:
+                raise Exception(f"Failed to download {bucket_name}/{object_path}")
+                
+        except Exception as e:
+            logger.error(f"Error reading parquet from {bucket_name}/{object_path}: {e}")
+            raise
+    
+    def write_parquet(self, df: "pd.DataFrame", object_path: str, bucket_name: str = "data") -> bool:
+        """
+        Write DataFrame as parquet to storage
+        
+        Args:
+            df: DataFrame to write
+            object_path: Path to store parquet file
+            bucket_name: Bucket name (default: data)
+            
+        Returns:
+            bool: True if successful
+        """
+        import tempfile
+        
+        try:
+            # Write to temporary file
+            with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+            
+            df.to_parquet(tmp_path, compression='snappy', index=False)
+            
+            success = self.upload_file(
+                bucket_name,
+                object_path,
+                tmp_path,
+                content_type='application/octet-stream'
+            )
+            
+            tmp_path.unlink()  # Clean up temp file
+            
+            if success:
+                logger.info(f"Wrote parquet to {bucket_name}/{object_path}")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error writing parquet to {bucket_name}/{object_path}: {e}")
+            return False
 

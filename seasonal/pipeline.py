@@ -12,7 +12,7 @@ import pandas as pd
 from loguru import logger
 
 from seasonal.spec_builder import SpecBuilder, X13Spec
-from seasonal.service_client.x13_service import X13Service
+from seasonal.x13_service import X13Service
 from seasonal.regressors.holiday_regressors import HolidayRegressors
 from seasonal.regressors.strike_regressors import StrikeRegressors
 from seasonal.regressors.weather_regressors import WeatherRegressors
@@ -266,7 +266,7 @@ class SeasonalAdjustmentPipeline:
         
         # Run X-13
         try:
-            results = self.x13.run_adjustment(input_data)
+            results = self.x13.run_seasonal_adjustment(input_data)
             
             # Extract key outputs
             return {

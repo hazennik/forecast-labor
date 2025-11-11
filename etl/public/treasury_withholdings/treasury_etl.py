@@ -88,7 +88,7 @@ class TreasuryWithholdingsETL(BaseETL):
                 logger.info(f"Fetching page {page_number}...")
                 
                 response = self.downloader.download_json(
-                    TREASURY_ENDPOINT,
+                    f"{TREASURY_BASE_URL}{TREASURY_ENDPOINT}",
                     params=params
                 )
                 
