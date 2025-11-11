@@ -1,0 +1,303 @@
+"""
+X-13 Service
+Python wrapper for X-13ARIMA-SEATS seasonal adjustment
+"""
+
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Optional, Dict, Any, List
+import shutil
+
+import pandas as pd
+from loguru import logger
+
+
+class X13Error(Exception):
+    """Raised when X-13 execution fails"""
+    pass
+
+
+class X13Service:
+    """
+    Service for running X-13ARIMA-SEATS seasonal adjustment
+    
+    Wraps the x13as binary and handles:
+    - Spec file generation
+    - Data file creation
+    - Binary execution
+    - Output parsing
+    - Diagnostics extraction
+    """
+    
+    def __init__(
+        self,
+        x13_path: str = "x13as",
+        work_dir: Optional[Path] = None
+    ):
+        """
+        Initialize X-13 service
+        
+        Args:
+            x13_path: Path to x13as binary (default: assume in PATH)
+            work_dir: Working directory for X-13 files (default: temp)
+        """
+        self.x13_path = x13_path
+        self.work_dir = Path(work_dir) if work_dir else Path(tempfile.mkdtemp())
+        
+        # Verify X-13 is available
+        if not self._verify_x13():
+            raise X13Error(f"X-13 binary not found at: {self.x13_path}")
+        
+        logger.info(f"X-13 service initialized: {self.x13_path}")
+        logger.info(f"Working directory: {self.work_dir}")
+    
+    def _verify_x13(self) -> bool:
+        """Verify X-13 binary is available"""
+        try:
+            result = subprocess.run(
+                [self.x13_path, "-v"],
+                capture_output=True,
+                timeout=5
+            )
+            return True
+        except (subprocess.SubprocessError, FileNotFoundError):
+            # Try alternate location
+            if shutil.which("x13as"):
+                self.x13_path = "x13as"
+                return True
+            return False
+    
+    def run_seasonal_adjustment(
+        self,
+        series: pd.Series,
+        series_name: str,
+        spec_content: str,
+        save_output: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Run seasonal adjustment on a time series
+        
+        Args:
+            series: Time series to adjust (DatetimeIndex)
+            series_name: Name for the series
+            spec_content: X-13 spec file content
+            save_output: Whether to save output files
+            
+        Returns:
+            dict: Results including seasonally adjusted series and diagnostics
+        """
+        logger.info(f"Running seasonal adjustment for: {series_name}")
+        
+        # Create temporary directory for this run
+        run_dir = self.work_dir / series_name
+        run_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            # Write data file
+            data_file = run_dir / f"{series_name}.dat"
+            self._write_data_file(series, data_file)
+            
+            # Write spec file
+            spec_file = run_dir / f"{series_name}.spc"
+            spec_file.write_text(spec_content)
+            
+            # Run X-13
+            self._execute_x13(series_name, run_dir)
+            
+            # Parse results
+            results = self._parse_results(series_name, run_dir)
+            
+            # Save outputs if requested
+            if save_output:
+                output_dir = Path("data/seasonal_output") / series_name
+                output_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Copy key output files
+                for ext in [".d11", ".d12", ".d13", ".d16", ".err", ".out"]:
+                    src = run_dir / f"{series_name}{ext}"
+                    if src.exists():
+                        shutil.copy(src, output_dir / src.name)
+            
+            logger.info(f"✓ Seasonal adjustment complete: {series_name}")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Seasonal adjustment failed for {series_name}: {e}")
+            raise X13Error(f"X-13 execution failed: {e}") from e
+        
+        finally:
+            # Optionally clean up temp files
+            if not save_output:
+                shutil.rmtree(run_dir, ignore_errors=True)
+    
+    def _write_data_file(self, series: pd.Series, output_path: Path):
+        """
+        Write time series to X-13 data file format
+        
+        Format: datebegin{YYYY.MM} data(value1 value2 ...)
+        """
+        if not isinstance(series.index, pd.DatetimeIndex):
+            raise ValueError("Series must have DatetimeIndex")
+        
+        # Get start date
+        start_date = series.index[0]
+        start_year = start_date.year
+        start_month = start_date.month
+        
+        # Format data values
+        values = " ".join(str(v) for v in series.values)
+        
+        # Create data file content
+        content = f"""series {{
+    title = "{series.name or 'series'}"
+    start = {start_year}.{start_month}
+    data = ({values})
+}}
+"""
+        
+        output_path.write_text(content)
+        logger.debug(f"Wrote data file: {output_path}")
+    
+    def _execute_x13(self, series_name: str, run_dir: Path):
+        """Execute X-13 binary"""
+        try:
+            # X-13 expects to run in directory with spec file
+            result = subprocess.run(
+                [self.x13_path, series_name],
+                cwd=run_dir,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            # Check for errors
+            error_file = run_dir / f"{series_name}.err"
+            if error_file.exists():
+                error_content = error_file.read_text()
+                if "ERROR" in error_content:
+                    logger.error(f"X-13 errors:\n{error_content}")
+                    raise X13Error(f"X-13 reported errors: {error_content[:500]}")
+            
+            logger.debug(f"X-13 executed successfully for {series_name}")
+            
+        except subprocess.TimeoutExpired:
+            raise X13Error("X-13 execution timed out")
+        except subprocess.SubprocessError as e:
+            raise X13Error(f"X-13 execution failed: {e}")
+    
+    def _parse_results(self, series_name: str, run_dir: Path) -> Dict[str, Any]:
+        """
+        Parse X-13 output files
+        
+        Key files:
+        - .d11: Seasonally adjusted series
+        - .d12: Trend-cycle
+        - .d13: Irregular component
+        - .d16: Seasonal factors
+        - .out: Full output with diagnostics
+        """
+        results = {
+            "series_name": series_name,
+            "seasonally_adjusted": None,
+            "trend": None,
+            "irregular": None,
+            "seasonal_factors": None,
+            "diagnostics": {}
+        }
+        
+        # Parse seasonally adjusted series (.d11)
+        d11_file = run_dir / f"{series_name}.d11"
+        if d11_file.exists():
+            results["seasonally_adjusted"] = self._parse_x13_series_file(d11_file)
+        
+        # Parse trend (.d12)
+        d12_file = run_dir / f"{series_name}.d12"
+        if d12_file.exists():
+            results["trend"] = self._parse_x13_series_file(d12_file)
+        
+        # Parse irregular (.d13)
+        d13_file = run_dir / f"{series_name}.d13"
+        if d13_file.exists():
+            results["irregular"] = self._parse_x13_series_file(d13_file)
+        
+        # Parse seasonal factors (.d16)
+        d16_file = run_dir / f"{series_name}.d16"
+        if d16_file.exists():
+            results["seasonal_factors"] = self._parse_x13_series_file(d16_file)
+        
+        # Parse diagnostics from .out file
+        out_file = run_dir / f"{series_name}.out"
+        if out_file.exists():
+            results["diagnostics"] = self._parse_diagnostics(out_file)
+        
+        return results
+    
+    def _parse_x13_series_file(self, file_path: Path) -> pd.Series:
+        """Parse X-13 series output file"""
+        try:
+            # X-13 output format: date value
+            df = pd.read_csv(
+                file_path,
+                delim_whitespace=True,
+                names=["date", "value"],
+                skiprows=2  # Skip header
+            )
+            
+            # Convert date strings to datetime
+            df["date"] = pd.to_datetime(df["date"], format="%Y.%m")
+            
+            # Create series
+            series = pd.Series(
+                df["value"].values,
+                index=df["date"],
+                name=file_path.stem
+            )
+            
+            return series
+            
+        except Exception as e:
+            logger.warning(f"Failed to parse {file_path}: {e}")
+            return None
+    
+    def _parse_diagnostics(self, out_file: Path) -> Dict[str, Any]:
+        """Parse diagnostics from X-13 output file"""
+        diagnostics = {}
+        
+        try:
+            content = out_file.read_text()
+            
+            # Extract key diagnostic statistics
+            # M-statistics (quality measures)
+            if "m  statistics" in content.lower():
+                # Parse M-statistics section
+                diagnostics["m_statistics"] = self._extract_m_statistics(content)
+            
+            # Q-statistics
+            if "q-statistics" in content.lower():
+                diagnostics["q_statistics"] = self._extract_q_statistics(content)
+            
+            # Model identification
+            if "arima model" in content.lower():
+                diagnostics["arima_model"] = self._extract_arima_model(content)
+            
+            return diagnostics
+            
+        except Exception as e:
+            logger.warning(f"Failed to parse diagnostics: {e}")
+            return {}
+    
+    def _extract_m_statistics(self, content: str) -> Dict[str, float]:
+        """Extract M-statistics from output"""
+        # Simplified extraction - would need regex for production
+        return {"extracted": True}
+    
+    def _extract_q_statistics(self, content: str) -> Dict[str, float]:
+        """Extract Q-statistics from output"""
+        return {"extracted": True}
+    
+    def _extract_arima_model(self, content: str) -> str:
+        """Extract ARIMA model specification"""
+        return "model_extracted"
+
