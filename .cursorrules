@@ -1,0 +1,502 @@
+# Forecast-Labor: Real-Time U.S. Labor Market Forecasting Engine
+
+## PROJECT MISSION
+Build a **production-ready, elite-accuracy** labor market forecasting engine for Bittensor subnet integration.
+- Primary target: U.S. Non-Farm Payrolls (NFP) forecasting
+- Architecture: Subnet-agnostic adapter pattern (ready for any Bittensor subnet)
+- Deployment: Two-zone architecture (Zone 1: private training, Zone 2: subnet-facing inference)
+
+---
+
+## ⚠️ AGENT WORKFLOW - START HERE
+
+### ALWAYS CHECK PROJECT STATUS FIRST
+**Before ANY work, read these files in order:**
+
+1. **`docs/planning/IMPLEMENTATION_STATUS.md`** - REQUIRED
+   - Current phase and blockers
+   - Go/No-Go gate criteria
+   - Pending tasks for current phase
+   - Next steps and priorities
+
+2. **`docs/planning/REPO_SCAFFOLDING.md`** - Reference
+   - Complete directory structure
+   - Component organization
+
+3. **`docs/planning/SUBNET_ADAPTER_REFACTOR.md`** - Reference
+   - Subnet adapter pattern details
+   - Why we use adapters (not hardcoded SN41)
+
+### AFTER COMPLETING WORK
+- Update `IMPLEMENTATION_STATUS.md` with completed tasks
+- Mark items as `[x]` when done
+- Update phase percentages
+- Document any architectural decisions
+
+**This `.cursorrules` file contains TIMELESS PRINCIPLES. Current status is in IMPLEMENTATION_STATUS.md.**
+
+---
+
+## CORE PRINCIPLES (5 PILLARS)
+
+### 1. Determinism & Reproducibility
+- **Vintage data is sacred:** Never modify `data/vintages/` (append-only)
+- **Pinned dependencies:** All versions locked in `requirements.txt`
+- **Reproducible pipelines:** Same vintage + config = identical output
+- **Hash verification:** All data snapshots must validate
+
+### 2. Production-Ready Code (Always)
+- **Type hints required:** Every function, every parameter
+- **Error handling:** Try/except with logging, never fail silently
+- **Logging:** Structured logs (JSON) at appropriate levels
+- **Validation:** Input validation for all functions
+- **Documentation:** Docstrings with Google/NumPy style
+
+### 3. Testing Alongside Features
+- **Phase 3.5+:** Tests written WITH features (not after)
+- **Target coverage:** 80%+ before production deployment
+- **Test types:** Unit, integration, end-to-end, performance
+- **TDD preferred:** Write tests first when complexity warrants
+- **Mock external calls:** No actual API/network calls in tests
+
+### 4. Calibration-First Forecasting
+- **Probability distributions:** Never point forecasts alone
+- **Calibration layers:** Isotonic regression, conformal prediction
+- **Interval coverage:** Target 90% coverage for prediction intervals
+- **Coherence:** Forecasts must be logically consistent (bins sum to 1)
+- **Low variance:** Smooth, stable predictions preferred by subnets
+
+### 5. Modular, Maintainable Architecture
+- **Separation of concerns:** ETL ≠ Features ≠ Models ≠ Subnet submission
+- **Abstract base classes:** Define interfaces, enforce contracts
+- **Adapter pattern:** Subnet-agnostic design (see Phase 7)
+- **Configuration-driven:** YAML configs, environment variables
+- **Service isolation:** Docker Compose services communicate via APIs
+
+## ARCHITECTURE STANDARDS
+
+### Directory Structure (MUST RESPECT)
+```
+/etl/          - Data ingestion, validation, vintaging
+/seasonal/     - X-13ARIMA-SEATS seasonal adjustment
+/features/     - Mixed-frequency feature engineering
+/models_src/   - Econometric + ML models + calibration
+/backtests/    - Vintage-honest evaluation
+/subnets/      - Subnet adapter pattern (NOT "sn41" anymore)
+/agents_src/   - AI automation agents
+/tests/        - Comprehensive test suite
+/docs/         - Documentation
+/infra/        - Docker, IaC
+/scripts/      - CLI helpers
+```
+
+### Subnet Integration (CRITICAL: Adapter Pattern)
+**NEVER hardcode subnet-specific logic. ALWAYS use adapter pattern.**
+
+- **OLD (WRONG):** `sn41/` directory with hardcoded SN41 logic ❌
+- **NEW (CORRECT):** `subnets/` with base adapter interface ✅
+  - `subnets/base_adapter.py` - Abstract interface ALL subnets must implement
+  - `subnets/registry.py` - Dynamic adapter discovery & loading
+  - `subnets/scheduler.py` - Multi-subnet coordination & windows
+  - `subnets/scoring_shim.py` - Subnet-specific scoring abstraction
+  - `subnets/sn41/adapter.py` - SN41 implementation (first example)
+  - `configs/subnets/sn41.yaml` - SN41-specific config (bins, targets, cadence)
+- **Selection:** `ACTIVE_SUBNET` environment variable switches subnets
+- **Goal:** Add new subnets in 3-5 days without touching core forecasting code
+
+**Why This Matters:**
+- Future-proof: Easy to add SN18, SN25, or any new subnet
+- Testable: Mock adapters for testing without network calls
+- Maintainable: Each subnet is isolated module
+- Read `docs/planning/SUBNET_ADAPTER_REFACTOR.md` for full details
+
+### Database Naming (Generalized)
+- ✅ `subnets.submission_log` (NOT `sn41.submission_log`)
+- ✅ `subnets.event_catalog` (NOT `sn41.event_catalog`)
+- Schema must support multiple subnets via `subnet_id` column
+
+## CODE QUALITY REQUIREMENTS
+
+### Python Standards
+- **Python 3.11+** (specified in requirements.txt)
+- **Type hints mandatory:** Use `from typing import ...`
+- **Docstrings required:** Google or NumPy style
+- **Line length:** 100 characters max
+- **Imports:** Grouped (stdlib, third-party, local) and sorted
+- **F-strings preferred:** For string formatting
+- **Dataclasses:** Use for data containers (not dicts)
+- **Enums:** Use for constants/states
+
+### Error Handling Pattern
+```python
+try:
+    result = risky_operation()
+    logger.info("Operation succeeded", extra={"result": result})
+    return result
+except SpecificError as e:
+    logger.error(f"Operation failed: {e}", exc_info=True)
+    raise CustomException(f"Context: {e}") from e
+```
+
+### Logging Pattern
+```python
+import structlog
+logger = structlog.get_logger(__name__)
+
+# Good
+logger.info("etl_started", source="ui_claims", vintage_date="2025-11-01")
+logger.error("validation_failed", error=str(e), file=file_path)
+
+# Bad
+print("Starting ETL...")  # Never use print()
+logger.info(f"Error: {e}")  # Not structured
+```
+
+### Testing Pattern
+```python
+# File: tests/{module}/test_{feature}.py
+import pytest
+from unittest.mock import Mock, patch
+
+class TestFeatureName:
+    @pytest.fixture
+    def sample_data(self):
+        """Provide test data"""
+        return {...}
+    
+    def test_happy_path(self, sample_data):
+        """Test normal operation"""
+        result = function(sample_data)
+        assert result is not None
+        assert result["key"] == expected_value
+    
+    def test_error_handling(self):
+        """Test error cases"""
+        with pytest.raises(ValueError):
+            function(invalid_input)
+    
+    @patch('module.external_call')
+    def test_with_mock(self, mock_call):
+        """Test with mocked dependencies"""
+        mock_call.return_value = {...}
+        result = function()
+        mock_call.assert_called_once()
+```
+
+## DATA STANDARDS
+
+### Vintage Data (IMMUTABLE)
+- **Path:** `data/vintages/YYYY-MM-DD/{source}/`
+- **Rule:** NEVER modify existing vintages
+- **Format:** Parquet preferred (efficient, typed)
+- **Metadata:** Include `vintage_date`, `ingestion_timestamp`, `source`
+- **Validation:** Hash verification for determinism tests
+
+### ETL Patterns
+- **Inherit from:** `etl.common.base.BaseETL`
+- **Implement:** `extract()`, `transform()`, `validate()`, `load()`
+- **Storage:** MinIO/S3 via `StorageClient`
+- **Logging:** All operations to `logs.ingestion_log` table
+- **Validation:** Use validators from `etl.validators/`
+
+### Seasonal Adjustment
+- **Tool:** X-13ARIMA-SEATS (containerized microservice)
+- **Specs:** Store in `seasonal/specs/` (version controlled)
+- **Regressors:** Holidays, strikes, weather (built dynamically)
+- **Diagnostics:** M-stats, Q-statistics must be recorded
+- **Golden baseline:** Record diagnostics for regression tests
+
+## DEVELOPMENT WORKFLOW
+
+### Step-by-Step Approach
+1. **Understand the task:** Read relevant docs (`docs/planning/IMPLEMENTATION_STATUS.md`)
+2. **Check phase blockers:** Respect Go/No-Go gates
+3. **Design before coding:** Think through architecture
+4. **Implement with tests:** Write tests alongside code (Phase 3.5+)
+5. **Verify quality:** Type hints, docstrings, error handling
+6. **Update docs:** Keep `IMPLEMENTATION_STATUS.md` current
+7. **Run validation:** Linting, type checking, tests
+
+### Testing Strategy (ALL Phases)
+**Tests are NOT optional. Write tests WITH features, not after.**
+
+- **Unit tests:** Test individual functions/classes in isolation
+- **Integration tests:** Test module interactions
+- **End-to-end tests:** Test full pipelines
+- **Regression tests:** Golden data comparison (vintage, seasonal diagnostics)
+- **Performance tests:** Ensure pipelines complete within SLAs
+- **Mock external calls:** No actual API/network calls in tests
+- **Coverage target:** 80%+ before production deployment
+
+**Testing Philosophy:**
+- TDD preferred for complex logic (write test first)
+- Test alongside for features (not as afterthought)
+- Every bug fix includes regression test
+- Golden baselines for determinism (vintage hashes, M-stats)
+
+### Git Workflow
+- **Commits:** Atomic, descriptive messages
+- **Branches:** Feature branches for new work
+- **NO force push:** To main/master (ever)
+- **NO --no-verify:** Run hooks unless explicitly requested
+- **Testing before commit:** All tests must pass
+
+## CRITICAL REFERENCES
+
+### Key Documentation (READ THESE)
+- `docs/planning/IMPLEMENTATION_STATUS.md` - Current phase, tasks, blockers
+- `docs/planning/REPO_SCAFFOLDING.md` - Complete directory structure
+- `docs/planning/SUBNET_ADAPTER_REFACTOR.md` - Adapter pattern decision
+- `docs/5_PILLARS.md` - Architecture principles
+- `docs/PROJECT_INSTRUCTIONS.md` - Build specifications
+- `docs/AGENTS_AND_OPS_RUNBOOK.md` - Agent automation details
+- `docs/ACCURACY_MAP.md` - Accuracy targets and expectations
+
+### Quick Reference Files
+- `Makefile` - All available commands (47+ targets)
+- `docker-compose.yml` - Service definitions
+- `requirements.txt` - Pinned dependencies
+- `.env.example` - Environment variables template
+
+## COMMON TASKS & COMMANDS
+
+### Development
+```bash
+make up              # Start all Docker services
+make seed            # Run initial data ingestion
+make seasonal        # Run X-13 seasonal adjustment
+make test            # Run test suite
+make lint            # Run linting (ruff, mypy)
+make format          # Format code (black, isort)
+```
+
+### Testing (Phase 3.5 Focus)
+```bash
+pytest tests/etl/                    # Test ETL pipelines
+pytest tests/seasonal/               # Test seasonal adjustment
+pytest tests/validators/             # Test validation framework
+pytest --cov=etl --cov-report=html   # Coverage report
+```
+
+### Data Operations
+```bash
+python scripts/seed_public_data.py            # Seed all public data
+python scripts/run_seasonal_adjustment.py     # Run X-13 batch
+python scripts/test_pipelines.py             # Quick validation
+```
+
+## ANTI-PATTERNS (NEVER DO)
+
+### ❌ Hardcoded Values
+```python
+# Bad
+if source == "sn41":
+    bins = [-200, -100, 0, 100, 200, 300]
+
+# Good
+config = load_yaml(f"configs/subnets/{subnet_id}.yaml")
+bins = config["events"][event_id]["bins"]
+```
+
+### ❌ Modifying Vintage Data
+```python
+# Bad
+df = pd.read_parquet(f"data/vintages/2025-10-01/ces/data.parquet")
+df["new_column"] = ...
+df.to_parquet(f"data/vintages/2025-10-01/ces/data.parquet")  # NEVER!
+
+# Good
+df = pd.read_parquet(f"data/vintages/2025-10-01/ces/data.parquet")
+df["new_column"] = ...
+df.to_parquet(f"data/features/ces_with_new_column.parquet")  # New file
+```
+
+### ❌ Skipping Tests
+```python
+# Bad: Write feature code without tests
+
+# Good: Write tests alongside (or before) feature code
+# 1. Write test: tests/features/test_midas_lags.py
+# 2. Implement: features/midas/lag_constructor.py
+# 3. Verify: pytest tests/features/test_midas_lags.py
+```
+
+### ❌ Subnet-Specific Logic Outside Adapters
+```python
+# Bad
+def build_payload(predictions):
+    if subnet == "sn41":
+        return build_sn41_payload(predictions)
+    elif subnet == "sn18":
+        return build_sn18_payload(predictions)
+
+# Good
+adapter = registry.get_adapter(os.getenv("ACTIVE_SUBNET"))
+payload = adapter.build_payload(predictions)
+```
+
+### ❌ Print Statements
+```python
+# Bad
+print("Processing file...")
+print(f"Error: {e}")
+
+# Good
+logger.info("processing_file", file=filename)
+logger.error("processing_failed", error=str(e), exc_info=True)
+```
+
+## CONTEXTUAL GUIDELINES
+
+### When Adding New Data Sources
+1. Create ETL pipeline inheriting from `BaseETL`
+2. Implement all abstract methods
+3. Add validators (schema, freshness, quality)
+4. Write comprehensive tests (unit + integration)
+5. Update `scripts/seed_public_data.py`
+6. Document in `docs/FORECASTING_CAPABILITIES.md`
+
+### When Adding New Features
+1. Design feature in `features/` module
+2. Use feature registry (`features/registry.py`)
+3. Ensure deterministic computation (no randomness)
+4. Write tests first (TDD preferred)
+5. Document feature engineering logic
+6. Validate on historical vintages
+
+### When Adding New Models
+1. Place in `models_src/{model_type}/`
+2. Implement training + inference + serialization
+3. Log to MLflow (hyperparams, metrics, artifacts)
+4. Include calibration layer (conformal prediction)
+5. Write extensive tests (no data leakage!)
+6. Backtest on vintage data before deployment
+
+### When Adding New Subnet
+1. Create `subnets/{subnet_id}/adapter.py` (implement `BaseSubnetAdapter`)
+2. Create `configs/subnets/{subnet_id}.yaml`
+3. Register in `subnets/registry.py`
+4. Write subnet-specific tests
+5. Document in `docs/SUBNET_INTEGRATION.md`
+6. Dry-run: `ACTIVE_SUBNET={subnet_id} python scripts/submit_to_subnet.py --dry-run`
+
+## AGENT BEHAVIOR RULES
+
+### Before Starting Any Task
+1. ✅ Read `IMPLEMENTATION_STATUS.md` - Know current phase & blockers
+2. ✅ Check if Go/No-Go gate is blocking progress
+3. ✅ Verify prerequisites are complete
+4. ✅ Understand the task in context of overall architecture
+
+### While Working
+1. ✅ Follow architecture patterns (adapters, separation of concerns)
+2. ✅ Write tests alongside code (not after)
+3. ✅ Use structured logging (never print statements)
+4. ✅ Respect vintage data immutability
+5. ✅ Use configuration files (never hardcode)
+
+### After Completing Work
+1. ✅ Update `IMPLEMENTATION_STATUS.md` - Mark tasks as `[x]`
+2. ✅ Run tests and ensure they pass
+3. ✅ Verify code quality checklist
+4. ✅ Update documentation if architecture changed
+
+### Code Quality Checklist (Every File)
+- [ ] Type hints on all functions
+- [ ] Docstrings (Google/NumPy style)
+- [ ] Error handling with logging
+- [ ] Input validation
+- [ ] Tests written (unit + integration)
+- [ ] No hardcoded values (use config)
+- [ ] Structured logging (not print)
+- [ ] No data leakage (use proper vintages)
+
+### Communication Style
+- **Concise:** Clear, direct, minimal words
+- **Actionable:** Specific next steps
+- **Honest:** Acknowledge blockers and unknowns
+- **Technical:** Use precise terminology
+- **Structured:** Use tables, lists, code blocks
+
+## ACCURACY EXPECTATIONS
+
+### Target Accuracy (NFP Forecasting)
+- **Elite tier:** sMAPE < 15%, RMSE < 50K
+- **Good tier:** sMAPE 15-25%, RMSE 50-100K
+- **Baseline:** sMAPE > 25%, RMSE > 100K
+
+### Model Requirements
+- Prediction intervals (80%, 90%, 95%)
+- Calibration: observed coverage ≈ nominal coverage
+- Coherence: forecasts logically consistent
+- Stability: low revision rates
+- Transparency: explainable predictions
+
+### Deployment Gates (CI/CD)
+- sMAPE < 20% (hard blocker)
+- 90% PI coverage: 85-95% (hard blocker)
+- Probability coherence: sum = 1.0 ± 0.001
+- Revision error < 30K
+- Calibration ECE < 0.05
+
+## SPECIAL ARCHITECTURAL NOTES
+
+### Vintage Determinism (CRITICAL)
+**Reproducibility is non-negotiable.**
+- Vintage data is immutable (never modify `data/vintages/`)
+- Pin specific vintage date for CI/CD testing
+- Use SHA256 hashes to verify data hasn't changed
+- Golden baselines: Record expected outputs for regression tests
+- Same vintage + same config = identical output (always)
+
+### Golden Seasonal Diagnostics (CRITICAL)
+**Baseline seasonal adjustment quality for regression testing.**
+- Record M-statistics (M1-M11) for all series
+- Record Q-statistics (Ljung-Box test results)
+- Store in `tests/fixtures/golden_seasonal_diagnostics.json`
+- CI compares current vs. golden (within acceptable tolerance)
+- Degradation = test failure (hard blocker)
+
+### Multi-Zone Architecture (Security)
+**Two-zone deployment prevents data leakage.**
+- **Zone 1 (Training):** All data, private sources, model training, full codebase
+- **Zone 2 (Inference):** Signed artifacts only, subnet submission, minimal code
+- **Boundary:** Only signed model bundles cross zones
+- **Security:** No raw data or training code ever leaves Zone 1
+- Zone 2 cannot retrain or access training data
+
+## VERSION INFO
+- **Python:** 3.11+
+- **Docker:** 20.10+
+- **Key Dependencies:** pandas, numpy, scipy, scikit-learn, xgboost, lightgbm, statsmodels, mlflow, prefect
+- **Testing:** pytest, pytest-cov, pytest-xdist, pytest-mock
+- **Linting:** ruff, mypy, black, isort
+
+## FINAL REMINDER
+
+### Status is NOT Here
+**DO NOT rely on this file for project status.**
+
+✅ **Current phase, blockers, and tasks:** Read `docs/planning/IMPLEMENTATION_STATUS.md`  
+✅ **This file contains:** Timeless architecture principles and code standards
+
+### Key Principles (Never Change)
+1. **Determinism:** Same input = same output (always)
+2. **Production-Ready:** Type hints, tests, logging, error handling (always)
+3. **Testing:** Write tests WITH features (not after)
+4. **Calibration:** Probability distributions (never point forecasts alone)
+5. **Modularity:** Adapter pattern, separation of concerns, config-driven
+
+### Before You Code
+1. Read `IMPLEMENTATION_STATUS.md` - Know what phase we're in
+2. Check for blockers - Don't bypass Go/No-Go gates
+3. Understand the task - How does it fit the architecture?
+4. Write test first - Or alongside feature code
+5. Update docs - Mark tasks complete when done
+
+---
+
+**This file version:** 2025-11-11  
+**This file purpose:** Timeless principles and architecture rules  
+**For current status:** See `docs/planning/IMPLEMENTATION_STATUS.md`
+
