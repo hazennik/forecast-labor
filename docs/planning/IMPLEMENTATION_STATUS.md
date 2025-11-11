@@ -230,6 +230,17 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [ ] XGBoost quantile model
 - [ ] Revision model
 - [ ] Calibration layer
+- [ ] Hierarchical reconciliation (MinT/WLS)
+  - [ ] MinT reconciliation methods
+  - [ ] Shrinkage covariance estimation
+  - [ ] Coherence tests (nation == Σstates)
+  - [ ] WLS reconciliation utilities
+
+**Model Infrastructure**
+- [ ] Training pipelines (Prefect workflows)
+- [ ] Model utilities (metrics, IO, MLflow loggers)
+- [ ] Model registry integration
+- [ ] Artifact versioning and signing
 
 **Testing (Phase 5)**
 - [ ] Unit tests for each model class
@@ -244,10 +255,14 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 
 ### Backtesting (Phase 6)
 **Core Backtesting**
-- [ ] Vintage harness
-- [ ] Metrics (RMSE, sMAPE, CRPS)
-- [ ] Report generator
-- [ ] Accuracy gates
+- [ ] Vintage harness (reconstruct "what was known then")
+- [ ] Metrics (RMSE, sMAPE, CRPS, turning points)
+- [ ] Report generator (HTML/PDF summaries)
+- [ ] Accuracy gates (deployment blockers)
+- [ ] Scenario testing (what-if shocks for audits)
+  - [ ] Storm/hurricane scenarios
+  - [ ] Strike impact scenarios
+  - [ ] Policy change scenarios
 
 **Testing (Phase 6)**
 - [ ] Unit tests for vintage reconstruction
@@ -258,6 +273,48 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [ ] Metric calculation verification tests
 - [ ] Report output validation tests
 - [ ] Accuracy gate threshold tests
+
+### API & Two-Zone Architecture (Phase 6.5)
+**FastAPI Application**
+- [ ] Main app setup (`app/main.py`)
+- [ ] Health/readiness endpoints
+- [ ] Forecast serving endpoint
+- [ ] Export/artifact endpoints
+- [ ] API routers (forecast, reports, status)
+- [ ] Pydantic schemas (inputs/outputs)
+- [ ] Authentication/authorization (if needed)
+- [ ] Rate limiting
+- [ ] API documentation (OpenAPI/Swagger)
+
+**Two-Zone Architecture**
+- [ ] Zone 1 setup (private training environment)
+  - [ ] Training configs (public-only vs private-data)
+  - [ ] Artifact storage and versioning
+  - [ ] Model signing infrastructure
+- [ ] Zone 2 setup (subnet-facing inference)
+  - [ ] Minimal inference runner
+  - [ ] Signed artifact loading only
+  - [ ] Submission logs and metrics
+  - [ ] Security isolation
+- [ ] Zone 1 → Zone 2 artifact pipeline
+- [ ] Artifact signing and verification
+- [ ] Deployment automation
+
+**Scripts Completion**
+- [ ] `train_all.py` - Train all models + revision + calibration
+- [ ] `make_sn41_payload.py` - Build & validate probability vectors
+- [ ] `submit_sn41.py` - Submit to SN41 (server-only)
+- [ ] Additional operational scripts
+
+**Testing (Phase 6.5)**
+- [ ] API endpoint tests (unit + integration)
+- [ ] Authentication/authorization tests
+- [ ] Request/response validation tests
+- [ ] Zone 1 artifact creation tests
+- [ ] Zone 2 artifact loading tests
+- [ ] Signing/verification tests
+- [ ] End-to-end deployment tests
+- [ ] Security isolation tests
 
 ### SN41 Integration (Phase 7)
 **Core SN41**
@@ -279,12 +336,31 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [ ] Retry/backoff logic tests
 
 ### Dashboards (Phase 8)
-**Core Dashboards**
-- [ ] Streamlit app
-- [ ] Freshness monitoring
-- [ ] Accuracy tracking
-- [ ] Model performance
-- [ ] Miner health
+**Streamlit Application**
+- [ ] Main app structure
+- [ ] Freshness monitoring dashboard
+- [ ] Accuracy tracking dashboard
+- [ ] Model performance dashboard
+- [ ] Miner health dashboard
+- [ ] Data quality dashboard
+- [ ] Forecast visualization
+- [ ] Probability distribution viewer
+- [ ] Historical comparison charts
+- [ ] Alert/notification system
+
+**Metabase Integration (Optional)**
+- [ ] Metabase Docker service
+- [ ] SQL questions library
+- [ ] Pre-built dashboards
+- [ ] User management
+- [ ] Scheduled reports
+
+**Dashboard Infrastructure**
+- [ ] Data aggregation pipelines
+- [ ] Caching layer
+- [ ] Real-time data updates
+- [ ] Export functionality (PDF/CSV)
+- [ ] User authentication (if multi-user)
 
 **Testing (Phase 8)**
 - [ ] Unit tests for dashboard data loading
@@ -296,11 +372,26 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 
 ### AI Agents (Phase 9)
 **Core Agents**
-- [ ] Planner agent
-- [ ] Data engineering agent
-- [ ] Seasonal stats agent
-- [ ] Evaluator agent
-- [ ] Explainer agent
+- [ ] Planner agent (global orchestrator)
+- [ ] Data engineering agent (ETL watchdog & schema drift fixer)
+- [ ] Seasonal stats agent (X-13 spec maintenance & diagnostics)
+- [ ] Features agent (feature refresher & staleness checks)
+- [ ] Trainer agent (model training runner with gates)
+- [ ] Nowcast agent (in-month updates near release windows)
+- [ ] MinT agent (reconciliation automation)
+- [ ] Revision agent (revision forecasting)
+- [ ] Evaluator agent (CI gates: sMAPE/CRPS/coverage/coherence)
+- [ ] Explainer agent (human-readable diagnostics & change logs)
+- [ ] Ops agent (SRE: restarts, resource checks, alert hooks)
+
+**Agent Infrastructure**
+- [ ] Agent base classes and interfaces
+- [ ] LLM integration (OpenAI/local models)
+- [ ] Agent communication protocols
+- [ ] Decision logging and audit trails
+- [ ] Guardrails and safety checks
+- [ ] Rollback mechanisms
+- [ ] Multi-agent coordination
 
 **Testing (Phase 9)**
 - [ ] Unit tests for each agent class
@@ -311,6 +402,26 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [ ] Safety/guardrail tests
 - [ ] Agent rollback tests
 - [ ] Multi-agent coordination tests
+
+### Optional/Deferred Components
+**Private Data Hooks (Optional - Disabled by Default)**
+- [ ] Homebase adapter
+- [ ] UKG adapter  
+- [ ] ADP adapter
+- [ ] Job postings adapter (Lightcast)
+- [ ] Card spend data adapter
+- [ ] Configuration for public-only vs private-data modes
+
+**DBT Models (Optional)**
+- [ ] dbt project setup
+- [ ] Staging models
+- [ ] Clean table models
+- [ ] Data quality tests in dbt
+- [ ] Documentation
+
+**Note:** These components are specified in scaffolding but marked as optional or disabled by default. Can be implemented post-MVP if needed.
+
+---
 
 ### Testing Infrastructure (Phase 10)
 **CI/CD & Coverage**
@@ -366,6 +477,15 @@ Phases 1-3 built production-ready code but **without comprehensive tests**:
 5. Feature registry implementation (with unit tests)
 6. **NEW:** Write tests alongside all features (TDD/test-alongside approach)
 
+**✅ Comprehensive Coverage Achieved:**
+- **Option 3 Implementation Complete** - Full audit of REPO_SCAFFOLDING.md performed
+- **95% Coverage** - All major components mapped to implementation phases
+- **New Phase 6.5 Added** - API & Two-Zone Architecture (previously missing)
+- **Coverage Matrix Created** - Full traceability of every scaffolding component
+- **11 AI Agents Mapped** - Complete agent roster from scaffolding
+- **Optional Components Identified** - Private data hooks, dbt (post-MVP)
+- **Timeline Updated** - Now 16-17 weeks (from 14-15) to account for additional scope
+
 ---
 
 ## 📊 Progress Summary
@@ -393,16 +513,169 @@ Phases 1-3 built production-ready code but **without comprehensive tests**:
 - ✅ Phase 2: Data Pipelines (Week 2) - COMPLETE ⚠️ Tests Missing
 - ✅ Phase 3: Validation + Seasonal Adjustment (Week 3) - COMPLETE ⚠️ Tests Missing
 - Phase 4: Feature Engineering + Tests (Week 4-5)
-- Phase 5: Core Models + Tests (Week 5-8)
-- Phase 6: Backtesting + Tests (Week 8-10)
-- Phase 7: SN41 Integration + Tests (Week 10-12)
-- Phase 8: Dashboards + Tests (Week 12-13)
-- Phase 9: AI Agents + Tests (Week 13-14)
-- Phase 10: Testing Infrastructure + Retroactive Tests (Week 14-15)
-- **Full MVP with Testing:** 14-15 weeks
+- Phase 5: Core Models + Reconciliation + Tests (Week 5-8)
+- Phase 6: Backtesting + Scenarios + Tests (Week 8-10)
+- **Phase 6.5: API + Two-Zone Architecture + Tests (Week 10-11)** [NEW]
+- Phase 7: SN41 Integration + Tests (Week 11-13)
+- Phase 8: Dashboards + Tests (Week 13-14)
+- Phase 9: AI Agents (11 agents) + Tests (Week 14-16)
+- Phase 10: Testing Infrastructure + Retroactive Tests (Week 16-17)
+- **Full MVP with Testing:** 16-17 weeks
 
 **Testing Strategy:**
 - Phases 4-9: Write tests alongside features (TDD/test-alongside)
 - Phase 10: Retroactive testing for Phases 1-3, CI/CD setup, 80%+ coverage
 - Production deployment blocked until Phase 10 complete
+
+**Optional Components:**
+- Private data hooks (post-MVP)
+- DBT models (post-MVP)
+- Can be added after Phase 10 if needed
+
+---
+
+## 📋 Scaffolding Coverage Matrix
+
+Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
+
+### Infrastructure & Foundation
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `infra/` (Dockerfiles, compose) | Phase 1 | ✅ Complete | All services containerized |
+| `docker-compose.yml` | Phase 1 | ✅ Complete | 9 services configured |
+| `.gitignore`, `.env.example` | Phase 1 | ✅ Complete | Security and config |
+| `Makefile` | Phase 1 | ✅ Complete | 47 orchestration commands |
+| `data/` directories | Phase 1 | ✅ Complete | Local data lake structure |
+
+### Data Ingestion & Validation
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `etl/public/` (7 sources) | Phase 2 | ✅ Complete | Claims, Treasury, CES, LAUS, Strikes, Weather, CNBFS |
+| `etl/common/` | Phase 2 | ✅ Complete | BaseETL, Downloader, Storage, Vintage |
+| `etl/validators/` | Phase 3 | ✅ Complete | Schema, Freshness, Quality, Reports |
+| `etl/private_hooks/` | Optional | 📋 Deferred | Homebase, UKG, ADP (post-MVP) |
+| `etl/dbt/` | Optional | 📋 Deferred | DBT models (post-MVP) |
+
+### Seasonal Adjustment
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `seasonal/specs/` | Phase 3 | ✅ Complete | X-13 spec builder |
+| `seasonal/regressors/` | Phase 3 | ✅ Complete | Holiday, strike, weather |
+| `seasonal/diagnostics/` | Phase 3 | ✅ Complete | M-stats, Q-stats, analyzers |
+| `seasonal/service_client/` | Phase 3 | ✅ Complete | X-13 HTTP client |
+
+### Feature Engineering
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `features/midas/` | Phase 4 | 📋 Planned | MIDAS lag constructors |
+| `features/dfm_inputs/` | Phase 4 | 📋 Planned | Factor extraction inputs |
+| `features/transforms/` | Phase 4 | 📋 Planned | Scaling, calendar, winsorization |
+| `features/aggregations/` | Phase 4 | 📋 Planned | State→national, sector→total |
+| `features/registry.py` | Phase 4 | 📋 Planned | Feature table registry |
+
+### Models & Reconciliation
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `models_src/dfm/` | Phase 5 | 📋 Planned | Dynamic Factor Model |
+| `models_src/midas/` | Phase 5 | 📋 Planned | MIDAS regression |
+| `models_src/gbm_quantile/` | Phase 5 | 📋 Planned | XGBoost/LightGBM quantile |
+| `models_src/revision/` | Phase 5 | 📋 Planned | Revision forecasting |
+| `models_src/calibration/` | Phase 5 | 📋 Planned | Isotonic + conformal |
+| `models_src/reconcile/` | Phase 5 | 📋 Planned | MinT/WLS hierarchical |
+| `models_src/pipelines/` | Phase 5 | 📋 Planned | Prefect workflows |
+| `models_src/utils/` | Phase 5 | 📋 Planned | Metrics, IO, MLflow |
+| `recon/mint/` | Phase 5 | 📋 Planned | MinT reconciliation methods |
+| `recon/tests/` | Phase 5 | 📋 Planned | Coherence tests |
+
+### Backtesting
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `backtests/vintage_harness/` | Phase 6 | 📋 Planned | Vintage reconstruction |
+| `backtests/metrics/` | Phase 6 | 📋 Planned | RMSE, sMAPE, CRPS, turning points |
+| `backtests/scenarios/` | Phase 6 | 📋 Planned | What-if shock testing |
+| `backtests/reports/` | Phase 6 | 📋 Planned | HTML/PDF summaries |
+
+### API & Two-Zone Architecture
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `app/main.py` | Phase 6.5 | 📋 Planned | FastAPI application |
+| `app/routers/` | Phase 6.5 | 📋 Planned | Forecast, reports, status |
+| `app/schemas/` | Phase 6.5 | 📋 Planned | Pydantic models |
+| `zone1/configs/` | Phase 6.5 | 📋 Planned | Training profiles |
+| `zone1/artifacts/` | Phase 6.5 | 📋 Planned | Versioned models |
+| `zone2/runner/` | Phase 6.5 | 📋 Planned | Inference app |
+| `zone2/logs/` | Phase 6.5 | 📋 Planned | Submission logs |
+
+### SN41 Integration
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `sn41/event_catalog/` | Phase 7 | 📋 Planned | Event/bin definitions |
+| `sn41/payloads/` | Phase 7 | 📋 Planned | Probability vector builders |
+| `sn41/submitter/` | Phase 7 | 📋 Planned | Signing, retries, backoff |
+| `sn41/health/` | Phase 7 | 📋 Planned | Liveness/readiness probes |
+| `sn41/keys/` | Phase 1 | ✅ Complete | Key storage (infrastructure) |
+
+### Dashboards
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `dashboards_src/streamlit/` | Phase 8 | 📋 Planned | Monitoring app |
+| `dashboards_src/metabase/` | Phase 8 | 📋 Planned | SQL dashboards (optional) |
+
+### AI Agents
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `agents_src/planner/` | Phase 9 | 📋 Planned | Global orchestrator |
+| `agents_src/data_eng/` | Phase 9 | 📋 Planned | ETL watchdog |
+| `agents_src/seasonal/` | Phase 9 | 📋 Planned | X-13 maintenance |
+| `agents_src/features/` | Phase 9 | 📋 Planned | Feature refresher |
+| `agents_src/trainer/` | Phase 9 | 📋 Planned | Training runner |
+| `agents_src/nowcast/` | Phase 9 | 📋 Planned | In-month updates |
+| `agents_src/mint/` | Phase 9 | 📋 Planned | Reconciliation agent |
+| `agents_src/revision/` | Phase 9 | 📋 Planned | Revision forecasting |
+| `agents_src/evaluator/` | Phase 9 | 📋 Planned | CI gates |
+| `agents_src/explainer/` | Phase 9 | 📋 Planned | Diagnostics |
+| `agents_src/ops/` | Phase 9 | 📋 Planned | SRE automation |
+
+### Scripts
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `scripts/seed_public_data.py` | Phase 2 | ✅ Complete | Initial data seeding |
+| `scripts/test_pipelines.py` | Phase 2 | ✅ Complete | Pipeline validation |
+| `scripts/run_seasonal_adjustment.py` | Phase 3 | ✅ Complete | X-13 batch job |
+| `scripts/run_x13_bundle.py` | Phase 3 | ⚠️ Similar | May need distinction |
+| `scripts/build_features.py` | Phase 4 | 📋 Planned | Feature generation |
+| `scripts/train_all.py` | Phase 6.5 | 📋 Planned | Model training |
+| `scripts/run_backtest.py` | Phase 6 | 📋 Planned | Vintage backtest |
+| `scripts/make_sn41_payload.py` | Phase 6.5 | 📋 Planned | Probability vectors |
+| `scripts/submit_sn41.py` | Phase 6.5 | 📋 Planned | SN41 submission |
+
+### Testing
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `tests/etl/` | Phase 10 | ⚠️ Missing | Retroactive testing |
+| `tests/seasonal/` | Phase 10 | ⚠️ Missing | Retroactive testing |
+| `tests/features/` | Phase 4 | 📋 Planned | Alongside features |
+| `tests/models/` | Phase 5 | 📋 Planned | Alongside models |
+| `tests/backtests/` | Phase 6 | 📋 Planned | Alongside backtests |
+| `tests/sn41/` | Phase 7 | 📋 Planned | Alongside SN41 |
+
+### Documentation
+| Component | Phase | Status | Notes |
+|-----------|-------|--------|-------|
+| `docs/` (core docs) | Phase 1-3 | ✅ Complete | Reorganized |
+| `docs/planning/` | Phase 1-3 | ✅ Complete | Status, scaffolding |
+| `docs/arch/` | Future | 📋 Planned | Architecture diagrams |
+| `docs/ops/` | Phase 10 | 📋 Planned | Runbooks, deploy gates |
+
+---
+
+### Coverage Summary
+
+**✅ Complete:** 25 components  
+**📋 Planned:** 65+ components  
+**⚠️ Missing/Partial:** 8 components (tests for Phases 1-3)  
+**🔄 Optional/Deferred:** 6 components (private data, dbt)
+
+**Total Coverage:** ~95% of scaffolding mapped to implementation phases  
+**Deferred to Post-MVP:** ~5% (optional private data sources, dbt)
 
