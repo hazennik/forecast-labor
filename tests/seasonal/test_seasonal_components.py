@@ -1,0 +1,332 @@
+"""
+Tests for seasonal adjustment framework components.
+
+Covers SpecBuilder, Regressors, Diagnostics with mocked X-13 service.
+"""
+
+import tempfile
+from datetime import date, datetime
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from seasonal.spec_builder import SpecBuilder
+from seasonal.regressors.holiday_regressors import HolidayRegressorBuilder
+from seasonal.regressors.strike_regressors import StrikeRegressorBuilder
+from seasonal.regressors.weather_regressors import WeatherRegressorBuilder
+from seasonal.diagnostics.analyzers import MStatAnalyzer, QStatAnalyzer, StabilityAnalyzer
+
+
+@pytest.mark.unit
+@pytest.mark.seasonal
+class TestSpecBuilder:
+    """Tests for X-13 SpecBuilder"""
+    
+    def test_spec_builder_creation(self):
+        """Test creating spec builder"""
+        builder = SpecBuilder(
+            series_id="TEST001",
+            frequency="monthly"
+        )
+        
+        assert builder.series_id == "TEST001"
+        assert builder.frequency == "monthly"
+    
+    def test_build_basic_spec(self):
+        """Test building basic X-13 spec"""
+        builder = SpecBuilder(
+            series_id="TEST001",
+            frequency="monthly"
+        )
+        
+        data = pd.Series(
+            range(120),
+            index=pd.date_range("2010-01-01", periods=120, freq="MS")
+        )
+        
+        spec = builder.build_spec(data)
+        
+        assert spec is not None
+        assert isinstance(spec, str)
+        assert "series" in spec.lower()
+        assert "x11" in spec.lower() or "seats" in spec.lower()
+
+
+@pytest.mark.unit
+@pytest.mark.seasonal
+class TestHolidayRegressors:
+    """Tests for holiday regressors"""
+    
+    def test_holiday_regressor_creation(self):
+        """Test creating holiday regressor builder"""
+        builder = HolidayRegressorBuilder()
+        
+        assert builder is not None
+    
+    def test_easter_regressor_generation(self):
+        """Test generating Easter regressors"""
+        builder = HolidayRegressorBuilder()
+        
+        date_range = pd.date_range("2020-01-01", "2024-12-31", freq="MS")
+        
+        regressor = builder.build_easter_regressor(date_range)
+        
+        assert regressor is not None
+        assert len(regressor) == len(date_range)
+    
+    def test_thanksgiving_regressor_generation(self):
+        """Test generating Thanksgiving regressors"""
+        builder = HolidayRegressorBuilder()
+        
+        date_range = pd.date_range("2020-01-01", "2024-12-31", freq="MS")
+        
+        regressor = builder.build_thanksgiving_regressor(date_range)
+        
+        assert regressor is not None
+        assert len(regressor) == len(date_range)
+
+
+@pytest.mark.unit
+@pytest.mark.seasonal
+class TestStrikeRegressors:
+    """Tests for strike impact regressors"""
+    
+    @pytest.fixture
+    def mock_strike_data(self):
+        """Mock strike data"""
+        return pd.DataFrame({
+            "date": pd.to_datetime(["2020-03-01", "2021-06-01"]),
+            "workers_involved": [10000, 5000],
+            "days_idle": [50000, 25000]
+        })
+    
+    def test_strike_regressor_creation(self, mock_strike_data):
+        """Test creating strike regressor"""
+        builder = StrikeRegressorBuilder(mock_strike_data)
+        
+        assert builder is not None
+    
+    def test_strike_impact_calculation(self, mock_strike_data):
+        """Test calculating strike impacts"""
+        builder = StrikeRegressorBuilder(mock_strike_data)
+        
+        date_range = pd.date_range("2020-01-01", "2022-12-31", freq="MS")
+        
+        regressor = builder.build_strike_regressor(date_range)
+        
+        assert regressor is not None
+        assert len(regressor) == len(date_range)
+
+
+@pytest.mark.unit
+@pytest.mark.seasonal
+class TestWeatherRegressors:
+    """Tests for weather/storm impact regressors"""
+    
+    @pytest.fixture
+    def mock_weather_data(self):
+        """Mock weather event data"""
+        return pd.DataFrame({
+            "date": pd.to_datetime(["2020-08-01", "2021-09-01"]),
+            "event_type": ["Hurricane", "Hurricane"],
+            "deaths": [100, 50],
+            "damage_property": [50000000000, 25000000000]
+        })
+    
+    def test_weather_regressor_creation(self, mock_weather_data):
+        """Test creating weather regressor"""
+        builder = WeatherRegressorBuilder(mock_weather_data)
+        
+        assert builder is not None
+    
+    def test_weather_impact_calculation(self, mock_weather_data):
+        """Test calculating weather impacts"""
+        builder = WeatherRegressorBuilder(mock_weather_data)
+        
+        date_range = pd.date_range("2020-01-01", "2022-12-31", freq="MS")
+        
+        regressor = builder.build_weather_regressor(date_range)
+        
+        assert regressor is not None
+        assert len(regressor) == len(date_range)
+
+
+@pytest.mark.unit
+@pytest.mark.seasonal
+class TestDiagnosticAnalyzers:
+    """Tests for diagnostic analyzers"""
+    
+    @pytest.fixture
+    def mock_m_statistics(self):
+        """Mock M-statistics from X-13"""
+        return {
+            "m1": 0.15,
+            "m2": 0.20,
+            "m3": 0.50,
+            "m4": 0.45,
+            "m5": 0.30,
+            "m6": 0.25,
+            "m7": 0.35,
+            "m8": 0.40,
+            "m9": 0.20,
+            "m10": 0.55,
+            "m11": 0.60,
+            "q": 0.42
+        }
+    
+    def test_m_stat_analyzer_creation(self):
+        """Test creating M-stat analyzer"""
+        analyzer = MStatAnalyzer()
+        
+        assert analyzer is not None
+    
+    def test_m_stat_quality_assessment(self, mock_m_statistics):
+        """Test M-stat quality assessment"""
+        analyzer = MStatAnalyzer()
+        
+        quality = analyzer.assess_quality(mock_m_statistics)
+        
+        assert quality is not None
+        assert "overall_quality" in quality or isinstance(quality, (str, dict))
+    
+    def test_q_stat_analyzer_creation(self):
+        """Test creating Q-stat analyzer"""
+        analyzer = QStatAnalyzer()
+        
+        assert analyzer is not None
+    
+    def test_q_stat_significance_check(self, mock_m_statistics):
+        """Test Q-stat significance check"""
+        analyzer = QStatAnalyzer()
+        
+        # Q-statistic should be checked for significance
+        is_significant = analyzer.check_significance(mock_m_statistics.get("q", 0))
+        
+        assert isinstance(is_significant, bool)
+    
+    def test_stability_analyzer_creation(self):
+        """Test creating stability analyzer"""
+        analyzer = StabilityAnalyzer()
+        
+        assert analyzer is not None
+
+
+@pytest.mark.integration
+@pytest.mark.seasonal
+class TestSeasonalPipelineIntegration:
+    """Integration tests for complete seasonal adjustment pipeline"""
+    
+    @pytest.fixture
+    def sample_series(self):
+        """Sample time series for seasonal adjustment"""
+        # Create series with clear seasonal pattern
+        dates = pd.date_range("2010-01-01", periods=120, freq="MS")
+        trend = pd.Series(range(120)) * 100 + 150000
+        seasonal = pd.Series([100 * (i % 12 - 6) for i in range(120)])
+        noise = pd.Series(np.random.normal(0, 500, 120))
+        
+        series = trend + seasonal + noise
+        series.index = dates
+        
+        return series
+    
+    def test_spec_builder_with_regressors(self, sample_series):
+        """Test spec builder with regressors"""
+        builder = SpecBuilder(
+            series_id="TEST001",
+            frequency="monthly"
+        )
+        
+        # Add regressors
+        holiday_builder = HolidayRegressorBuilder()
+        easter_reg = holiday_builder.build_easter_regressor(sample_series.index)
+        
+        builder.add_regressor("easter", easter_reg)
+        
+        spec = builder.build_spec(sample_series)
+        
+        assert "regression" in spec.lower() or "easter" in spec.lower()
+    
+    def test_complete_seasonal_workflow_mock(self, sample_series):
+        """Test complete workflow with mocked X-13 service"""
+        # Build spec
+        builder = SpecBuilder(
+            series_id="TEST001",
+            frequency="monthly"
+        )
+        
+        spec = builder.build_spec(sample_series)
+        
+        assert spec is not None
+        
+        # Mock X-13 output
+        mock_output = {
+            "seasonally_adjusted": sample_series * 0.98,
+            "seasonal_factors": pd.Series([1.0] * len(sample_series)),
+            "diagnostics": {
+                "m1": 0.15,
+                "m2": 0.20,
+                "q": 0.42
+            }
+        }
+        
+        # Analyze diagnostics
+        analyzer = MStatAnalyzer()
+        quality = analyzer.assess_quality(mock_output["diagnostics"])
+        
+        assert quality is not None
+
+
+@pytest.mark.integration
+@pytest.mark.seasonal
+@pytest.mark.slow
+class TestSeasonalAdjustmentWithData:
+    """Integration tests with realistic data patterns"""
+    
+    def test_adjustment_with_strike_impact(self):
+        """Test seasonal adjustment with strike impacts"""
+        # Create series with strike distortion
+        dates = pd.date_range("2020-01-01", periods=48, freq="MS")
+        series = pd.Series(range(48)) * 100 + 150000
+        
+        # Add strike impact in month 24
+        series.iloc[24] -= 50000
+        series.index = dates
+        
+        # Build regressor
+        strike_data = pd.DataFrame({
+            "date": [dates[24]],
+            "workers_involved": [10000],
+            "days_idle": [50000]
+        })
+        
+        strike_builder = StrikeRegressorBuilder(strike_data)
+        strike_reg = strike_builder.build_strike_regressor(dates)
+        
+        # Should have non-zero values at strike month
+        assert strike_reg[24] > 0
+    
+    def test_adjustment_with_hurricane_impact(self):
+        """Test seasonal adjustment with hurricane impacts"""
+        # Create series
+        dates = pd.date_range("2020-01-01", periods=48, freq="MS")
+        series = pd.Series(range(48)) * 100 + 150000
+        series.index = dates
+        
+        # Add hurricane event
+        weather_data = pd.DataFrame({
+            "date": [dates[30]],
+            "event_type": ["Hurricane"],
+            "deaths": [100],
+            "damage_property": [50000000000]
+        })
+        
+        weather_builder = WeatherRegressorBuilder(weather_data)
+        weather_reg = weather_builder.build_weather_regressor(dates)
+        
+        # Should have non-zero values at hurricane month
+        assert weather_reg[30] > 0
+
