@@ -11,7 +11,7 @@ forecast-labor/
 ├─ infra/                         # Infra build files (images, IaC, compose profiles)
 │  ├─ x13/                        # Dockerfile + entrypoint for X-13 microservice
 │  ├─ models/                     # Dockerfile for training/inference workers
-│  ├─ miner/                      # Dockerfile for SN41 submitter service
+│  ├─ miner/                      # Dockerfile for subnet submitter service (any subnet)
 │  ├─ dashboards/                 # Dockerfile for Streamlit/Metabase
 │  ├─ agents/                     # Dockerfile for agent runner (optional)
 │  └─ compose/                    # Compose overrides (zone1/zone2, prod profiles)
@@ -68,11 +68,17 @@ forecast-labor/
 │  ├─ mint/                       # MinT reconciliation methods & shrinkage covariance
 │  └─ tests/                      # Coherence tests (nation == Σstates within tolerance)
 │
-├─ sn41/                          # Subnet integration (probability bins + submitter)
-│  ├─ event_catalog/              # SN41 event/bin definitions & versions
-│  ├─ payloads/                   # Probability vector builders + validators
-│  ├─ submitter/                  # Signing, retries, backoff, logging
-│  ├─ health/                     # Liveness/readiness probes & metrics
+├─ subnets/                       # Subnet integration (adapter pattern for any Bittensor subnet)
+│  ├─ base_adapter.py             # Abstract base class defining subnet interface
+│  ├─ registry.py                 # Registry to discover & load subnet adapters
+│  ├─ scheduler.py                # Handles multi-subnet scheduling & windows
+│  ├─ scoring_shim.py             # Abstraction layer for subnet-specific scoring
+│  ├─ sn41/                       # SN41-specific implementation (labor market forecasts)
+│  │  ├─ adapter.py               # SN41 adapter implementing base interface
+│  │  ├─ event_catalog.py         # SN41 event/bin definitions & versions
+│  │  ├─ payload_builder.py       # SN41 probability vector builders + validators
+│  │  ├─ config.yaml              # SN41-specific config (bins, targets, cadence)
+│  │  └─ tests/                   # SN41-specific tests
 │  └─ keys/                       # Hotkey/coldkey storage path (excluded from VCS)
 │
 ├─ agents_src/                    # AI automation & maintenance agents
@@ -92,6 +98,12 @@ forecast-labor/
 │  ├─ streamlit/                  # App: freshness, accuracy, probabilities, miner health
 │  └─ metabase/                   # SQL questions & dashboards (if used)
 │
+├─ configs/                       # Configuration files
+│  ├─ subnets/                    # Subnet-specific configurations
+│  │  ├─ sn41.yaml                # SN41 config (bins, targets, cadence, weights)
+│  │  └─ template.yaml            # Template for new subnet adapters
+│  └─ zones/                      # Zone-specific settings (training vs inference)
+│
 ├─ docs/                          # Project documentation (renders well on GitHub)
 │  ├─ ACCURACY_MAP.md             # Accuracy targets & ranges
 │  ├─ ACCURACY_DESCRIPTION.md     # Why the ceiling exists; how we hit the top end
@@ -99,6 +111,7 @@ forecast-labor/
 │  ├─ 5_PILLARS.md                # Architecture principles for elite accuracy
 │  ├─ PROJECT_INSTRUCTIONS.md     # Build spec that agents follow
 │  ├─ AGENTS_AND_OPS_RUNBOOK.md   # Agents roster, autonomy levels, ops gates
+│  ├─ SUBNET_INTEGRATION.md       # How to add new subnet adapters
 │  ├─ arch/                       # Diagrams (SVG/PNG) & two-zone notes
 │  │  ├─ architecture.svg
 │  │  └─ two_zone_architecture.md
@@ -114,8 +127,8 @@ forecast-labor/
 │  ├─ build_features.py           # Produce feature tables
 │  ├─ train_all.py                # Train DFM/MIDAS/GBM + revision + calibration
 │  ├─ run_backtest.py             # Full vintage backtest + report
-│  ├─ make_sn41_payload.py        # Build & validate probability vectors
-│  └─ submit_sn41.py              # Submit to SN41 (server-only)
+│  ├─ make_subnet_payload.py      # Build & validate subnet payloads (any subnet)
+│  └─ submit_to_subnet.py         # Submit to active subnet (server-only)
 │
 ├─ tests/                         # Unit/integration tests (PyTest)
 │  ├─ etl/                        # Schema/freshness/rowcount tests
@@ -123,7 +136,7 @@ forecast-labor/
 │  ├─ features/                   # Determinism & shape checks
 │  ├─ models/                     # Reproducibility & leakage guards
 │  ├─ backtests/                  # Metric computation & report generation
-│  └─ sn41/                       # Payload validation & bin coherence
+│  └─ subnets/                    # Adapter pattern tests, payload validation
 │
 ├─ zone1/                         # Private training zone (kept off public servers if needed)
 │  ├─ configs/                    # Training profiles (public-only vs private-data)
@@ -131,7 +144,8 @@ forecast-labor/
 │
 ├─ zone2/                         # Subnet-facing inference zone
 │  ├─ runner/                     # Minimal inference app; loads signed artifacts only
-│  └─ logs/                       # Submission logs, latencies, rewards
+│  ├─ logs/                       # Submission logs, latencies, rewards
+│  └─ active_subnet.env           # Currently active subnet configuration
 │
 └─ data/                          # Local data lake (ignored in git)
    ├─ raw/                        # Raw downloads per source
@@ -153,7 +167,8 @@ Suggested .gitignore essentials
 /data/
 /zone1/artifacts/
 /zone2/logs/
-/sn41/keys/
+/zone2/active_subnet.env
+/subnets/keys/
 /**/*.env
 /.venv
 /__pycache__/
@@ -167,7 +182,7 @@ make seasonal    # Run X-13 with regressors & diagnostics
 make features    # Build mixed-frequency features
 make train       # Train DFM/MIDAS/GBM + revision + calibration (logs to MLflow)
 make backtest    # Vintage-honest eval & report
-make submit      # Build SN41 probability vectors (dry run locally)
-make miner       # Start SN41 submitter (server-only; uses .env.server)
+make submit      # Build subnet payloads for active subnet (dry run locally)
+make miner       # Start subnet submitter (server-only; uses ACTIVE_SUBNET env var)
 make down        # Stop stack
 

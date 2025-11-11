@@ -18,6 +18,42 @@ Last Updated: 2025-11-11
 
 ---
 
+## 🔄 ARCHITECTURAL UPDATE: Subnet-Agnostic Design
+
+**Date:** 2025-11-11  
+**Status:** Scaffolding Updated, Ready for Implementation in Phase 7
+
+### What Changed
+Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
+- ✅ `sn41/` → `subnets/` with base adapter interface
+- ✅ Pluggable architecture for any Bittensor subnet
+- ✅ SN41 is now first implementation, not hardcoded assumption
+- ✅ Multi-subnet support via registry + scheduler
+
+### Key Components
+- **Base Adapter** (`subnets/base_adapter.py`) - Abstract interface all subnets implement
+- **Registry** (`subnets/registry.py`) - Discover & load subnet adapters dynamically
+- **Scheduler** (`subnets/scheduler.py`) - Handle multi-subnet windows & cadence
+- **Scoring Shim** (`subnets/scoring_shim.py`) - Subnet-specific scoring abstraction
+- **Config-Driven** - Each subnet has own YAML config (bins, targets, cadence)
+- **Environment Selection** - `ACTIVE_SUBNET` env var for runtime selection
+
+### Benefits
+- 🎯 **Future-proof:** Add new subnets without refactoring core system
+- 🔧 **Testable:** Mock different subnets for testing
+- 🔄 **Flexible:** Switch subnets or run multiple in parallel
+- 📦 **Modular:** Clean separation of concerns
+
+### Impact on Development
+- ✅ **No code written yet** - Perfect timing (Phase 7 not started)
+- ✅ **No rework needed** - Only scaffolding/planning updated
+- ⏱️ **Minimal delay** - Adds ~2-3 days to Phase 7 timeline
+- 📈 **Higher quality** - Industry best practice architecture
+
+**Implementation Phase:** Phase 7 (Week 11.5-13.5)
+
+---
+
 ## ⚠️ IMPORTANT: Testing Status
 
 **Current Test Coverage: ~5%**
@@ -65,8 +101,8 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [x] `models.model_registry` - Model versions
 - [x] `models.performance_log` - Model performance tracking
 - [x] `backtests.backtest_runs` - Backtest results
-- [x] `sn41.submission_log` - SN41 submissions
-- [x] `sn41.event_catalog` - SN41 events
+- [x] `subnets.submission_log` - Subnet submissions (any subnet)
+- [x] `subnets.event_catalog` - Subnet event definitions
 - [x] `raw.seasonal_specs` - X-13 specifications
 
 ### ETL Foundation (100%)
@@ -396,24 +432,44 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [ ] End-to-end deployment tests
 - [ ] Security isolation tests
 
-### SN41 Integration (Phase 7)
-**Core SN41**
-- [ ] Event catalog
-- [ ] Probability vector generator
-- [ ] Signing and submission
-- [ ] Health checks
-- [ ] Reward tracking
+### Subnet Integration (Phase 7) - Adapter Pattern
+**Core Adapter Framework**
+- [ ] `subnets/base_adapter.py` - Abstract subnet interface
+- [ ] `subnets/registry.py` - Subnet adapter discovery & loading
+- [ ] `subnets/scheduler.py` - Multi-subnet scheduling & windows
+- [ ] `subnets/scoring_shim.py` - Subnet-specific scoring abstraction
+- [ ] Environment variable `ACTIVE_SUBNET` for subnet selection
+- [ ] Configuration: `configs/subnets/template.yaml`
+
+**SN41 Adapter Implementation**
+- [ ] `subnets/sn41/adapter.py` - SN41 adapter (implements base)
+- [ ] `subnets/sn41/event_catalog.py` - Event/bin definitions
+- [ ] `subnets/sn41/payload_builder.py` - Probability vector builders
+- [ ] `subnets/sn41/config.yaml` - SN41-specific config (bins, targets, cadence)
+- [ ] Probability vector validation (sum to 1, valid bins)
+- [ ] Signing and submission logic
+- [ ] Health checks and monitoring
+- [ ] Reward tracking integration
+
+**Scripts & Integration**
+- [ ] `scripts/make_subnet_payload.py` - Build payloads for any subnet
+- [ ] `scripts/submit_to_subnet.py` - Submit to active subnet
+- [ ] Documentation: `docs/SUBNET_INTEGRATION.md` - Guide for adding new subnets
 
 **Testing (Phase 7)**
-- [ ] Unit tests for event catalog
-- [ ] Unit tests for probability vector generation
+- [ ] Unit tests for base adapter interface
+- [ ] Unit tests for registry & scheduler
+- [ ] Unit tests for scoring shim
+- [ ] SN41 adapter tests
+- [ ] SN41 event catalog tests
+- [ ] SN41 payload builder tests
 - [ ] Probability coherence tests (sum to 1, valid bins)
 - [ ] Signing tests (cryptographic validation)
 - [ ] Mock submission tests (no actual network calls)
 - [ ] Health check tests
 - [ ] Reward tracking tests
-- [ ] Payload validation tests
-- [ ] Retry/backoff logic tests
+- [ ] Multi-subnet switching tests
+- [ ] Configuration validation tests
 
 ### Dashboards (Phase 8)
 **Streamlit Application**
@@ -624,7 +680,7 @@ Phases 1-3 built production-ready code but **without comprehensive tests**:
 - Phase 5: Core Models + Reconciliation + Tests (Week 5.5-8.5)
 - Phase 6: Backtesting + Scenarios + Tests (Week 8.5-10.5)
 - Phase 6.5: API + Two-Zone Architecture + Tests (Week 10.5-11.5)
-- Phase 7: SN41 Integration + Tests (Week 11.5-13.5)
+- Phase 7: Subnet Integration (Adapter Pattern) + Tests (Week 11.5-13.5)
 - Phase 8: Dashboards + Tests (Week 13.5-14.5)
 - Phase 9: AI Agents (11 agents) + Tests (Week 14.5-16.5)
 - Phase 10: CI/CD Automation & Advanced Testing (Week 16.5-17.5)
@@ -715,14 +771,19 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 | `zone2/runner/` | Phase 6.5 | 📋 Planned | Inference app |
 | `zone2/logs/` | Phase 6.5 | 📋 Planned | Submission logs |
 
-### SN41 Integration
+### Subnet Integration (Adapter Pattern)
 | Component | Phase | Status | Notes |
 |-----------|-------|--------|-------|
-| `sn41/event_catalog/` | Phase 7 | 📋 Planned | Event/bin definitions |
-| `sn41/payloads/` | Phase 7 | 📋 Planned | Probability vector builders |
-| `sn41/submitter/` | Phase 7 | 📋 Planned | Signing, retries, backoff |
-| `sn41/health/` | Phase 7 | 📋 Planned | Liveness/readiness probes |
-| `sn41/keys/` | Phase 1 | ✅ Complete | Key storage (infrastructure) |
+| `subnets/base_adapter.py` | Phase 7 | 📋 Planned | Abstract subnet interface |
+| `subnets/registry.py` | Phase 7 | 📋 Planned | Adapter discovery & loading |
+| `subnets/scheduler.py` | Phase 7 | 📋 Planned | Multi-subnet scheduling |
+| `subnets/scoring_shim.py` | Phase 7 | 📋 Planned | Scoring abstraction |
+| `subnets/sn41/adapter.py` | Phase 7 | 📋 Planned | SN41 implementation |
+| `subnets/sn41/event_catalog.py` | Phase 7 | 📋 Planned | Event/bin definitions |
+| `subnets/sn41/payload_builder.py` | Phase 7 | 📋 Planned | Probability vectors |
+| `subnets/sn41/config.yaml` | Phase 7 | 📋 Planned | SN41-specific config |
+| `subnets/keys/` | Phase 1 | ✅ Complete | Key storage (infrastructure) |
+| `configs/subnets/template.yaml` | Phase 7 | 📋 Planned | Subnet config template |
 
 ### Dashboards
 | Component | Phase | Status | Notes |
@@ -755,8 +816,8 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 | `scripts/build_features.py` | Phase 4 | 📋 Planned | Feature generation |
 | `scripts/train_all.py` | Phase 6.5 | 📋 Planned | Model training |
 | `scripts/run_backtest.py` | Phase 6 | 📋 Planned | Vintage backtest |
-| `scripts/make_sn41_payload.py` | Phase 6.5 | 📋 Planned | Probability vectors |
-| `scripts/submit_sn41.py` | Phase 6.5 | 📋 Planned | SN41 submission |
+| `scripts/make_subnet_payload.py` | Phase 7 | 📋 Planned | Subnet payloads (any subnet) |
+| `scripts/submit_to_subnet.py` | Phase 7 | 📋 Planned | Subnet submission |
 
 ### Testing
 | Component | Phase | Status | Notes |
@@ -768,13 +829,15 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 | `tests/features/` | Phase 4 | 📋 Planned | Alongside features |
 | `tests/models/` | Phase 5 | 📋 Planned | Alongside models |
 | `tests/backtests/` | Phase 6 | 📋 Planned | Alongside backtests |
-| `tests/sn41/` | Phase 7 | 📋 Planned | Alongside SN41 |
+| `tests/subnets/` | Phase 7 | 📋 Planned | Alongside subnet integration |
 
 ### Documentation
 | Component | Phase | Status | Notes |
 |-----------|-------|--------|-------|
 | `docs/` (core docs) | Phase 1-3 | ✅ Complete | Reorganized |
+| `docs/SUBNET_INTEGRATION.md` | Phase 7 | 📋 Planned | Subnet adapter guide |
 | `docs/planning/` | Phase 1-3 | ✅ Complete | Status, scaffolding |
+| `docs/planning/SUBNET_ADAPTER_REFACTOR.md` | Phase 7 | ✅ Complete | Adapter pattern decision doc |
 | `docs/arch/` | Future | 📋 Planned | Architecture diagrams |
 | `docs/ops/` | Phase 10 | 📋 Planned | Runbooks, deploy gates |
 

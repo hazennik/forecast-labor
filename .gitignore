@@ -2,9 +2,10 @@
 /data/
 /zone1/artifacts/
 /zone2/logs/
+/zone2/active_subnet.env
 
 # Secrets and keys (CRITICAL - never commit)
-/sn41/keys/
+/subnets/keys/
 **/*.env
 .env
 .env.local
