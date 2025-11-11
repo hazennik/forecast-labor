@@ -2,17 +2,34 @@
 
 Last Updated: 2025-11-11
 
+## 🚦 GO/NO-GO GATE: Phase 4 Readiness
+
+**BEFORE PROCEEDING TO PHASE 4, ALL CRITERIA MUST BE MET:**
+
+| Criterion | Status | Required |
+|-----------|--------|----------|
+| Infrastructure Health | ❌ Not Verified | All Docker services up and healthy |
+| Phase 1-3 Tests Complete | ❌ 0% | All tests passing (see Phase 3.5) |
+| Vintage Determinism | ❌ Not Set | Pinned vintage date + hash verification |
+| Seasonal Diagnostics | ❌ Not Set | Golden M-stats/Q-stats recorded |
+| CI/CD Pipeline | ❌ Not Set | Automated test runs configured |
+
+**🔴 PHASE 4 BLOCKED** - Phase 3.5 (Testing) must complete first
+
+---
+
 ## ⚠️ IMPORTANT: Testing Status
 
 **Current Test Coverage: ~5%**
 
 Phases 1-3 focused on building production-ready functionality but **did not include comprehensive testing**. While code quality is high (type hints, error handling, modular design), automated tests are largely missing.
 
-**Testing Plan:**
+**UPDATED Testing Plan:**
+- **Phase 3.5:** Complete all Phase 1-3 tests BEFORE Phase 4 (HARD BLOCKER)
 - **Phase 4-9:** Tests written alongside features (TDD/test-alongside)
-- **Phase 10:** Retroactive testing for Phases 1-3 + CI/CD infrastructure
+- **Phase 10:** CI/CD infrastructure + automation
 - **Target:** 80%+ code coverage before production deployment
-- **Blocker:** No production deployment until testing complete
+- **Blocker:** No Phase 4 development until Phase 3.5 complete
 
 ---
 
@@ -128,25 +145,9 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [x] `test_pipelines.py` - Pipeline validation (all 7 sources)
 - [x] `run_seasonal_adjustment.py` - Execute X-13 seasonal adjustment
 
-### Testing (Phase 1-2) ⚠️ MISSING
-**ETL Pipelines (0% tested)**
-- [ ] Unit tests for BaseETL class
-- [ ] Unit tests for Downloader (retry logic, error handling)
-- [ ] Unit tests for StorageClient (MinIO operations)
-- [ ] Unit tests for VintageManager (snapshot creation)
-- [ ] Integration tests for each ETL pipeline (7 sources)
-- [ ] Schema validation tests
-- [ ] Data quality tests
-- [ ] Mock API tests (no external calls in CI)
-
-**Infrastructure (0% tested)**
-- [ ] Database schema tests
-- [ ] Service health check tests
-- [ ] Docker container tests
-
 ---
 
-## ✅ PHASE 3 COMPLETE
+## ✅ PHASE 3 COMPLETE (Code Only)
 
 ### Validation Framework (100%) ✅
 - [x] Base validator classes ✅
@@ -182,8 +183,33 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [x] Diagnostic analyzers (M-stat, Q-stat, stability) ✅
 - [x] Quality assessment and thresholds ✅
 
-### Testing (Phase 3) ⚠️ MISSING
-**Validation Framework (0% tested)**
+---
+
+## 🚧 PHASE 3.5: Testing Foundation (CURRENT - BLOCKING PHASE 4)
+
+**⚠️ CRITICAL: This phase must be 100% complete before Phase 4 begins**
+
+### Foundation Testing (Phase 1-2 Tests)
+
+**ETL Pipelines (0% → Target: 100%)**
+- [ ] Unit tests for BaseETL class
+- [ ] Unit tests for Downloader (retry logic, error handling)
+- [ ] Unit tests for StorageClient (MinIO operations)
+- [ ] Unit tests for VintageManager (snapshot creation)
+- [ ] Integration tests for each ETL pipeline (7 sources)
+- [ ] Schema validation tests
+- [ ] Data quality tests
+- [ ] Mock API tests (no external calls in CI)
+
+**Infrastructure (0% → Target: 100%)**
+- [ ] Database schema tests
+- [ ] Service health check tests
+- [ ] Docker container tests
+- [ ] Service connectivity tests (MinIO, Postgres, MLflow, Prefect)
+
+### Validation & Seasonal Testing (Phase 3 Tests)
+
+**Validation Framework (0% → Target: 100%)**
 - [ ] Unit tests for SchemaValidator
 - [ ] Unit tests for FreshnessValidator
 - [ ] Unit tests for QualityValidator
@@ -191,7 +217,7 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [ ] Integration tests for ETL-validator integration
 - [ ] Report generation tests (HTML/PDF/CSV output)
 
-**Seasonal Adjustment (0% tested)**
+**Seasonal Adjustment (0% → Target: 100%)**
 - [ ] Unit tests for SpecBuilder
 - [ ] Unit tests for each regressor type (holiday, strike, weather)
 - [ ] Unit tests for DiagnosticsExtractor
@@ -199,6 +225,60 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 - [ ] Integration tests for complete pipeline
 - [ ] Mock X-13 service tests
 - [ ] Regressor data integration tests
+
+### Determinism & Baselines (NEW - Per Codex Feedback)
+
+**Vintage Determinism**
+- [ ] Pin as-of vintage date for CI (e.g., "2024-01-15")
+- [ ] Create vintage hash verification script
+- [ ] Document expected data hashes
+- [ ] Add hash comparison to CI pipeline
+- [ ] Test: Same vintage → identical hashes
+
+**Golden Diagnostics**
+- [ ] Run seasonal adjustment on pinned vintage
+- [ ] Record golden M-statistics (M1-M11) values
+- [ ] Record golden Q-statistic value
+- [ ] Store baselines in `tests/fixtures/golden_diagnostics.json`
+- [ ] Create diagnostic comparison script
+- [ ] Add diagnostic regression tests to CI
+- [ ] Test: Diagnostics within acceptable thresholds
+
+### Test Infrastructure Setup
+
+**Pytest Configuration**
+- [ ] Create `pytest.ini` configuration
+- [ ] Set up test directory structure (`tests/etl/`, `tests/seasonal/`, etc.)
+- [ ] Create conftest.py with fixtures
+- [ ] Set up mock data fixtures
+- [ ] Configure test coverage reporting
+- [ ] Add pytest plugins (pytest-cov, pytest-mock, etc.)
+
+**CI/CD Basic Setup**
+- [ ] Create `.github/workflows/test.yml`
+- [ ] Configure test job (run pytest)
+- [ ] Configure coverage job (report to console)
+- [ ] Add test status badge to README
+- [ ] Set up test failure notifications
+
+### Go/No-Go Verification
+
+**Infrastructure Health Check**
+- [ ] Script to verify all Docker services running
+- [ ] Health endpoint checks for each service
+- [ ] Database connection verification
+- [ ] MinIO bucket access verification
+- [ ] Document healthy state criteria
+
+**Completion Criteria**
+- [ ] All 30+ tests passing
+- [ ] Code coverage ≥ 70% for Phases 1-3
+- [ ] Vintage determinism verified
+- [ ] Golden diagnostics established
+- [ ] CI pipeline running successfully
+- [ ] All Go/No-Go criteria green
+
+**Estimated Time:** 1 week (Week 3.5)
 
 ---
 
@@ -423,68 +503,95 @@ Phases 1-3 focused on building production-ready functionality but **did not incl
 
 ---
 
-### Testing Infrastructure (Phase 10)
-**CI/CD & Coverage**
-- [ ] GitHub Actions CI pipeline
-- [ ] Pytest configuration and fixtures
-- [ ] Code coverage reporting (target: 80%+)
+### Testing Infrastructure & Advanced Testing (Phase 10)
+**Advanced CI/CD**
+- [ ] Multi-environment testing (dev, staging, prod)
+- [ ] Parallel test execution (pytest-xdist)
+- [ ] Advanced coverage reporting (branch coverage, mutation testing)
 - [ ] Pre-commit hooks (black, ruff, mypy)
-- [ ] Docker test environments
-- [ ] Test data fixtures and mocks
-- [ ] Performance benchmarking suite
-- [ ] Integration test suite
-- [ ] End-to-end test suite
-- [ ] Smoke tests for production deployments
+- [ ] Docker test environments for all services
+- [ ] Automated test data generation
+- [ ] Test result dashboards
+- [ ] Slack/email notifications for failures
 
-**Retroactive Testing (Phase 10)**
-- [ ] Complete Phase 1-2 tests (ETL, infrastructure)
-- [ ] Complete Phase 3 tests (validation, seasonal)
-- [ ] Achieve 80%+ code coverage across codebase
-- [ ] Set up automated test runs in CI/CD
+**Performance & Load Testing**
+- [ ] Performance benchmarking suite
+- [ ] Load testing for API endpoints
+- [ ] Database performance tests
+- [ ] Memory profiling tests
+- [ ] Scalability tests
+- [ ] Stress testing for high-volume data
+
+**Advanced Integration Testing**
+- [ ] Full end-to-end test suite
+- [ ] Multi-service integration tests
+- [ ] Data flow integration tests
+- [ ] Smoke tests for production deployments
+- [ ] Canary deployment tests
+- [ ] Rollback scenario tests
+
+**Test Quality & Maintenance**
+- [ ] Achieve 80%+ code coverage across entire codebase
 - [ ] Test documentation and best practices guide
+- [ ] Flaky test detection and fixes
+- [ ] Test suite optimization (speed improvements)
+- [ ] Test maintenance automation
+
+**Note:** Phase 3.5 now handles all Phase 1-3 testing and basic CI/CD setup. Phase 10 focuses on advanced testing infrastructure and optimization.
 
 ---
 
 ## 🎯 Current Focus
 
-**✅ PHASE 3 COMPLETE: Validation & Seasonal Adjustment**
+**🚧 PHASE 3.5: Testing Foundation (CURRENT - BLOCKING)**
 
-All components 100% complete:
+**✅ Phase 3 Code Complete:**
 - ✅ All 7 data pipelines
 - ✅ Validation framework with ETL integration
 - ✅ Seasonal adjustment with diagnostics
 - ✅ HTML/PDF report generation
 
-**Recent Completions (Phase 3 Final):**
-- ✅ Validation report generator (HTML/PDF/CSV)
-- ✅ ETL-validator integration (BaseETL updates)
-- ✅ Integration examples for common use cases
-- ✅ Configurable pass/fail behavior
-- ✅ Diagnostic analyzers for seasonal adjustment
+**🔴 CRITICAL: Testing Gap Must Be Addressed NOW**
 
-**⚠️ Testing Gap Identified:**
 Phases 1-3 built production-ready code but **without comprehensive tests**:
 - ~35 production modules created (~6,000+ LOC)
 - Only smoke tests exist (`test_pipelines.py`)
 - Need ~30-40 test modules for proper coverage
-- Testing will be addressed in Phase 10 (retroactive) + Phases 4-9 (alongside features)
+- **CHANGED:** Testing moved from "Phase 10 retroactive" to "Phase 3.5 NOW"
 
-**🎯 Next: Phase 4 - Feature Engineering + Tests**
-1. MIDAS lag constructors (with unit tests)
-2. Mixed-frequency transformations (with unit tests)
-3. Pay-period alignment (with unit tests)
-4. State/sector aggregations (with unit tests)
-5. Feature registry implementation (with unit tests)
-6. **NEW:** Write tests alongside all features (TDD/test-alongside approach)
+**Current Work (Phase 3.5):**
+1. ✅ ~60 test tasks identified
+2. Write comprehensive unit tests for all Phase 1-3 modules
+3. Set up pytest infrastructure and fixtures
+4. Establish vintage determinism (pinned date + hash verification)
+5. Record golden seasonal diagnostics (M-stats, Q-stats)
+6. Create basic CI/CD pipeline (GitHub Actions)
+7. Implement Go/No-Go gate verification
+8. **Target:** 70%+ coverage, all tests passing
+
+**Why This Change (Per Codex Feedback):**
+- ✅ **Never build on untested foundations** - Industry best practice
+- ✅ **Determinism requires baselines** - Need golden values before proceeding
+- ✅ **Hard gate prevents technical debt** - Clear Go/No-Go criteria
+- ✅ **CI/CD now, not later** - Catch regressions immediately
+
+**🔴 Phase 4 BLOCKED Until:**
+- [ ] All Go/No-Go criteria green
+- [ ] Phase 3.5 completion criteria met
+- [ ] 70%+ test coverage for Phases 1-3
+- [ ] CI pipeline running successfully
+
+**After Phase 3.5:**
+- **Phase 4+:** TDD/test-alongside (tests written with features)
+- **Phase 10:** Advanced testing, performance suites, load testing
 
 **✅ Comprehensive Coverage Achieved:**
 - **Option 3 Implementation Complete** - Full audit of REPO_SCAFFOLDING.md performed
 - **95% Coverage** - All major components mapped to implementation phases
 - **New Phase 6.5 Added** - API & Two-Zone Architecture (previously missing)
 - **Coverage Matrix Created** - Full traceability of every scaffolding component
-- **11 AI Agents Mapped** - Complete agent roster from scaffolding
-- **Optional Components Identified** - Private data hooks, dbt (post-MVP)
-- **Timeline Updated** - Now 16-17 weeks (from 14-15) to account for additional scope
+- **Phase 3.5 Added** - Testing foundation (per Codex feedback)
+- **Timeline Updated** - Now 17-18 weeks (accounts for testing gate)
 
 ---
 
@@ -509,23 +616,25 @@ Phases 1-3 built production-ready code but **without comprehensive tests**:
 - **Overall Project:** ~45% complete (adjusted for testing gap)
 
 **Estimated Timeline:**
-- ✅ Phase 1: Foundation (Week 1) - COMPLETE ⚠️ Tests Missing
-- ✅ Phase 2: Data Pipelines (Week 2) - COMPLETE ⚠️ Tests Missing
-- ✅ Phase 3: Validation + Seasonal Adjustment (Week 3) - COMPLETE ⚠️ Tests Missing
-- Phase 4: Feature Engineering + Tests (Week 4-5)
-- Phase 5: Core Models + Reconciliation + Tests (Week 5-8)
-- Phase 6: Backtesting + Scenarios + Tests (Week 8-10)
-- **Phase 6.5: API + Two-Zone Architecture + Tests (Week 10-11)** [NEW]
-- Phase 7: SN41 Integration + Tests (Week 11-13)
-- Phase 8: Dashboards + Tests (Week 13-14)
-- Phase 9: AI Agents (11 agents) + Tests (Week 14-16)
-- Phase 10: Testing Infrastructure + Retroactive Tests (Week 16-17)
-- **Full MVP with Testing:** 16-17 weeks
+- ✅ Phase 1: Foundation (Week 1) - COMPLETE (code only)
+- ✅ Phase 2: Data Pipelines (Week 2) - COMPLETE (code only)
+- ✅ Phase 3: Validation + Seasonal Adjustment (Week 3) - COMPLETE (code only)
+- **🚧 Phase 3.5: Testing Foundation (Week 3.5) - CURRENT** [BLOCKING]
+- Phase 4: Feature Engineering + Tests (Week 4-5.5)
+- Phase 5: Core Models + Reconciliation + Tests (Week 5.5-8.5)
+- Phase 6: Backtesting + Scenarios + Tests (Week 8.5-10.5)
+- Phase 6.5: API + Two-Zone Architecture + Tests (Week 10.5-11.5)
+- Phase 7: SN41 Integration + Tests (Week 11.5-13.5)
+- Phase 8: Dashboards + Tests (Week 13.5-14.5)
+- Phase 9: AI Agents (11 agents) + Tests (Week 14.5-16.5)
+- Phase 10: CI/CD Automation & Advanced Testing (Week 16.5-17.5)
+- **Full MVP with Testing:** 17-18 weeks
 
-**Testing Strategy:**
-- Phases 4-9: Write tests alongside features (TDD/test-alongside)
-- Phase 10: Retroactive testing for Phases 1-3, CI/CD setup, 80%+ coverage
-- Production deployment blocked until Phase 10 complete
+**UPDATED Testing Strategy:**
+- **Phase 3.5:** Complete all Phase 1-3 tests NOW (HARD BLOCKER for Phase 4)
+- **Phases 4-9:** Write tests alongside features (TDD/test-alongside)
+- **Phase 10:** Advanced CI/CD, performance tests, integration suites
+- Production deployment blocked until 80%+ coverage + all gates pass
 
 **Optional Components:**
 - Private data hooks (post-MVP)
@@ -652,8 +761,10 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 ### Testing
 | Component | Phase | Status | Notes |
 |-----------|-------|--------|-------|
-| `tests/etl/` | Phase 10 | ⚠️ Missing | Retroactive testing |
-| `tests/seasonal/` | Phase 10 | ⚠️ Missing | Retroactive testing |
+| `tests/etl/` | Phase 3.5 | 🚧 In Progress | Foundation testing (CURRENT) |
+| `tests/seasonal/` | Phase 3.5 | 🚧 In Progress | Foundation testing (CURRENT) |
+| `tests/validators/` | Phase 3.5 | 🚧 In Progress | Foundation testing (CURRENT) |
+| `tests/fixtures/` | Phase 3.5 | 🚧 In Progress | Golden data & mocks (CURRENT) |
 | `tests/features/` | Phase 4 | 📋 Planned | Alongside features |
 | `tests/models/` | Phase 5 | 📋 Planned | Alongside models |
 | `tests/backtests/` | Phase 6 | 📋 Planned | Alongside backtests |
