@@ -4,11 +4,11 @@ Abstract base classes for all data ingestion pipelines
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 import pandas as pd
 from loguru import logger
@@ -61,6 +61,11 @@ class ETLConfig:
     retention_days: int = 3650  # 10 years default
     validate_schema: bool = True
     create_vintage: bool = True
+    # Validation framework integration
+    enable_validators: bool = False  # Use validation framework
+    validators: List[Any] = field(default_factory=list)  # List of validator instances
+    generate_validation_reports: bool = False  # Generate HTML/PDF reports
+    fail_on_validation_error: bool = False  # Halt pipeline on critical validation failures
 
 
 class BaseETL(ABC):
@@ -126,6 +131,79 @@ class BaseETL(ABC):
             pd.DataFrame: Transformed DataFrame
         """
         return df
+    
+    def run_validators(self, df: pd.DataFrame) -> tuple[List[Any], bool]:
+        """
+        Run validation framework validators
+        
+        Args:
+            df: DataFrame to validate
+            
+        Returns:
+            tuple: (list of validation results, overall pass/fail)
+        """
+        if not self.config.enable_validators or not self.config.validators:
+            return [], True
+        
+        logger.info(f"Running {len(self.config.validators)} validators...")
+        
+        all_results = []
+        has_critical_failure = False
+        
+        for validator in self.config.validators:
+            try:
+                results = validator.validate(df)
+                all_results.extend(results)
+                
+                # Check for critical failures
+                for result in results:
+                    if not result.passed and result.severity.value == "CRITICAL":
+                        has_critical_failure = True
+                        logger.error(f"CRITICAL validation failure: {result.message}")
+                    elif not result.passed and result.severity.value == "ERROR":
+                        logger.warning(f"ERROR validation failure: {result.message}")
+                
+            except Exception as e:
+                logger.error(f"Validator {validator.__class__.__name__} failed: {e}")
+        
+        # Summary
+        total = len(all_results)
+        passed = sum(1 for r in all_results if r.passed)
+        failed = total - passed
+        
+        logger.info(f"Validation complete: {passed}/{total} checks passed, {failed} failed")
+        
+        # Generate report if configured
+        if self.config.generate_validation_reports and all_results:
+            self._generate_validation_report(all_results)
+        
+        # Determine overall pass/fail
+        if self.config.fail_on_validation_error and has_critical_failure:
+            return all_results, False
+        
+        return all_results, True
+    
+    def _generate_validation_report(self, results: List[Any]):
+        """
+        Generate validation report
+        
+        Args:
+            results: Validation results
+        """
+        try:
+            from etl.validators.report_generator import ValidationReportGenerator
+            
+            generator = ValidationReportGenerator()
+            report_title = f"Validation Report: {self.config.source_name}"
+            
+            html_path = generator.generate_html_report(
+                results,
+                title=report_title
+            )
+            logger.info(f"Validation report generated: {html_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to generate validation report: {e}")
     
     def save_raw(self, df: pd.DataFrame) -> Path:
         """
@@ -228,12 +306,18 @@ class BaseETL(ABC):
             
             logger.info(f"Extracted {len(df)} rows")
             
-            # Validate
+            # Validate (basic schema check)
             if self.config.validate_schema:
                 logger.info("Validating data...")
                 if not self.validate(df):
                     raise ValueError("Validation failed")
                 logger.info("Validation passed")
+            
+            # Run validation framework validators (if enabled)
+            if self.config.enable_validators:
+                validation_results, validation_passed = self.run_validators(df)
+                if not validation_passed:
+                    raise ValueError(f"Validation framework failed: {len([r for r in validation_results if not r.passed])} critical failures")
             
             # Transform (optional)
             logger.info("Transforming data...")
