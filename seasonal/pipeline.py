@@ -251,22 +251,17 @@ class SeasonalAdjustmentPipeline:
         """
         logger.info("Running X-13 adjustment...")
         
-        # Prepare input data
-        input_data = {
-            "series": series_data.to_dict(),
-            "spec": spec_content
-        }
-        
-        # Add regressors if present
-        if len(regressors) > 0:
-            input_data["regressors"] = {
-                col: regressors[col].to_dict()
-                for col in regressors.columns
-            }
+        # Note: X-13 service expects pandas Series directly, not dict
+        # Regressors are handled via spec file, not passed separately
         
         # Run X-13
         try:
-            results = self.x13.run_seasonal_adjustment(input_data)
+            results = self.x13.run_seasonal_adjustment(
+                series=series_data,
+                series_name=series_name,
+                spec_content=spec_content,
+                save_output=True
+            )
             
             # Extract key outputs
             return {

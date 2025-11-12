@@ -1,20 +1,28 @@
 # Implementation Status
 
-Last Updated: 2025-11-11 (Phase 3.5 COMPLETE)
+Last Updated: 2025-11-12 (Phase 3.5 COMPLETE + Critical Fixes)
 
 ## 🚦 GO/NO-GO GATE: Phase 4 Readiness
 
 **BEFORE PROCEEDING TO PHASE 4, ALL CRITERIA MUST BE MET:**
 
-| Criterion | Status | Required |
-|-----------|--------|----------|
-| Infrastructure Health | ✅ COMPLETE | Health check script created |
-| Phase 1-3 Tests Complete | ✅ COMPLETE | 60+ test cases created |
-| Vintage Determinism | ✅ COMPLETE | Pinned vintage date (2024-01-15) + hash verification script |
-| Seasonal Diagnostics | ✅ COMPLETE | Golden M-stats/Q-stats baseline system |
-| CI/CD Pipeline | ✅ COMPLETE | GitHub Actions workflow configured |
+| Criterion | Status | Required | Notes |
+|-----------|--------|----------|-------|
+| Infrastructure Health | ✅ COMPLETE | Health check script created | `scripts/check_infrastructure_health.py` |
+| Phase 1-3 Tests Complete | ✅ COMPLETE | 60+ test cases created | Comprehensive pytest suite with mocks |
+| Vintage Determinism | ✅ COMPLETE | Pinned vintage date (2024-01-15) + hash verification script | `scripts/verify_vintage_determinism.py` |
+| Seasonal Diagnostics | ✅ COMPLETE | Golden M-stats/Q-stats baseline system | `scripts/record_golden_diagnostics.py` - now runs actual X-13 |
+| CI/CD Pipeline | ✅ COMPLETE | GitHub Actions workflow configured | `.github/workflows/test.yml` |
+| Critical Bug Fixes | ✅ COMPLETE | All blocking issues resolved | Seasonal pipeline signature fixed, diagnostics integrated |
+| Production Safeguards | ✅ COMPLETE | Fallback data controls added | `ALLOW_FALLBACK_DATA` env var for Weather/Strikes |
 
 **✅ PHASE 4 READY** - All Phase 3.5 criteria met!
+
+**Recent Critical Fixes (2025-11-12)**:
+- ✅ Fixed SeasonalAdjustmentPipeline signature mismatch (was passing dict instead of individual args)
+- ✅ Integrated golden diagnostics script with actual seasonal adjustment pipeline
+- ✅ Added `ALLOW_FALLBACK_DATA` environment variable for production safety (Weather/Strikes ETLs)
+- ✅ Created `run_etl.py` and `run_x13_bundle.py` for Makefile compatibility
 
 ---
 
@@ -223,8 +231,13 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 
 ### Scripts (100%) ✅
 - [x] `seed_public_data.py` - Initial data seeding (all 7 sources)
-- [x] `test_pipelines.py` - Pipeline validation (all 7 sources)
+- [x] `test_pipelines.py` - Pipeline smoke tests (all 7 sources)
 - [x] `run_seasonal_adjustment.py` - Execute X-13 seasonal adjustment
+- [x] `run_etl.py` - ETL runner (all or specific sources) ✨ NEW
+- [x] `run_x13_bundle.py` - X-13 bundle wrapper (Makefile compatibility) ✨ NEW
+- [x] `record_golden_diagnostics.py` - Golden M-stats/Q-stats recording (now runs actual X-13) ✨ ENHANCED
+- [x] `verify_vintage_determinism.py` - Vintage hash verification
+- [x] `check_infrastructure_health.py` - Docker/service health checks
 
 ---
 
@@ -858,9 +871,13 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 | Component | Phase | Status | Notes |
 |-----------|-------|--------|-------|
 | `scripts/seed_public_data.py` | Phase 2 | ✅ Complete | Initial data seeding |
-| `scripts/test_pipelines.py` | Phase 2 | ✅ Complete | Pipeline validation |
+| `scripts/test_pipelines.py` | Phase 2 | ✅ Complete | Pipeline smoke tests |
 | `scripts/run_seasonal_adjustment.py` | Phase 3 | ✅ Complete | X-13 batch job |
-| `scripts/run_x13_bundle.py` | Phase 3 | ⚠️ Similar | May need distinction |
+| `scripts/run_x13_bundle.py` | Phase 3 | ✅ Complete | X-13 wrapper (Makefile compatibility) |
+| `scripts/run_etl.py` | Phase 2 | ✅ Complete | ETL runner (all or specific sources) |
+| `scripts/record_golden_diagnostics.py` | Phase 3.5 | ✅ Complete | Golden diagnostics with real X-13 |
+| `scripts/verify_vintage_determinism.py` | Phase 3.5 | ✅ Complete | Vintage hash verification |
+| `scripts/check_infrastructure_health.py` | Phase 3.5 | ✅ Complete | Service health checks |
 | `scripts/build_features.py` | Phase 4 | 📋 Planned | Feature generation |
 | `scripts/train_all.py` | Phase 6.5 | 📋 Planned | Model training |
 | `scripts/run_backtest.py` | Phase 6 | 📋 Planned | Vintage backtest |

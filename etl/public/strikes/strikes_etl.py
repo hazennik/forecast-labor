@@ -116,13 +116,16 @@ class StrikesETL(BaseETL):
             
         except Exception as e:
             logger.warning(f"Failed to fetch from primary source: {e}")
-            logger.info("Attempting fallback extraction...")
             
-            # Fallback: Create synthetic recent data for testing
-            # In production, would implement web scraping of BLS stoppage reports
-            df = self._create_fallback_data()
-            
-            return df
+            # Fallback: Create synthetic recent data (only if allowed)
+            if ALLOW_FALLBACK_DATA:
+                logger.warning("Using fallback strike data (ALLOW_FALLBACK_DATA=true)")
+                logger.warning("Set ALLOW_FALLBACK_DATA=false in production to fail instead")
+                df = self._create_fallback_data()
+                return df
+            else:
+                logger.error("Strike data fetch failed and ALLOW_FALLBACK_DATA=false")
+                raise Exception("Strike data fetch failed and fallback data disabled in production")
     
     def _create_fallback_data(self) -> pd.DataFrame:
         """

@@ -6,6 +6,7 @@ NOAA Storm Events - Hurricanes, severe storms, wildfires affecting employment
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Optional
+import os
 
 import pandas as pd
 from loguru import logger
@@ -17,6 +18,9 @@ from etl.common.downloader import Downloader
 # NOAA Storm Events Database API
 NOAA_STORM_EVENTS_URL = "https://www.ncdc.noaa.gov/stormevents/csv"
 NOAA_API_BASE = "https://www.ncei.noaa.gov/access/services/data/v1"
+
+# Production safety: Set to 'false' in production to fail instead of using fallback data
+ALLOW_FALLBACK_DATA = os.getenv("ALLOW_FALLBACK_DATA", "true").lower() == "true"
 
 
 class WeatherETL(BaseETL):
@@ -85,11 +89,15 @@ class WeatherETL(BaseETL):
         except Exception as e:
             logger.warning(f"API fetch failed: {e}")
         
-        # Fallback to synthetic data for development
-        logger.info("Using fallback weather data")
-        df = self._create_fallback_data()
-        
-        return df
+        # Fallback to synthetic data (only if allowed)
+        if ALLOW_FALLBACK_DATA:
+            logger.warning("Using fallback weather data (ALLOW_FALLBACK_DATA=true)")
+            logger.warning("Set ALLOW_FALLBACK_DATA=false in production to fail instead")
+            df = self._create_fallback_data()
+            return df
+        else:
+            logger.error("API fetch failed and ALLOW_FALLBACK_DATA=false")
+            raise Exception("Weather data fetch failed and fallback data disabled in production")
     
     def _fetch_from_api(self, start_date: date, end_date: date) -> Optional[pd.DataFrame]:
         """
@@ -103,6 +111,8 @@ class WeatherETL(BaseETL):
             pd.DataFrame: Weather data or None
         """
         if not self.api_key:
+            if not ALLOW_FALLBACK_DATA:
+                raise Exception("No NOAA API key provided and ALLOW_FALLBACK_DATA=false")
             logger.info("No NOAA API key provided, using fallback")
             return None
         
