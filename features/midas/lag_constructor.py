@@ -18,9 +18,7 @@ References:
 from typing import Optional, Literal
 import numpy as np
 import pandas as pd
-import structlog
-
-logger = structlog.get_logger(__name__)
+from loguru import logger
 
 
 class MIDASLagConstructor:

@@ -20,9 +20,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 import uuid
 import json
-import structlog
-
-logger = structlog.get_logger(__name__)
+from loguru import logger
 
 
 @dataclass

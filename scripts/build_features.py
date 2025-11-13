@@ -22,7 +22,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 import pandas as pd
 import sys
-import structlog
+from loguru import logger
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -37,8 +37,6 @@ from features.aggregations.sector_aggregator import SectorAggregator
 from features.registry import FeatureRegistry
 from etl.common.storage import StorageClient
 from etl.common.vintage import VintageManager
-
-logger = structlog.get_logger(__name__)
 
 
 class FeatureBuilder:
@@ -417,11 +415,6 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # Configure logging
-    structlog.configure(
-        wrapper_class=structlog.make_filtering_bound_logger(logging_level=20)  # INFO
-    )
 
     logger.info(
         "starting_feature_builder",

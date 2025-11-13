@@ -13,9 +13,7 @@ Aggregation methods: mean, sum, last, first
 from typing import Literal
 import pandas as pd
 import numpy as np
-import structlog
-
-logger = structlog.get_logger(__name__)
+from loguru import logger
 
 
 class FrequencyConverter:

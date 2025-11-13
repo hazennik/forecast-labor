@@ -11,9 +11,7 @@ Supports:
 from typing import Literal, Optional
 import pandas as pd
 import numpy as np
-import structlog
-
-logger = structlog.get_logger(__name__)
+from loguru import logger
 
 
 class SectorAggregator:

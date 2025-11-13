@@ -14,9 +14,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import calendar
-import structlog
-
-logger = structlog.get_logger(__name__)
+from loguru import logger
 
 
 class PayPeriodIdentifier:

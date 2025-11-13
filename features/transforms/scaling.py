@@ -13,9 +13,7 @@ All transformations are deterministic and support fit/transform/inverse_transfor
 from typing import Optional, Tuple
 import pandas as pd
 import numpy as np
-import structlog
-
-logger = structlog.get_logger(__name__)
+from loguru import logger
 
 
 class StandardScaler:

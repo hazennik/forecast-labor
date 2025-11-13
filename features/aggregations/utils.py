@@ -9,9 +9,7 @@ Utilities for:
 
 import pandas as pd
 import numpy as np
-import structlog
-
-logger = structlog.get_logger(__name__)
+from loguru import logger
 
 
 def compute_employment_weights(employment: pd.Series) -> pd.Series:

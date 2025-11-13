@@ -10,9 +10,7 @@ Supports:
 from typing import Dict, List
 import pandas as pd
 import numpy as np
-import structlog
-
-logger = structlog.get_logger(__name__)
+from loguru import logger
 
 
 def prepare_mint_structure(forecasts: pd.DataFrame) -> Dict:

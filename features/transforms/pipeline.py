@@ -7,9 +7,7 @@ sklearn.pipeline.Pipeline but for pandas Series.
 
 from typing import List, Tuple, Any
 import pandas as pd
-import structlog
-
-logger = structlog.get_logger(__name__)
+from loguru import logger
 
 
 class TransformPipeline:
