@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last Updated: 2025-11-12 (Phase 3.5 COMPLETE + Critical Fixes)
+Last Updated: 2025-11-13 (Phase 3.5 COMPLETE + All Blockers Fixed)
 
 ## 🚦 GO/NO-GO GATE: Phase 4 Readiness
 
@@ -18,11 +18,15 @@ Last Updated: 2025-11-12 (Phase 3.5 COMPLETE + Critical Fixes)
 
 **✅ PHASE 4 READY** - All Phase 3.5 criteria met!
 
-**Recent Critical Fixes (2025-11-12)**:
+**Recent Critical Fixes (2025-11-13)**:
 - ✅ Fixed SeasonalAdjustmentPipeline signature mismatch (was passing dict instead of individual args)
 - ✅ Integrated golden diagnostics script with actual seasonal adjustment pipeline
 - ✅ Added `ALLOW_FALLBACK_DATA` environment variable for production safety (Weather/Strikes ETLs)
 - ✅ Created `run_etl.py` and `run_x13_bundle.py` for Makefile compatibility
+- ✅ **Wired regressors to X-13**: Regressor data now written as .dat files and passed to X-13 service
+- ✅ **Implemented Weather API**: Real NOAA Storm Events API integration (no longer stub)
+- ✅ **Golden diagnostics uses real vintages**: Loads from MinIO/filesystem, synthetic only as fallback
+- ✅ **Fixed all Codex Analysis 4 & 5 blockers**: ETL→MinIO uploads, X-13 container, health checks
 
 ---
 
@@ -375,6 +379,36 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - [x] All Go/No-Go criteria met
 
 **Actual Time:** 1 day (highly efficient implementation)
+
+### 3.5.7. Production-Ready Fixes (2025-11-13) ✅
+**What**: Final blockers resolved for Phase 4 readiness
+**Status**: ✅ COMPLETE
+
+**Critical Fixes Implemented**:
+
+1. **Regressors Wired to X-13** ✅
+   - `X13Service.run_seasonal_adjustment()` now accepts `regressors` parameter
+   - Regressor data written as individual .dat files alongside main series
+   - Pipeline passes regressors to X-13 service
+   - HTTP service also updated to accept regressors
+   - Files: `seasonal/x13_service.py`, `seasonal/pipeline.py`, `seasonal/service.py`
+
+2. **Weather ETL Real API Implementation** ✅
+   - Implemented full NOAA Storm Events API integration
+   - API endpoint: `https://www.ncei.noaa.gov/access/services/data/v1`
+   - Handles API token authentication
+   - Parses JSON response and standardizes columns
+   - Fallback to synthetic data controlled by `ALLOW_FALLBACK_DATA`
+   - File: `etl/public/weather/weather_etl.py`
+
+3. **Golden Diagnostics Uses Real Vintages** ✅
+   - Loads series from MinIO first (via `StorageClient`)
+   - Falls back to local filesystem (`data/vintages/`)
+   - Uses synthetic data only if neither source available
+   - `_load_series_from_vintage()` helper function added
+   - File: `scripts/record_golden_diagnostics.py`
+
+**All Phases 1-3 blockers resolved. Production-ready.**
 
 ---
 

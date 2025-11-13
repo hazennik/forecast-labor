@@ -73,6 +73,7 @@ class X13Service:
         series: pd.Series,
         series_name: str,
         spec_content: str,
+        regressors: Optional[pd.DataFrame] = None,
         save_output: bool = True
     ) -> Dict[str, Any]:
         """
@@ -82,6 +83,7 @@ class X13Service:
             series: Time series to adjust (DatetimeIndex)
             series_name: Name for the series
             spec_content: X-13 spec file content
+            regressors: Optional DataFrame with regressor series (each column is a regressor)
             save_output: Whether to save output files
             
         Returns:
@@ -97,6 +99,16 @@ class X13Service:
             # Write data file
             data_file = run_dir / f"{series_name}.dat"
             self._write_data_file(series, data_file)
+            
+            # Write regressor data files if provided
+            if regressors is not None and len(regressors) > 0:
+                logger.info(f"Writing {len(regressors.columns)} regressor data files...")
+                for col in regressors.columns:
+                    regressor_file = run_dir / f"{col}.dat"
+                    regressor_series = regressors[col].copy()
+                    regressor_series.name = col
+                    self._write_data_file(regressor_series, regressor_file)
+                    logger.debug(f"  Wrote regressor: {col}")
             
             # Write spec file
             spec_file = run_dir / f"{series_name}.spc"

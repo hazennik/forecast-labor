@@ -101,7 +101,10 @@ class WeatherETL(BaseETL):
     
     def _fetch_from_api(self, start_date: date, end_date: date) -> Optional[pd.DataFrame]:
         """
-        Fetch from NOAA API (requires token)
+        Fetch from NOAA Storm Events API
+        
+        NOAA Storm Events Database: https://www.ncdc.noaa.gov/stormevents/
+        API Documentation: https://www.ncei.noaa.gov/support/access-data-service-api-user-documentation
         
         Args:
             start_date: Start date
@@ -116,12 +119,77 @@ class WeatherETL(BaseETL):
             logger.info("No NOAA API key provided, using fallback")
             return None
         
-        # NOAA NCEI API endpoint
-        # Note: Actual implementation would query specific datasets
-        logger.info(f"Fetching from NOAA API: {start_date} to {end_date}")
+        logger.info(f"Fetching from NOAA Storm Events API: {start_date} to {end_date}")
         
-        # Placeholder - would implement actual API call
-        return None
+        try:
+            # NOAA NCEI Storm Events API
+            # Dataset: Storm Events Database
+            # Endpoint: https://www.ncei.noaa.gov/access/services/data/v1
+            base_url = "https://www.ncei.noaa.gov/access/services/data/v1"
+            
+            # Parameters for Storm Events dataset
+            params = {
+                "dataset": "storm-events",
+                "dataTypes": "EVENT_TYPE,BEGIN_DATE,END_DATE,STATE,DEATHS_DIRECT,DEATHS_INDIRECT,INJURIES_DIRECT,INJURIES_INDIRECT,DAMAGE_PROPERTY",
+                "startDate": start_date.strftime("%Y-%m-%d"),
+                "endDate": end_date.strftime("%Y-%m-%d"),
+                "format": "json",
+                "units": "standard"
+            }
+            
+            # Add API token
+            headers = {
+                "token": self.api_key
+            }
+            
+            logger.info(f"Requesting storm events from {start_date} to {end_date}")
+            
+            response = self.downloader.download_json(
+                base_url,
+                params=params,
+                headers=headers
+            )
+            
+            if not response:
+                logger.warning("Empty response from NOAA API")
+                return None
+            
+            # Parse response
+            if isinstance(response, list):
+                df = pd.DataFrame(response)
+            elif isinstance(response, dict) and "results" in response:
+                df = pd.DataFrame(response["results"])
+            else:
+                logger.warning(f"Unexpected NOAA API response format: {type(response)}")
+                return None
+            
+            if df.empty:
+                logger.warning("No storm events found in date range")
+                return None
+            
+            # Standardize column names (NOAA uses uppercase)
+            column_mapping = {
+                "EVENT_TYPE": "event_type",
+                "BEGIN_DATE": "begin_date",
+                "END_DATE": "end_date",
+                "STATE": "state",
+                "DEATHS_DIRECT": "deaths_direct",
+                "DEATHS_INDIRECT": "deaths_indirect",
+                "INJURIES_DIRECT": "injuries_direct",
+                "INJURIES_INDIRECT": "injuries_indirect",
+                "DAMAGE_PROPERTY": "damage_property"
+            }
+            
+            df = df.rename(columns=column_mapping)
+            
+            logger.info(f"Fetched {len(df)} storm events from NOAA API")
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch from NOAA API: {e}")
+            logger.exception(e)
+            return None
     
     def _create_fallback_data(self) -> pd.DataFrame:
         """

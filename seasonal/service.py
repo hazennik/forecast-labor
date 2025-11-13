@@ -69,6 +69,7 @@ class X13Handler(BaseHTTPRequestHandler):
             series_data = request_data.get("series")
             series_name = request_data.get("series_name", "series")
             spec_content = request_data.get("spec")
+            regressors_data = request_data.get("regressors")
             save_output = request_data.get("save_output", True)
             
             if not series_data:
@@ -90,6 +91,20 @@ class X13Handler(BaseHTTPRequestHandler):
             else:
                 series = pd.Series(series_data)
             
+            # Convert regressors if provided
+            regressors = None
+            if regressors_data:
+                try:
+                    regressors = pd.DataFrame(regressors_data)
+                    # Convert index to datetime if possible
+                    try:
+                        regressors.index = pd.to_datetime(regressors.index)
+                    except:
+                        pass
+                    logger.info(f"Loaded {len(regressors.columns)} regressors")
+                except Exception as e:
+                    logger.warning(f"Failed to parse regressors: {e}")
+            
             logger.info(f"Processing seasonal adjustment request for: {series_name}")
             logger.info(f"Series length: {len(series)}")
             
@@ -98,6 +113,7 @@ class X13Handler(BaseHTTPRequestHandler):
                 series=series,
                 series_name=series_name,
                 spec_content=spec_content,
+                regressors=regressors,
                 save_output=save_output
             )
             

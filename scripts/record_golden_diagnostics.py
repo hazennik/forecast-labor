@@ -52,7 +52,7 @@ MONITORED_SERIES = {
 
 def _generate_sample_series(series_id: str, periods: int = 120) -> pd.Series:
     """
-    Generate sample time series with seasonality for testing
+    Generate sample time series with seasonality for testing/fallback
     
     Args:
         series_id: Series identifier
@@ -76,6 +76,88 @@ def _generate_sample_series(series_id: str, periods: int = 120) -> pd.Series:
     return series
 
 
+def _load_series_from_vintage(
+    series_id: str,
+    series_info: Dict[str, str],
+    vintage_date: date,
+    storage_client: Optional[StorageClient] = None
+) -> Optional[pd.Series]:
+    """
+    Load a series from vintage data (MinIO or local filesystem)
+    
+    Args:
+        series_id: Series identifier (e.g., "CES0000000001")
+        series_info: Series metadata (name, source)
+        vintage_date: Vintage date to load
+        storage_client: Optional storage client for MinIO access
+        
+    Returns:
+        Series data or None if not found
+    """
+    source = series_info.get("source")
+    
+    # Try loading from MinIO first
+    if storage_client:
+        try:
+            vintage_path = f"vintages/{source}/{vintage_date.strftime('%Y-%m-%d')}/{source}_vintage.parquet"
+            logger.info(f"  Attempting to load from MinIO: {vintage_path}")
+            
+            df = storage_client.read_parquet(vintage_path)
+            
+            if df is not None and not df.empty:
+                # Extract specific series
+                if "series_id" in df.columns:
+                    series_df = df[df["series_id"] == series_id].copy()
+                    
+                    if not series_df.empty:
+                        # Ensure date index
+                        if "date" in series_df.columns:
+                            series_df["date"] = pd.to_datetime(series_df["date"])
+                            series_df = series_df.set_index("date")
+                        
+                        # Extract value column
+                        if "value" in series_df.columns:
+                            series = series_df["value"]
+                            series.name = series_id
+                            logger.info(f"  ✅ Loaded {len(series)} observations from MinIO")
+                            return series
+                        
+        except Exception as e:
+            logger.warning(f"  Failed to load from MinIO: {e}")
+    
+    # Try loading from local filesystem
+    try:
+        from pathlib import Path
+        vintage_path = Path("data/vintages") / source / vintage_date.strftime("%Y-%m-%d") / f"{source}_vintage.parquet"
+        
+        if vintage_path.exists():
+            logger.info(f"  Attempting to load from local: {vintage_path}")
+            
+            df = pd.read_parquet(vintage_path)
+            
+            if "series_id" in df.columns:
+                series_df = df[df["series_id"] == series_id].copy()
+                
+                if not series_df.empty:
+                    # Ensure date index
+                    if "date" in series_df.columns:
+                        series_df["date"] = pd.to_datetime(series_df["date"])
+                        series_df = series_df.set_index("date")
+                    
+                    # Extract value column
+                    if "value" in series_df.columns:
+                        series = series_df["value"]
+                        series.name = series_id
+                        logger.info(f"  ✅ Loaded {len(series)} observations from local filesystem")
+                        return series
+    
+    except Exception as e:
+        logger.warning(f"  Failed to load from local filesystem: {e}")
+    
+    logger.warning(f"  Could not load series {series_id} from vintage {vintage_date}")
+    return None
+
+
 def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIAGNOSTICS_FILE) -> bool:
     """
     Record golden seasonal adjustment diagnostics by running actual X-13.
@@ -96,10 +178,19 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
         "series": {}
     }
     
-    # Initialize seasonal adjustment pipeline
+    # Initialize seasonal adjustment pipeline and storage
     try:
         pipeline = SeasonalAdjustmentPipeline()
         extractor = DiagnosticsExtractor()
+        
+        # Try to initialize storage client for loading vintages
+        storage = None
+        try:
+            storage = StorageClient()
+            logger.info("StorageClient initialized - will attempt to load from MinIO")
+        except Exception as e:
+            logger.warning(f"StorageClient initialization failed: {e}")
+            logger.warning("Will only check local filesystem for vintages")
         
         logger.info("Running seasonal adjustment on monitored series...")
         
@@ -107,8 +198,18 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
             logger.info(f"\nProcessing {series_id}: {series_info['name']}")
             
             try:
-                # Generate sample series (in production, load from vintage)
-                series_data = _generate_sample_series(series_id)
+                # Try to load from vintage data first
+                series_data = _load_series_from_vintage(
+                    series_id,
+                    series_info,
+                    vintage_date,
+                    storage
+                )
+                
+                # Fallback to synthetic data if vintage not available
+                if series_data is None:
+                    logger.warning(f"  Vintage data not available, using synthetic fallback")
+                    series_data = _generate_sample_series(series_id)
                 
                 logger.info(f"  Series length: {len(series_data)} months")
                 logger.info(f"  Date range: {series_data.index[0]} to {series_data.index[-1]}")
