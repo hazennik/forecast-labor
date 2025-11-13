@@ -6,6 +6,7 @@ BLS Work Stoppages - Major strikes and lockouts affecting employment
 from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
+import os
 import re
 
 import pandas as pd
@@ -18,6 +19,9 @@ from etl.common.downloader import Downloader
 # BLS Work Stoppages data
 BLS_WORK_STOPPAGES_URL = "https://www.bls.gov/web/wkstp.supp.toc.htm"
 BLS_ANNUAL_DATA_URL = "https://download.bls.gov/pub/time.series/ws/"
+
+# Production safety: Set to 'false' in production to fail instead of using fallback data
+ALLOW_FALLBACK_DATA = os.getenv("ALLOW_FALLBACK_DATA", "true").lower() == "true"
 
 
 class StrikesETL(BaseETL):

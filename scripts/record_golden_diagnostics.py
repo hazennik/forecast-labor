@@ -114,10 +114,11 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
                 logger.info(f"  Date range: {series_data.index[0]} to {series_data.index[-1]}")
                 
                 # Run seasonal adjustment
-                result = pipeline.adjust_series(
+                result = pipeline.run(
                     series_name=series_id,
                     series_data=series_data,
-                    frequency="monthly"
+                    start_date=series_data.index[0].date(),
+                    config={"frequency": "monthly"}
                 )
                 
                 # Extract diagnostics

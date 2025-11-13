@@ -69,6 +69,9 @@ class ETLConfig:
     validators: List[Any] = field(default_factory=list)  # List of validator instances
     generate_validation_reports: bool = False  # Generate HTML/PDF reports
     fail_on_validation_error: bool = False  # Halt pipeline on critical validation failures
+    # Storage integration (MinIO/S3)
+    upload_to_storage: bool = True  # Upload to MinIO for downstream processes
+    storage_bucket: str = "data"  # MinIO bucket name
 
 
 class BaseETL(ABC):
@@ -87,6 +90,18 @@ class BaseETL(ABC):
         self.config = config
         self.metadata = IngestionMetadata(source_name=config.source_name)
         self._setup_logging()
+        
+        # Initialize storage client if uploads enabled
+        self.storage_client = None
+        if self.config.upload_to_storage:
+            from etl.common.storage import StorageClient
+            try:
+                self.storage_client = StorageClient()
+                logger.debug("StorageClient initialized for data uploads")
+            except Exception as e:
+                logger.warning(f"Failed to initialize StorageClient: {e}")
+                logger.warning("Data will only be saved locally")
+                self.config.upload_to_storage = False
     
     def _setup_logging(self):
         """Configure logging for this ETL pipeline"""
@@ -210,7 +225,7 @@ class BaseETL(ABC):
     
     def save_raw(self, df: pd.DataFrame) -> Path:
         """
-        Save raw data to local storage
+        Save raw data to local storage and optionally upload to MinIO
         
         Args:
             df: DataFrame to save
@@ -225,7 +240,7 @@ class BaseETL(ABC):
         # Ensure directory exists
         filepath.parent.mkdir(parents=True, exist_ok=True)
         
-        # Save as Parquet
+        # Save as Parquet locally
         df.to_parquet(filepath, compression="snappy", index=False)
         
         self.metadata.file_path = str(filepath)
@@ -234,11 +249,24 @@ class BaseETL(ABC):
         
         logger.info(f"Saved raw data: {filepath} ({len(df)} rows)")
         
+        # Upload to MinIO if enabled
+        if self.config.upload_to_storage and self.storage_client:
+            try:
+                object_path = f"raw/{self.config.source_name}/{filename}"
+                self.storage_client.upload_file(
+                    bucket_name=self.config.storage_bucket,
+                    object_name=object_path,
+                    file_path=filepath
+                )
+                logger.info(f"Uploaded to MinIO: {self.config.storage_bucket}/{object_path}")
+            except Exception as e:
+                logger.warning(f"Failed to upload raw data to MinIO: {e}")
+        
         return filepath
     
     def create_vintage(self, df: pd.DataFrame, vintage_date: Optional[datetime] = None) -> Path:
         """
-        Create immutable vintage snapshot
+        Create immutable vintage snapshot and optionally upload to MinIO
         
         Args:
             df: DataFrame to snapshot
@@ -265,10 +293,23 @@ class BaseETL(ABC):
             logger.warning(f"Vintage already exists: {filepath}")
             return filepath
         
-        # Save vintage (immutable)
+        # Save vintage (immutable) locally
         df.to_parquet(filepath, compression="snappy", index=False)
         
         logger.info(f"Created vintage: {filepath}")
+        
+        # Upload to MinIO if enabled
+        if self.config.upload_to_storage and self.storage_client:
+            try:
+                object_path = f"vintages/{self.config.source_name}/{vintage_date.strftime('%Y-%m-%d')}/{filename}"
+                self.storage_client.upload_file(
+                    bucket_name=self.config.storage_bucket,
+                    object_name=object_path,
+                    file_path=filepath
+                )
+                logger.info(f"Uploaded vintage to MinIO: {self.config.storage_bucket}/{object_path}")
+            except Exception as e:
+                logger.warning(f"Failed to upload vintage to MinIO: {e}")
         
         return filepath
     

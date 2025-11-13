@@ -76,13 +76,15 @@ def check_postgres(timeout: int = 5) -> bool:
     """Check PostgreSQL connection"""
     try:
         import psycopg2
+        import os
         
+        # Use environment variables matching docker-compose.yml
         conn = psycopg2.connect(
-            host="localhost",
-            port=5432,
-            database="forecast_labor",
-            user="forecast_user",
-            password="forecast_password",
+            host=os.getenv("POSTGRES_HOST", "localhost"),
+            port=int(os.getenv("POSTGRES_PORT", "5432")),
+            database=os.getenv("POSTGRES_DB", "forecast_labor"),
+            user=os.getenv("POSTGRES_USER", "forecast_user"),
+            password=os.getenv("POSTGRES_PASSWORD", "forecast_pass_change_me"),
             connect_timeout=timeout
         )
         conn.close()
