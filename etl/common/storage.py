@@ -34,7 +34,10 @@ class StorageClient:
             secret_key: Secret key (default: from env)
             secure: Use HTTPS (default: False for local)
         """
-        self.endpoint = endpoint or os.getenv("MINIO_ENDPOINT", "minio:9000").replace("http://", "").replace("https://", "")
+        # Get endpoint from parameter or environment, then strip protocol
+        endpoint_raw = endpoint or os.getenv("MINIO_ENDPOINT", "minio:9000")
+        self.endpoint = endpoint_raw.replace("http://", "").replace("https://", "")
+        
         self.access_key = access_key or os.getenv("MINIO_ROOT_USER", "minioadmin")
         self.secret_key = secret_key or os.getenv("MINIO_ROOT_PASSWORD", "minioadmin123")
         self.secure = secure

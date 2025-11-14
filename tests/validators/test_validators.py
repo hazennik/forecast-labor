@@ -203,15 +203,24 @@ class TestSchemaValidator:
     
     def test_schema_validator_initialization(self, sample_schema):
         """Test SchemaValidator initialization"""
-        validator = SchemaValidator("test_source", sample_schema)
+        validator = SchemaValidator(
+            "test_source",
+            required_columns=sample_schema["required_columns"],
+            column_types=sample_schema["column_types"]
+        )
         
         assert validator.source_name == "test_source"
-        assert validator.schema == sample_schema
+        assert validator.required_columns == sample_schema["required_columns"]
+        assert validator.column_types == sample_schema["column_types"]
         assert len(validator.rules) > 0
     
     def test_validates_required_columns_present(self, sample_schema, valid_df):
         """Test validation passes when required columns present"""
-        validator = SchemaValidator("test_source", sample_schema)
+        validator = SchemaValidator(
+            "test_source",
+            required_columns=sample_schema["required_columns"],
+            column_types=sample_schema["column_types"]
+        )
         results = validator.validate(valid_df)
         
         # Should have rule checking required columns
@@ -220,7 +229,11 @@ class TestSchemaValidator:
     
     def test_validates_required_columns_missing(self, sample_schema):
         """Test validation fails when required columns missing"""
-        validator = SchemaValidator("test_source", sample_schema)
+        validator = SchemaValidator(
+            "test_source",
+            required_columns=sample_schema["required_columns"],
+            column_types=sample_schema["column_types"]
+        )
         
         incomplete_df = pd.DataFrame({
             "date": pd.date_range("2024-01-01", periods=10),
@@ -235,7 +248,11 @@ class TestSchemaValidator:
     
     def test_validates_data_types(self, sample_schema, valid_df):
         """Test validation of data types"""
-        validator = SchemaValidator("test_source", sample_schema)
+        validator = SchemaValidator(
+            "test_source",
+            required_columns=sample_schema["required_columns"],
+            column_types=sample_schema["column_types"]
+        )
         results = validator.validate(valid_df)
         
         # All results should pass for valid data
@@ -310,20 +327,21 @@ class TestQualityValidator:
         """Test QualityValidator initialization"""
         validator = QualityValidator(
             source_name="test_source",
-            numeric_columns=["value"],
-            null_threshold=0.05,
-            duplicate_threshold=0.01
+            critical_columns=["value"],
+            unique_keys=["id"],
+            numeric_ranges={"value": (0, 100)}
         )
         
         assert validator.source_name == "test_source"
-        assert validator.numeric_columns == ["value"]
+        assert validator.critical_columns == ["value"]
+        assert validator.unique_keys == ["id"]
+        assert validator.numeric_ranges == {"value": (0, 100)}
     
     def test_validates_null_values(self):
         """Test validation of null values"""
         validator = QualityValidator(
             source_name="test_source",
-            numeric_columns=["value"],
-            null_threshold=0.05  # 5% max nulls
+            critical_columns=["value"]  # Will check for nulls in these columns
         )
         
         # DataFrame with 10% nulls (above threshold)
@@ -341,8 +359,7 @@ class TestQualityValidator:
         """Test validation of duplicate rows"""
         validator = QualityValidator(
             source_name="test_source",
-            numeric_columns=["value"],
-            duplicate_threshold=0.01
+            unique_keys=["id"]  # Will check for duplicate keys
         )
         
         # DataFrame with duplicates
@@ -360,8 +377,7 @@ class TestQualityValidator:
         """Test validation of statistical outliers"""
         validator = QualityValidator(
             source_name="test_source",
-            numeric_columns=["value"],
-            outlier_threshold=3.0
+            numeric_ranges={"value": (0, 100)}  # Will check if values are in range
         )
         
         # DataFrame with extreme outlier
@@ -485,12 +501,16 @@ class TestValidatorIntegration:
             "not_null_columns": ["date", "value"]
         }
         
-        schema_validator = SchemaValidator("test_source", schema)
+        schema_validator = SchemaValidator(
+            "test_source",
+            required_columns=schema["required_columns"],
+            column_types=schema["column_types"]
+        )
         freshness_validator = FreshnessValidator("test_source", "date", max_age_days=30)
         quality_validator = QualityValidator(
             "test_source",
-            numeric_columns=["value"],
-            null_threshold=0.1
+            critical_columns=["value"],
+            numeric_ranges={"value": (0, 200)}
         )
         
         # Create test data
@@ -521,11 +541,14 @@ class TestValidatorIntegration:
             "not_null_columns": ["date", "value"]
         }
         
-        schema_validator = SchemaValidator("test_source", schema)
+        schema_validator = SchemaValidator(
+            "test_source",
+            required_columns=schema["required_columns"],
+            column_types=schema["column_types"]
+        )
         quality_validator = QualityValidator(
             "test_source",
-            numeric_columns=["value"],
-            null_threshold=0.05
+            critical_columns=["value"]  # Nulls will be flagged
         )
         
         # Invalid data: missing column, high nulls

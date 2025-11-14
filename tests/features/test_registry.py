@@ -285,9 +285,13 @@ class TestFeatureMetadata:
         """Test metadata validation."""
         from features.registry import FeatureMetadata
 
-        # Missing required field should raise error
-        with pytest.raises(ValueError):
+        # Missing required field should raise TypeError (dataclass requirement)
+        with pytest.raises(TypeError):
             FeatureMetadata(source="ces")  # Missing name
+        
+        # Empty name should raise ValueError in __post_init__
+        with pytest.raises(ValueError, match="Feature name is required"):
+            FeatureMetadata(name="")  # Empty name not allowed
 
     def test_metadata_to_dict(self):
         """Test converting metadata to dictionary."""

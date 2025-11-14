@@ -111,9 +111,13 @@ class TestFrequencyConverter:
         """Test that invalid frequency combinations raise errors."""
         from features.transforms.frequency import FrequencyConverter
 
-        # Cannot go from lower to higher frequency
-        with pytest.raises(ValueError, match="Cannot convert from lower to higher"):
+        # Invalid source frequency is caught first in validation
+        with pytest.raises(ValueError, match="source_freq must be one of"):
             FrequencyConverter(source_freq="M", target_freq="D")
+        
+        # Invalid target frequency
+        with pytest.raises(ValueError, match="target_freq must be one of"):
+            FrequencyConverter(source_freq="D", target_freq="H")
 
     def test_deterministic_output(self, daily_series):
         """Test that conversion is deterministic."""

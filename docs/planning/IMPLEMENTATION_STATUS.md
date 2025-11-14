@@ -163,24 +163,30 @@ Last Updated: 2025-11-13 (Phase 4 COMPLETE - Feature Engineering)
 
 ### Test Results Breakdown
 
-**Overall:** 256 passed, 31 failed, 0 errors (89% pass rate) ✅
+**Overall:** 266 passed, 21 failed, 0 errors (93% pass rate) ✅✅
 
 **By Phase:**
 - Phase 4 (Features): 100/105 passing (95%) ✅ EXCELLENT
-- Phase 1 (ETL): 90% passing ✅ Claims ETL 100% fixed
+- Phase 1 (ETL): 92% passing ✅ Claims ETL 100% fixed
 - Phase 2 (Seasonal): 90% passing  
-- Phase 3 (Validators): 75% passing
+- Phase 3 (Validators): 72% passing (18/25) ✅ SchemaValidator & QualityValidator fixed
 
-**Remaining Failures (31 tests - 11%):**
-1. Validator Tests (11): API signature mismatches (e.g., `.schema` vs `.required_columns`)
-2. Seasonal Tests (6): SpecBuilder API alignment needed
+**Fixed in This Session:** +10 tests (256→266)
+1. ✅ Storage endpoint protocol stripping (1 test)
+2. ✅ Transform frequency validation (1 test)
+3. ✅ Registry metadata validation (1 test)
+4. ✅ MIDAS features (3 tests) - error handling, ragged edge, column naming
+5. ✅ SchemaValidator API (4 tests) - required_columns/column_types
+6. ✅ QualityValidator API (3 tests, partial) - critical_columns/unique_keys/numeric_ranges
+
+**Remaining Failures (21 tests - 7%):**
+1. Seasonal Tests (6): SpecBuilder API alignment needed
+2. Validator Tests (7): FreshnessValidator (1), Report Generator (3), Integration (3)
 3. Public ETL Tests (4): Mock/fallback data handling
 4. Base ETL Tests (3): Validator integration expectations
-5. Feature/Registry Tests (5): Edge cases and validation
-6. Storage Test (1): Endpoint format expectation
-7. Integration Test (1): End-to-end flow
+5. Integration Test (1): End-to-end flow
 
-**Fix Strategy Documented:** See `docs/TEST_FIXES_REMAINING.md` for systematic approach
+**Fix Strategy:** See `docs/TEST_FIXES_REMAINING.md` for systematic approach & patterns
 
 ### Sustainable Testing Practices Established
 
