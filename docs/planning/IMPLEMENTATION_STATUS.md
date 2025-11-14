@@ -125,7 +125,11 @@ Last Updated: 2025-11-13 (Phase 4 COMPLETE - Feature Engineering)
 - ✅ Added `ALLOW_FALLBACK_DATA` environment variable for production safety (Weather/Strikes ETLs)
 - ✅ Created `run_etl.py` and `run_x13_bundle.py` for Makefile compatibility
 - ✅ **Wired regressors to X-13**: Regressor data now written as .dat files and passed to X-13 service
-- ✅ **Implemented Weather API**: Real NOAA Storm Events API integration (no longer stub)
+- ✅ **Implemented Weather API**: Real NOAA Storm Events API integration with controlled fallback
+  - Real API: Fetches from NOAA Storm Events Database when `NOAA_API_TOKEN` provided
+  - Fallback behavior: Controlled by `ALLOW_FALLBACK_DATA` environment variable (defaults to "true" for development)
+  - Production safety: Set `ALLOW_FALLBACK_DATA=false` to fail instead of using synthetic data
+  - Recommendation: Always provide `NOAA_API_TOKEN` in production; fallback is for local development only
 - ✅ **Golden diagnostics uses real vintages**: Loads from MinIO/filesystem, synthetic only as fallback
 - ✅ **Fixed all Codex Analysis 4 & 5 blockers**: ETL→MinIO uploads, X-13 container, health checks
 
@@ -938,11 +942,11 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 ### Feature Engineering
 | Component | Phase | Status | Notes |
 |-----------|-------|--------|-------|
-| `features/midas/` | Phase 4 | 📋 Planned | MIDAS lag constructors |
-| `features/dfm_inputs/` | Phase 4 | 📋 Planned | Factor extraction inputs |
-| `features/transforms/` | Phase 4 | 📋 Planned | Scaling, calendar, winsorization |
-| `features/aggregations/` | Phase 4 | 📋 Planned | State→national, sector→total |
-| `features/registry.py` | Phase 4 | 📋 Planned | Feature table registry |
+| `features/midas/` | Phase 4 | ✅ Complete | MIDAS lag constructors |
+| `features/dfm_inputs/` | Phase 4 | 📋 Deferred | Factor extraction inputs (for DFM in Phase 5) |
+| `features/transforms/` | Phase 4 | ✅ Complete | Frequency, calendar, scaling, winsorization, pipeline |
+| `features/aggregations/` | Phase 4 | ✅ Complete | State→national, sector→total, hierarchical utilities |
+| `features/registry.py` | Phase 4 | ✅ Complete | Feature metadata, versioning, lineage tracking |
 
 ### Models & Reconciliation
 | Component | Phase | Status | Notes |
@@ -1023,7 +1027,7 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 | `scripts/record_golden_diagnostics.py` | Phase 3.5 | ✅ Complete | Golden diagnostics with real X-13 |
 | `scripts/verify_vintage_determinism.py` | Phase 3.5 | ✅ Complete | Vintage hash verification |
 | `scripts/check_infrastructure_health.py` | Phase 3.5 | ✅ Complete | Service health checks |
-| `scripts/build_features.py` | Phase 4 | 📋 Planned | Feature generation |
+| `scripts/build_features.py` | Phase 4 | ✅ Complete | Feature generation CLI runner |
 | `scripts/train_all.py` | Phase 6.5 | 📋 Planned | Model training |
 | `scripts/run_backtest.py` | Phase 6 | 📋 Planned | Vintage backtest |
 | `scripts/make_subnet_payload.py` | Phase 7 | 📋 Planned | Subnet payloads (any subnet) |

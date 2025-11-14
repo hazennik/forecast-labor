@@ -1,0 +1,109 @@
+{
+  "_comment": "Golden seasonal diagnostics for X-13 regression testing",
+  "_generated_by": "scripts/record_golden_diagnostics.py",
+  "_pinned_vintage_date": "2024-01-15",
+  "_instructions": "Run 'python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --record' to populate with real X-13 diagnostics",
+  "_quality_thresholds": {
+    "M7_acceptable": 1.0,
+    "M8_acceptable": 1.0,
+    "M9_acceptable": 1.0,
+    "M10_acceptable": 1.0,
+    "M11_acceptable": 1.0,
+    "Q_stat_acceptable": 1.0
+  },
+  "series": {
+    "CES0000000001": {
+      "name": "Total Nonfarm Payrolls",
+      "source": "bls_ces",
+      "m_statistics": {
+        "M1": null,
+        "M2": null,
+        "M3": null,
+        "M4": null,
+        "M5": null,
+        "M6": null,
+        "M7": null,
+        "M8": null,
+        "M9": null,
+        "M10": null,
+        "M11": null
+      },
+      "q_statistics": {
+        "Q": null,
+        "p_value": null
+      },
+      "quality_grade": null,
+      "recorded_at": null
+    },
+    "CES0500000003": {
+      "name": "Total Private Employment",
+      "source": "bls_ces",
+      "m_statistics": {
+        "M1": null,
+        "M2": null,
+        "M3": null,
+        "M4": null,
+        "M5": null,
+        "M6": null,
+        "M7": null,
+        "M8": null,
+        "M9": null,
+        "M10": null,
+        "M11": null
+      },
+      "q_statistics": {
+        "Q": null,
+        "p_value": null
+      },
+      "quality_grade": null,
+      "recorded_at": null
+    },
+    "CES4200000001": {
+      "name": "Retail Trade Employment",
+      "source": "bls_ces",
+      "m_statistics": {
+        "M1": null,
+        "M2": null,
+        "M3": null,
+        "M4": null,
+        "M5": null,
+        "M6": null,
+        "M7": null,
+        "M8": null,
+        "M9": null,
+        "M10": null,
+        "M11": null
+      },
+      "q_statistics": {
+        "Q": null,
+        "p_value": null
+      },
+      "quality_grade": null,
+      "recorded_at": null
+    },
+    "CES7000000001": {
+      "name": "Leisure and Hospitality Employment",
+      "source": "bls_ces",
+      "m_statistics": {
+        "M1": null,
+        "M2": null,
+        "M3": null,
+        "M4": null,
+        "M5": null,
+        "M6": null,
+        "M7": null,
+        "M8": null,
+        "M9": null,
+        "M10": null,
+        "M11": null
+      },
+      "q_statistics": {
+        "Q": null,
+        "p_value": null
+      },
+      "quality_grade": null,
+      "recorded_at": null
+    }
+  }
+}
+

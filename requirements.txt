@@ -29,10 +29,10 @@ catboost==1.2
 # ----------------------------
 # DATA VALIDATION & QUALITY
 # ----------------------------
-great-expectations==0.17.8
-pandera==0.15.2
-pydantic==2.1.1
-pydantic-settings==2.0.2
+# great-expectations==0.17.8  # REMOVED: Not used, conflicts with pydantic 2.x. Custom validators in etl/validators/ instead.
+# pandera==0.15.2  # REMOVED: Not used, conflicts with pydantic 2.x. Custom validators in etl/validators/ instead.
+pydantic==1.10.15  # v1.x for Prefect 2.11.3 compatibility (Prefect 3.x requires upgrade)
+# pydantic-settings==2.0.2  # Only needed for pydantic 2.x
 
 # ----------------------------
 # ETL & DATABASES
@@ -125,7 +125,7 @@ openai==0.27.8
 # UTILITIES
 # ----------------------------
 python-dotenv==1.0.0
-click==8.1.6
+click==8.1.3  # Pinned for great-expectations compatibility
 tqdm==4.65.0
 joblib==1.3.1
 loguru==0.7.0

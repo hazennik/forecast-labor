@@ -19,7 +19,7 @@ Usage:
 import argparse
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import pandas as pd
 import sys
 from loguru import logger
@@ -117,64 +117,85 @@ class FeatureBuilder:
 
         # Load Treasury withholdings (daily)
         try:
-            treasury_data = self._load_vintage_data("treasury_withholdings")
-            if treasury_data is not None:
-                # Create MIDAS lags for monthly NFP forecasting
-                constructor = MIDASLagConstructor(
-                    source_freq="D",
-                    target_freq="M",
-                    n_lags=20,
-                    almon_poly_degree=2,
-                    column_prefix="treasury",
-                )
+            treasury_df = self._load_vintage_data("treasury_withholdings")
+            if treasury_df is not None and not treasury_df.empty:
+                # Extract value column as Series
+                # Treasury ETL typically has 'withholding_amount' or similar
+                value_cols = [c for c in treasury_df.columns if 'withhold' in c.lower() or 'amount' in c.lower()]
+                if not value_cols:
+                    value_cols = treasury_df.select_dtypes(include=['number']).columns.tolist()
+                
+                if value_cols:
+                    treasury_series = treasury_df[value_cols[0]]
+                    if 'date' in treasury_df.columns:
+                        treasury_series.index = pd.to_datetime(treasury_df['date'])
+                    
+                    # Create MIDAS lags for monthly NFP forecasting
+                    constructor = MIDASLagConstructor(
+                        source_freq="D",
+                        target_freq="M",
+                        n_lags=20,
+                        almon_poly_degree=2,
+                        column_prefix="treasury",
+                    )
 
-                # Target dates: monthly (first of month)
-                target_dates = pd.date_range(
-                    treasury_data.index[0], treasury_data.index[-1], freq="MS"
-                )
+                    # Target dates: monthly (first of month)
+                    target_dates = pd.date_range(
+                        treasury_series.index[0], treasury_series.index[-1], freq="MS"
+                    )
 
-                midas_lags = constructor.construct_lags(treasury_data, target_dates)
-                features["treasury_midas_lags"] = midas_lags
+                    midas_lags = constructor.construct_lags(treasury_series, target_dates)
+                    features["treasury_midas_lags"] = midas_lags
 
-                # Register in registry
-                self._register_feature(
-                    "treasury_midas_lags",
-                    source="treasury",
-                    transform="midas_lag",
-                    frequency="monthly",
-                )
+                    # Register in registry
+                    self._register_feature(
+                        "treasury_midas_lags",
+                        source="treasury",
+                        transform="midas_lag",
+                        frequency="monthly",
+                    )
 
-                logger.info("midas_features_created", series="treasury", n_lags=20)
+                    logger.info("midas_features_created", series="treasury", n_lags=20)
 
         except Exception as e:
             logger.error("midas_feature_creation_failed", series="treasury", error=str(e))
 
         # Load UI Claims (weekly)
         try:
-            claims_data = self._load_vintage_data("ui_claims")
-            if claims_data is not None:
-                constructor = MIDASLagConstructor(
-                    source_freq="W",
-                    target_freq="M",
-                    n_lags=8,
-                    column_prefix="claims",
-                )
+            claims_df = self._load_vintage_data("ui_claims")
+            if claims_df is not None and not claims_df.empty:
+                # Extract claims value column
+                value_cols = [c for c in claims_df.columns if 'claim' in c.lower() or 'initial' in c.lower()]
+                if not value_cols:
+                    value_cols = claims_df.select_dtypes(include=['number']).columns.tolist()
+                
+                if value_cols:
+                    claims_series = claims_df[value_cols[0]]
+                    if 'date' in claims_df.columns:
+                        claims_series.index = pd.to_datetime(claims_df['date'])
+                    
+                    constructor = MIDASLagConstructor(
+                        source_freq="W",
+                        target_freq="M",
+                        n_lags=8,
+                        column_prefix="claims",
+                    )
 
-                target_dates = pd.date_range(
-                    claims_data.index[0], claims_data.index[-1], freq="MS"
-                )
+                    target_dates = pd.date_range(
+                        claims_series.index[0], claims_series.index[-1], freq="MS"
+                    )
 
-                midas_lags = constructor.construct_lags(claims_data, target_dates)
-                features["claims_midas_lags"] = midas_lags
+                    midas_lags = constructor.construct_lags(claims_series, target_dates)
+                    features["claims_midas_lags"] = midas_lags
 
-                self._register_feature(
-                    "claims_midas_lags",
-                    source="ui_claims",
-                    transform="midas_lag",
-                    frequency="monthly",
-                )
+                    self._register_feature(
+                        "claims_midas_lags",
+                        source="ui_claims",
+                        transform="midas_lag",
+                        frequency="monthly",
+                    )
 
-                logger.info("midas_features_created", series="claims", n_lags=8)
+                    logger.info("midas_features_created", series="claims", n_lags=8)
 
         except Exception as e:
             logger.error("midas_feature_creation_failed", series="claims", error=str(e))
@@ -187,21 +208,31 @@ class FeatureBuilder:
 
         # Convert daily Treasury to weekly
         try:
-            treasury_data = self._load_vintage_data("treasury_withholdings")
-            if treasury_data is not None:
-                converter = FrequencyConverter(source_freq="D", target_freq="W", agg_method="mean")
-                weekly_treasury = converter.convert(treasury_data)
+            treasury_df = self._load_vintage_data("treasury_withholdings")
+            if treasury_df is not None and not treasury_df.empty:
+                # Extract value column
+                value_cols = [c for c in treasury_df.columns if 'withhold' in c.lower() or 'amount' in c.lower()]
+                if not value_cols:
+                    value_cols = treasury_df.select_dtypes(include=['number']).columns.tolist()
+                
+                if value_cols:
+                    treasury_series = treasury_df[value_cols[0]]
+                    if 'date' in treasury_df.columns:
+                        treasury_series.index = pd.to_datetime(treasury_df['date'])
+                    
+                    converter = FrequencyConverter(source_freq="D", target_freq="W", agg_method="mean")
+                    weekly_treasury = converter.convert(treasury_series)
 
-                features["treasury_weekly"] = weekly_treasury.to_frame()
+                    features["treasury_weekly"] = weekly_treasury.to_frame()
 
-                self._register_feature(
-                    "treasury_weekly",
-                    source="treasury",
-                    transform="frequency_conversion",
-                    frequency="weekly",
-                )
+                    self._register_feature(
+                        "treasury_weekly",
+                        source="treasury",
+                        transform="frequency_conversion",
+                        frequency="weekly",
+                    )
 
-                logger.info("frequency_conversion_created", series="treasury", target="weekly")
+                    logger.info("frequency_conversion_created", series="treasury", target="weekly")
 
         except Exception as e:
             logger.error("frequency_conversion_failed", series="treasury", error=str(e))
@@ -214,20 +245,30 @@ class FeatureBuilder:
 
         # Calendar-adjust monthly employment
         try:
-            ces_data = self._load_vintage_data("ces_employment")
-            if ces_data is not None:
-                adjusted = apply_calendar_adjustment(ces_data, method="business_days")
+            ces_df = self._load_vintage_data("bls_ces")  # Correct DataSource enum value
+            if ces_df is not None and not ces_df.empty:
+                # Extract employment column
+                value_cols = [c for c in ces_df.columns if 'employ' in c.lower() or 'payroll' in c.lower()]
+                if not value_cols:
+                    value_cols = ces_df.select_dtypes(include=['number']).columns.tolist()
+                
+                if value_cols:
+                    ces_series = ces_df[value_cols[0]]
+                    if 'date' in ces_df.columns:
+                        ces_series.index = pd.to_datetime(ces_df['date'])
+                    
+                    adjusted = apply_calendar_adjustment(ces_series, method="business_days")
 
-                features["ces_calendar_adjusted"] = adjusted.to_frame()
+                    features["ces_calendar_adjusted"] = adjusted.to_frame()
 
-                self._register_feature(
-                    "ces_calendar_adjusted",
-                    source="ces",
-                    transform="calendar_adjustment",
-                    frequency="monthly",
-                )
+                    self._register_feature(
+                        "ces_calendar_adjusted",
+                        source="bls_ces",
+                        transform="calendar_adjustment",
+                        frequency="monthly",
+                    )
 
-                logger.info("calendar_adjustment_created", series="ces")
+                    logger.info("calendar_adjustment_created", series="ces")
 
         except Exception as e:
             logger.error("calendar_adjustment_failed", series="ces", error=str(e))
@@ -240,28 +281,38 @@ class FeatureBuilder:
 
         # Standardize Treasury withholdings
         try:
-            treasury_data = self._load_vintage_data("treasury_withholdings")
-            if treasury_data is not None:
-                # Pipeline: winsorize then standardize
-                pipeline = TransformPipeline(
-                    [
-                        ("winsorize", Winsorizer(lower=0.01, upper=0.99)),
-                        ("standardize", StandardScaler()),
-                    ]
-                )
+            treasury_df = self._load_vintage_data("treasury_withholdings")
+            if treasury_df is not None and not treasury_df.empty:
+                # Extract value column
+                value_cols = [c for c in treasury_df.columns if 'withhold' in c.lower() or 'amount' in c.lower()]
+                if not value_cols:
+                    value_cols = treasury_df.select_dtypes(include=['number']).columns.tolist()
+                
+                if value_cols:
+                    treasury_series = treasury_df[value_cols[0]]
+                    if 'date' in treasury_df.columns:
+                        treasury_series.index = pd.to_datetime(treasury_df['date'])
+                    
+                    # Pipeline: winsorize then standardize
+                    pipeline = TransformPipeline(
+                        [
+                            ("winsorize", Winsorizer(lower=0.01, upper=0.99)),
+                            ("standardize", StandardScaler()),
+                        ]
+                    )
 
-                scaled = pipeline.fit_transform(treasury_data)
+                    scaled = pipeline.fit_transform(treasury_series)
 
-                features["treasury_scaled"] = scaled.to_frame()
+                    features["treasury_scaled"] = scaled.to_frame()
 
-                self._register_feature(
-                    "treasury_scaled",
-                    source="treasury",
-                    transform="winsorize_standardize",
-                    frequency="daily",
-                )
+                    self._register_feature(
+                        "treasury_scaled",
+                        source="treasury",
+                        transform="winsorize_standardize",
+                        frequency="daily",
+                    )
 
-                logger.info("scaling_created", series="treasury")
+                    logger.info("scaling_created", series="treasury")
 
         except Exception as e:
             logger.error("scaling_failed", series="treasury", error=str(e))
@@ -274,83 +325,122 @@ class FeatureBuilder:
 
         # State to national aggregation
         try:
-            laus_data = self._load_vintage_data("laus_state_employment")
-            if laus_data is not None:
-                aggregator = StateAggregator(agg_method="sum")
-                national = aggregator.aggregate(
-                    laus_data,
-                    value_col="employment",
-                    date_col="date",
-                    state_col="state",
-                )
+            laus_df = self._load_vintage_data("bls_laus")  # Correct DataSource enum value
+            if laus_df is not None and not laus_df.empty:
+                # LAUS data should have date, state, and employment columns
+                required_cols = ["date", "state"]
+                employment_col = None
+                
+                # Find employment column
+                for col in laus_df.columns:
+                    if 'employ' in col.lower() and 'unemploy' not in col.lower():
+                        employment_col = col
+                        break
+                
+                if employment_col and all(col in laus_df.columns for col in required_cols):
+                    aggregator = StateAggregator(agg_method="sum")
+                    national = aggregator.aggregate(
+                        laus_df,
+                        value_col=employment_col,
+                        date_col="date",
+                        state_col="state",
+                    )
 
-                features["laus_national_employment"] = national.to_frame()
+                    features["laus_national_employment"] = national.to_frame()
 
-                self._register_feature(
-                    "laus_national_employment",
-                    source="laus",
-                    transform="state_aggregation",
-                    frequency="monthly",
-                )
+                    self._register_feature(
+                        "laus_national_employment",
+                        source="bls_laus",
+                        transform="state_aggregation",
+                        frequency="monthly",
+                    )
 
-                logger.info("state_aggregation_created")
+                    logger.info("state_aggregation_created", rows=len(national))
+                else:
+                    logger.warning("laus_aggregation_skipped_missing_columns", 
+                                 columns=list(laus_df.columns),
+                                 employment_col=employment_col)
 
         except Exception as e:
-            logger.error("state_aggregation_failed", error=str(e))
+            logger.error("state_aggregation_failed", error=str(e), exc_info=True)
 
         # Sector to total aggregation
         try:
-            ces_sector_data = self._load_vintage_data("ces_sector_employment")
-            if ces_sector_data is not None:
-                aggregator = SectorAggregator(agg_method="sum")
-                total_nonfarm = aggregator.aggregate(
-                    ces_sector_data,
-                    value_col="employment",
-                    date_col="date",
-                    sector_col="sector",
-                )
+            ces_df = self._load_vintage_data("bls_ces")  # Correct DataSource enum value
+            if ces_df is not None and not ces_df.empty:
+                # CES data should have date, series_id or sector, and employment columns
+                required_cols = ["date"]
+                sector_col = None
+                employment_col = None
+                
+                # Find sector column
+                for col in ces_df.columns:
+                    if any(x in col.lower() for x in ['sector', 'series', 'industry']):
+                        sector_col = col
+                        break
+                
+                # Find employment column
+                for col in ces_df.columns:
+                    if any(x in col.lower() for x in ['employ', 'payroll', 'value']):
+                        employment_col = col
+                        break
+                
+                if sector_col and employment_col and all(col in ces_df.columns for col in required_cols):
+                    aggregator = SectorAggregator(agg_method="sum")
+                    total_nonfarm = aggregator.aggregate(
+                        ces_df,
+                        value_col=employment_col,
+                        date_col="date",
+                        sector_col=sector_col,
+                    )
 
-                features["ces_total_nonfarm"] = total_nonfarm.to_frame()
+                    features["ces_total_nonfarm"] = total_nonfarm.to_frame()
 
-                self._register_feature(
-                    "ces_total_nonfarm",
-                    source="ces",
-                    transform="sector_aggregation",
-                    frequency="monthly",
-                )
+                    self._register_feature(
+                        "ces_total_nonfarm",
+                        source="bls_ces",
+                        transform="sector_aggregation",
+                        frequency="monthly",
+                    )
 
-                logger.info("sector_aggregation_created")
+                    logger.info("sector_aggregation_created", rows=len(total_nonfarm))
+                else:
+                    logger.warning("ces_aggregation_skipped_missing_columns",
+                                 columns=list(ces_df.columns),
+                                 sector_col=sector_col,
+                                 employment_col=employment_col)
 
         except Exception as e:
-            logger.error("sector_aggregation_failed", error=str(e))
+            logger.error("sector_aggregation_failed", error=str(e), exc_info=True)
 
         return features
 
-    def _load_vintage_data(self, data_source: str) -> pd.Series:
+    def _load_vintage_data(self, data_source: str) -> Optional[pd.DataFrame]:
         """
         Load data from vintage.
 
         Args:
-            data_source: Data source name
+            data_source: Data source name (DataSource enum value, e.g., 'bls_ces', 'bls_laus')
 
         Returns:
-            Time series data (or None if not found)
+            DataFrame with vintage data, or None if not found
         """
         try:
-            # Load from vintage manager
-            vintage_path = f"data/vintages/{self.vintage_date}/{data_source}/data.parquet"
+            # ETL creates: data/vintages/{source}/{YYYY-MM-DD}/{source}_vintage.parquet
+            vintage_path = f"data/vintages/{data_source}/{self.vintage_date}/{data_source}_vintage.parquet"
 
             if Path(vintage_path).exists():
                 df = pd.read_parquet(vintage_path)
-                # Assume first numeric column is the series
-                numeric_cols = df.select_dtypes(include=["number"]).columns
-                if len(numeric_cols) > 0:
-                    series = df[numeric_cols[0]]
-                    if "date" in df.columns:
-                        series.index = pd.to_datetime(df["date"])
-                    return series
+                logger.info(
+                    "vintage_data_loaded",
+                    source=data_source,
+                    vintage=self.vintage_date,
+                    rows=len(df),
+                    columns=list(df.columns),
+                )
+                return df
 
-            logger.warning("vintage_data_not_found", source=data_source, vintage=self.vintage_date)
+            logger.warning("vintage_data_not_found", source=data_source, vintage=self.vintage_date, expected_path=vintage_path)
             return None
 
         except Exception as e:

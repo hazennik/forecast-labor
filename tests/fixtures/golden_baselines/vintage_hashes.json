@@ -1,0 +1,58 @@
+{
+  "_comment": "Golden vintage hashes for determinism testing",
+  "_generated_by": "scripts/verify_vintage_determinism.py",
+  "_pinned_vintage_date": "2024-01-15",
+  "_instructions": "Run 'python scripts/verify_vintage_determinism.py --vintage-date 2024-01-15 --record' to populate this file with actual hashes",
+  "vintages": {
+    "treasury_withholdings": {
+      "vintage_date": "2024-01-15",
+      "sha256_hash": null,
+      "row_count": null,
+      "column_count": null,
+      "last_updated": null
+    },
+    "ui_claims": {
+      "vintage_date": "2024-01-15",
+      "sha256_hash": null,
+      "row_count": null,
+      "column_count": null,
+      "last_updated": null
+    },
+    "bls_ces": {
+      "vintage_date": "2024-01-15",
+      "sha256_hash": null,
+      "row_count": null,
+      "column_count": null,
+      "last_updated": null
+    },
+    "bls_laus": {
+      "vintage_date": "2024-01-15",
+      "sha256_hash": null,
+      "row_count": null,
+      "column_count": null,
+      "last_updated": null
+    },
+    "strikes": {
+      "vintage_date": "2024-01-15",
+      "sha256_hash": null,
+      "row_count": null,
+      "column_count": null,
+      "last_updated": null
+    },
+    "weather": {
+      "vintage_date": "2024-01-15",
+      "sha256_hash": null,
+      "row_count": null,
+      "column_count": null,
+      "last_updated": null
+    },
+    "cnbfs": {
+      "vintage_date": "2024-01-15",
+      "sha256_hash": null,
+      "row_count": null,
+      "column_count": null,
+      "last_updated": null
+    }
+  }
+}
+

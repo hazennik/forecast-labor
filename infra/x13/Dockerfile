@@ -64,7 +64,7 @@ RUN mkdir -p \
 WORKDIR /app
 
 # Entrypoint script
-COPY ./infra/x13/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Health check

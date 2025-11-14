@@ -1,0 +1,81 @@
+# ===========================
+# MINIMAL DOCKER COMPOSE FOR PHASE 1-4 TESTING
+# ===========================
+# Core services only (no X-13, no Prefect, no MLflow for now)
+# Use: docker compose -f docker-compose.minimal.yml up -d
+
+version: '3.8'
+
+services:
+  # ----------------------------
+  # OBJECT STORAGE (MinIO - S3-compatible)
+  # ----------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: forecast-minio
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console UI
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - forecast-net
+
+  # MinIO bucket initialization
+  minio-init:
+    image: minio/mc:latest
+    container_name: forecast-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin123};
+      mc mb myminio/forecast-labor --ignore-existing;
+      mc mb myminio/vintages --ignore-existing;
+      mc mb myminio/features --ignore-existing;
+      echo 'MinIO buckets initialized';
+      "
+    networks:
+      - forecast-net
+
+  # ----------------------------
+  # DATABASE (PostgreSQL)
+  # ----------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: forecast-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-forecast_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forecast_pass_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-forecast_labor}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forecast_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forecast-net
+
+volumes:
+  minio-data:
+  postgres-data:
+
+networks:
+  forecast-net:
+    driver: bridge
+

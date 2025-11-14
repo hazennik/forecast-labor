@@ -74,12 +74,14 @@ jobs:
       - name: Verify vintage determinism
         run: |
           python scripts/verify_vintage_determinism.py --vintage-date 2024-01-15 --verify
-        continue-on-error: true
+        # NOTE: This gate will block merges if vintage data has changed unexpectedly
+        # To populate baselines initially: python scripts/verify_vintage_determinism.py --vintage-date 2024-01-15 --record
       
       - name: Check golden diagnostics
         run: |
-          python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --record
-        continue-on-error: true
+          python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --verify
+        # NOTE: This gate will block merges if seasonal diagnostics degrade
+        # To populate baselines initially: python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --record
       
       - name: Test summary
         if: always()

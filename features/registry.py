@@ -393,23 +393,21 @@ class FeatureRegistry:
             metadata: Feature metadata
 
         Note:
-            This is a placeholder. Real implementation would use database connection.
+            Database persistence is planned for future implementation.
+            For now, features are stored in-memory only.
+            Database integration will be added in Phase 5+ when model infrastructure is complete.
         """
-        try:
-            from etl.common.storage import get_db_connection
-
-            conn = get_db_connection()
-
-            # Insert or update feature in database
-            # SQL: INSERT INTO features.feature_registry (feature_id, ...)
-            # VALUES (?, ...) ON CONFLICT (feature_id) DO UPDATE ...
-
-            logger.info("feature_persisted_to_database", feature_id=feature_id)
-
-        except ImportError:
-            logger.warning("database_connection_not_available_skipping_persistence")
-        except Exception as e:
-            logger.error("database_persistence_failed", error=str(e), feature_id=feature_id)
+        # TODO: Implement database persistence in Phase 5+
+        # Will require:
+        # 1. Database connection pool
+        # 2. features.feature_registry table schema
+        # 3. SQL INSERT/UPDATE logic
+        
+        logger.debug(
+            "database_persistence_not_yet_implemented",
+            feature_id=feature_id,
+            note="Planned for Phase 5+ - features stored in-memory for now"
+        )
 
 
 # Convenience function

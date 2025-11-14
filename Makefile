@@ -116,51 +116,54 @@ features: ## Build feature tables
 # ----------------------------
 # MODEL TRAINING
 # ----------------------------
-train: ## Train all models (DFM, MIDAS, GBM, revision, calibration)
-	@echo "🧠 Training models..."
-	docker compose exec models python /app/scripts/train_all.py
-	@echo "✅ Model training complete. Check MLflow UI."
+train: ## Train all models (DFM, MIDAS, GBM, revision, calibration) - Phase 6.5
+	@echo "❌ Model training not yet implemented (planned for Phase 6.5)"
+	@echo "   Current status: Phase 4 complete (Feature Engineering)"
+	@echo "   Next: Phase 5 (Models & Reconciliation)"
+	@echo "   This feature will be available after Phase 5 model development is complete."
+	@exit 1
 
-train-dfm: ## Train Dynamic Factor Model only
-	docker compose exec models python /app/models_src/dfm/train.py
+train-dfm: ## Train Dynamic Factor Model only - Phase 5
+	@echo "❌ DFM training not yet implemented (planned for Phase 5)"
+	@exit 1
 
-train-midas: ## Train MIDAS model only
-	docker compose exec models python /app/models_src/midas/train.py
+train-midas: ## Train MIDAS model only - Phase 5
+	@echo "❌ MIDAS model training not yet implemented (planned for Phase 5)"
+	@exit 1
 
-train-gbm: ## Train GBM quantile model only
-	docker compose exec models python /app/models_src/gbm_quantile/train.py
+train-gbm: ## Train GBM quantile model only - Phase 5
+	@echo "❌ GBM training not yet implemented (planned for Phase 5)"
+	@exit 1
 
-train-revision: ## Train revision model only
-	docker compose exec models python /app/models_src/revision/train.py
+train-revision: ## Train revision model only - Phase 5
+	@echo "❌ Revision model training not yet implemented (planned for Phase 5)"
+	@exit 1
 
 # ----------------------------
 # BACKTESTING & EVALUATION
 # ----------------------------
-backtest: ## Run vintage-honest backtest
-	@echo "🔍 Running backtest..."
-	docker compose exec models python /app/scripts/run_backtest.py
-	@echo "✅ Backtest complete. Report saved to data/reports/"
+backtest: ## Run vintage-honest backtest - Phase 6
+	@echo "❌ Backtesting not yet implemented (planned for Phase 6)"
+	@echo "   This requires Phase 5 models to be trained first."
+	@exit 1
 
-evaluate: ## Evaluate current model performance
-	@echo "📈 Evaluating models..."
-	docker compose exec models python /app/backtests/metrics/evaluate.py
-	@echo "✅ Evaluation complete."
+evaluate: ## Evaluate current model performance - Phase 6
+	@echo "❌ Model evaluation not yet implemented (planned for Phase 6)"
+	@exit 1
 
 # ----------------------------
 # SN41 MINER
 # ----------------------------
-submit: ## Build SN41 payload (dry run)
-	@echo "📤 Building SN41 payload..."
-	docker compose exec miner python /app/scripts/make_sn41_payload.py
-	@echo "✅ Payload generated."
+submit: ## Build subnet payload (dry run) - Phase 7
+	@echo "❌ Subnet submission not yet implemented (planned for Phase 7)"
+	@echo "   This requires Phase 5 models, Phase 6 backtests, and Phase 7 adapter pattern."
+	@echo "   Note: Using subnet-agnostic adapter pattern (not hardcoded SN41)."
+	@exit 1
 
-miner: ## Start SN41 miner service (production only)
-	@echo "⛏️  Starting SN41 miner..."
-	@if [ "$(shell grep SN41_MINER_ENABLED .env | cut -d '=' -f2)" = "true" ]; then \
-		docker compose exec miner python /app/scripts/submit_sn41.py; \
-	else \
-		echo "❌ SN41_MINER_ENABLED is false. Set to true in .env to enable."; \
-	fi
+miner: ## Start subnet miner service (production only) - Phase 7
+	@echo "❌ Subnet miner not yet implemented (planned for Phase 7)"
+	@echo "   This will use the subnet adapter pattern for any Bittensor subnet."
+	@exit 1
 
 miner-health: ## Check miner health status
 	curl http://localhost:8080/health || echo "❌ Miner service not responding"
