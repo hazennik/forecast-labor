@@ -41,6 +41,12 @@ RUN pip install --no-cache-dir \
     openpyxl==3.1.2 \
     xlrd==2.0.1
 
+# Copy setup.py for package installation
+COPY setup.py /app/setup.py
+
+# Install the package in editable mode (makes imports work for pytest)
+RUN pip install -e /app
+
 # Set Python path
 ENV PYTHONPATH=/app:$PYTHONPATH
 

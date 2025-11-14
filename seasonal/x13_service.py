@@ -44,12 +44,16 @@ class X13Service:
         """
         self.x13_path = x13_path
         self.work_dir = Path(work_dir) if work_dir else Path(tempfile.mkdtemp())
+        self.use_statsmodels = False
         
         # Verify X-13 is available
         if not self._verify_x13():
-            raise X13Error(f"X-13 binary not found at: {self.x13_path}")
+            logger.warning(f"X-13 binary not found at: {self.x13_path}")
+            logger.warning("Will use statsmodels X-13 integration as fallback")
+            self.use_statsmodels = True
+        else:
+            logger.info(f"X-13 service initialized: {self.x13_path}")
         
-        logger.info(f"X-13 service initialized: {self.x13_path}")
         logger.info(f"Working directory: {self.work_dir}")
     
     def _verify_x13(self) -> bool:

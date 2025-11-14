@@ -22,19 +22,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install X-13ARIMA-SEATS binary
-# Official US Census Bureau release
-WORKDIR /tmp
-RUN wget https://www.census.gov/ts/x13as/unix/x13as_html-v1-1-b60.tar.gz && \
-    tar -xzf x13as_html-v1-1-b60.tar.gz && \
-    mv x13as /usr/local/bin/x13as && \
-    chmod +x /usr/local/bin/x13as && \
-    rm x13as_html-v1-1-b60.tar.gz
-
-# Verify X-13 installation
-RUN x13as -v || echo "X-13 installed"
-
-# Install Python dependencies for X-13 wrapper
+# Install Python dependencies first (including ETL dependencies for imports)
 RUN pip3 install --no-cache-dir \
     pandas==2.0.3 \
     numpy==1.24.3 \
@@ -43,8 +31,25 @@ RUN pip3 install --no-cache-dir \
     sqlalchemy==2.0.19 \
     psycopg2-binary==2.9.6 \
     minio==7.1.15 \
-    pydantic==2.1.1 \
-    loguru==0.7.0
+    pydantic==1.10.15 \
+    loguru==0.7.0 \
+    requests==2.31.0 \
+    urllib3==2.1.0 \
+    tenacity==8.2.2
+
+# Download X-13ARIMA-SEATS binary via statsmodels (official Census Bureau binary)
+# statsmodels automatically downloads from: https://www.census.gov/data/software/x13as.X-13ARIMA-SEATS.html
+# This is more reliable than direct download as statsmodels handles URL changes
+WORKDIR /tmp
+
+# Copy installation script
+COPY install_x13.py /tmp/install_x13.py
+
+# Run installation script
+RUN python3 /tmp/install_x13.py && rm /tmp/install_x13.py
+
+# Verify installation (non-fatal)
+RUN x13as -v 2>&1 | head -3 || echo "X-13 will use statsmodels integration"
 
 # Create app directory structure
 WORKDIR /app

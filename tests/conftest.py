@@ -8,10 +8,17 @@ This module provides:
 - Shared test utilities
 """
 
+# CRITICAL: Set up Python path BEFORE any other imports
+# This must be the very first code executed
+import sys
+from pathlib import Path
+_project_root = Path(__file__).parent.parent.absolute()
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
 import os
 import tempfile
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from typing import Dict, Any, Generator
 from unittest.mock import Mock, MagicMock
 
@@ -21,9 +28,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Import common utilities (will be created)
-from etl.common.base import ETLConfig, IngestionMetadata
-from etl.common.storage import StorageClient
+# Delay etl imports to avoid pytest assertion rewriting issues
+# These will be imported when needed in fixtures
+# from etl.common.base import ETLConfig, IngestionMetadata
+# from etl.common.storage import StorageClient
 
 
 # =====================
@@ -142,6 +150,7 @@ def mock_storage_client() -> Mock:
     
     Simulates storage operations without actual network calls.
     """
+    from etl.common.storage import StorageClient
     client = Mock(spec=StorageClient)
     client.upload_file.return_value = True
     client.download_file.return_value = True
@@ -166,8 +175,9 @@ def mock_minio_client() -> Mock:
 # =====================
 
 @pytest.fixture
-def etl_config(temp_dir: Path) -> ETLConfig:
+def etl_config(temp_dir: Path):
     """Create a test ETL configuration."""
+    from etl.common.base import ETLConfig
     return ETLConfig(
         source_name="test_source",
         raw_data_path=temp_dir / "raw",
@@ -182,8 +192,9 @@ def etl_config(temp_dir: Path) -> ETLConfig:
 
 
 @pytest.fixture
-def sample_ingestion_metadata(test_vintage_date: date) -> IngestionMetadata:
+def sample_ingestion_metadata(test_vintage_date: date):
     """Create sample ingestion metadata for testing."""
+    from etl.common.base import IngestionMetadata
     return IngestionMetadata(
         source="test_source",
         vintage_date=test_vintage_date,

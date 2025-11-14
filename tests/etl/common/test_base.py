@@ -27,10 +27,13 @@ class TestETLPipeline(BaseETL):
     
     def __init__(self, config: ETLConfig, test_data: pd.DataFrame = None):
         super().__init__(config)
-        self.test_data = test_data or pd.DataFrame({
-            "date": pd.date_range("2024-01-01", periods=10, freq="D"),
-            "value": range(10)
-        })
+        if test_data is not None:
+            self.test_data = test_data
+        else:
+            self.test_data = pd.DataFrame({
+                "date": pd.date_range("2024-01-01", periods=10, freq="D"),
+                "value": range(10)
+            })
         self._extract_called = False
         self._validate_called = False
         self._transform_called = False

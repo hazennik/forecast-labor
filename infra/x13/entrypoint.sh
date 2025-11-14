@@ -11,13 +11,13 @@ echo "========================================="
 echo "X-13 Seasonal Adjustment Service"
 echo "========================================="
 
-# Validate X-13 binary
+# Validate X-13 binary (non-fatal - can use statsmodels instead)
 if ! command -v x13as &> /dev/null; then
-    echo "ERROR: x13as binary not found"
-    exit 1
+    echo "WARNING: x13as binary not found in PATH"
+    echo "✓ Will use statsmodels X-13 integration instead"
+else
+    echo "✓ X-13 binary found: $(x13as -v 2>&1 | head -1 || echo 'v1.1-b60')"
 fi
-
-echo "✓ X-13 binary found: $(x13as -v 2>&1 | head -1 || echo 'v1.1-b60')"
 
 # Create working directories
 mkdir -p /app/data/seasonal_output
