@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from etl.common.base import ETLConfig, BaseETL, IngestionStatus
-from etl.validators.base_validator import ValidationResult, ValidationSeverity
+from etl.validators.base_validator import ValidationResult, ValidationSeverity, ValidationStatus
 
 
 class MockValidator:
@@ -27,10 +27,21 @@ class MockValidator:
         """Mock validate method"""
         self._called = True
         
-        result = Mock(spec=ValidationResult)
-        result.passed = self.should_pass
-        result.severity = Mock(value=self.severity_str)
-        result.message = f"Validation {'passed' if self.should_pass else 'failed'}"
+        # Map string severity to enum
+        severity_map = {
+            "INFO": ValidationSeverity.INFO,
+            "WARNING": ValidationSeverity.WARNING,
+            "ERROR": ValidationSeverity.ERROR,
+            "CRITICAL": ValidationSeverity.CRITICAL
+        }
+        
+        # Use actual ValidationResult
+        result = ValidationResult(
+            rule_name="mock_rule",
+            status=ValidationStatus.PASSED if self.should_pass else ValidationStatus.FAILED,
+            severity=severity_map.get(self.severity_str, ValidationSeverity.INFO),
+            message=f"Validation {'passed' if self.should_pass else 'failed'}"
+        )
         
         return [result]
 

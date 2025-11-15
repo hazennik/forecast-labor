@@ -347,10 +347,14 @@ class TestBaseETL:
     
     def test_run_validators_detects_critical_failure(self, etl_config, sample_data):
         """Test that critical failures are detected"""
+        from etl.validators.base_validator import ValidationResult, ValidationStatus, ValidationSeverity
+        
         mock_validator = Mock()
-        mock_result = Mock(
-            passed=False,
-            severity=Mock(value="CRITICAL"),
+        # Use actual ValidationResult with CRITICAL severity
+        mock_result = ValidationResult(
+            rule_name="test_rule",
+            status=ValidationStatus.FAILED,
+            severity=ValidationSeverity.CRITICAL,
             message="Critical error"
         )
         mock_validator.validate.return_value = [mock_result]
@@ -502,10 +506,14 @@ class TestBaseETL:
     
     def test_run_respects_validator_failure(self, etl_config, sample_data):
         """Test that run respects validator failures"""
+        from etl.validators.base_validator import ValidationResult, ValidationStatus, ValidationSeverity
+        
         mock_validator = Mock()
-        mock_result = Mock(
-            passed=False,
-            severity=Mock(value="CRITICAL"),
+        # Use actual ValidationResult with CRITICAL severity
+        mock_result = ValidationResult(
+            rule_name="test_rule",
+            status=ValidationStatus.FAILED,
+            severity=ValidationSeverity.CRITICAL,
             message="Critical failure"
         )
         mock_validator.validate.return_value = [mock_result]
@@ -526,7 +534,10 @@ class TestBaseETL:
     
     def test_multiple_runs_create_separate_files(self, test_etl):
         """Test that multiple runs create separate files"""
+        import time
+        
         test_etl.run()
+        time.sleep(1.1)  # Ensure different timestamp (second precision)
         test_etl.run()
         
         raw_path = test_etl.config.raw_data_path

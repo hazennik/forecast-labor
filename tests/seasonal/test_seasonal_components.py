@@ -210,10 +210,13 @@ class TestDiagnosticAnalyzers:
         """Test M-stat quality assessment"""
         analyzer = MStatAnalyzer()
         
-        quality = analyzer.assess_quality(mock_m_statistics)
+        # analyze() expects diagnostics dict, returns analysis with m_stats and quality
+        result = analyzer.analyze(mock_m_statistics)
         
-        assert quality is not None
-        assert "overall_quality" in quality or isinstance(quality, (str, dict))
+        assert result is not None
+        assert isinstance(result, dict)
+        # Should have status or quality indicators
+        assert "status" in result or "m_stats" in result
     
     def test_q_stat_analyzer_creation(self):
         """Test creating Q-stat analyzer"""
@@ -225,10 +228,13 @@ class TestDiagnosticAnalyzers:
         """Test Q-stat significance check"""
         analyzer = QStatAnalyzer()
         
-        # Q-statistic should be checked for significance
-        is_significant = analyzer.check_significance(mock_m_statistics.get("q", 0))
+        # analyze() checks Q-statistic and returns analysis
+        result = analyzer.analyze(mock_m_statistics)
         
-        assert isinstance(is_significant, bool)
+        assert result is not None
+        assert isinstance(result, dict)
+        # Should have Q-stat analysis
+        assert "status" in result or "q_stat" in result
     
     def test_stability_analyzer_creation(self):
         """Test creating stability analyzer"""
@@ -260,33 +266,35 @@ class TestSeasonalPipelineIntegration:
         """Test spec builder with regressors"""
         from datetime import date
         
-        builder = SpecBuilder(
-            series_id="TEST001",
-            frequency="monthly"
+        builder = SpecBuilder()
+        
+        # Create X13Spec config with regressors
+        config = X13Spec(
+            series_name="TEST001",
+            title="Test Series",
+            start_year=2010,
+            start_month=1,
+            easter=True,  # Enable easter regressor
+            user_regressors=["custom_reg_1"]  # Custom regressors
         )
         
-        # Add regressors
-        holiday_builder = HolidayRegressors()
-        easter_reg = holiday_builder.build_easter_regressor(
-            start_date=date(2010, 1, 1),
-            end_date=date(2019, 12, 31)
-        )
-        
-        builder.add_regressor("easter", easter_reg)
-        
-        spec = builder.build_spec(sample_series)
+        spec = builder.build_spec(config)
         
         assert "regression" in spec.lower() or "easter" in spec.lower()
     
     def test_complete_seasonal_workflow_mock(self, sample_series):
         """Test complete workflow with mocked X-13 service"""
         # Build spec
-        builder = SpecBuilder(
-            series_id="TEST001",
-            frequency="monthly"
+        builder = SpecBuilder()
+        
+        config = X13Spec(
+            series_name="TEST001",
+            title="Test Series",
+            start_year=2010,
+            start_month=1
         )
         
-        spec = builder.build_spec(sample_series)
+        spec = builder.build_spec(config)
         
         assert spec is not None
         
@@ -303,7 +311,7 @@ class TestSeasonalPipelineIntegration:
         
         # Analyze diagnostics
         analyzer = MStatAnalyzer()
-        quality = analyzer.assess_quality(mock_output["diagnostics"])
+        quality = analyzer.analyze(mock_output["diagnostics"])
         
         assert quality is not None
 
