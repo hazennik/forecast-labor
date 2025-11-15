@@ -1,58 +1,103 @@
 {
-  "_comment": "Golden vintage hashes for determinism testing",
-  "_generated_by": "scripts/verify_vintage_determinism.py",
-  "_pinned_vintage_date": "2024-01-15",
-  "_instructions": "Run 'python scripts/verify_vintage_determinism.py --vintage-date 2024-01-15 --record' to populate this file with actual hashes",
-  "vintages": {
-    "treasury_withholdings": {
-      "vintage_date": "2024-01-15",
-      "sha256_hash": null,
-      "row_count": null,
-      "column_count": null,
-      "last_updated": null
-    },
+  "vintage_date": "2024-01-15",
+  "created_at": "2025-11-15T09:10:46.203235",
+  "sources": {
     "ui_claims": {
-      "vintage_date": "2024-01-15",
-      "sha256_hash": null,
-      "row_count": null,
-      "column_count": null,
-      "last_updated": null
+      "ui_claims_vintage.parquet": {
+        "file_hash": "d33ab995751fd2d2656f789df83a3c4cbe1767e6c90a51a39f7704cd7e6be10d",
+        "dataframe_hash": "3683eb7ed118114abf7e0cc2030f6d0cd482e0f6d5cbc6665efee39cda329288",
+        "row_count": 120,
+        "column_count": 4,
+        "columns": [
+          "report_date",
+          "state_code",
+          "initial_claims",
+          "continued_claims"
+        ]
+      }
+    },
+    "treasury_withholdings": {
+      "treasury_withholdings_vintage.parquet": {
+        "file_hash": "4a23adc9ab5433142b91fea1207c5f9c45268c0945931c1b14fc10d9bc29cd01",
+        "dataframe_hash": "29ba05e6aa3b4adb4a644245e9d2829da09463c3dc8cc2b0c3cc3221a9d826c8",
+        "row_count": 120,
+        "column_count": 3,
+        "columns": [
+          "record_date",
+          "account",
+          "close_today_bal"
+        ]
+      }
     },
     "bls_ces": {
-      "vintage_date": "2024-01-15",
-      "sha256_hash": null,
-      "row_count": null,
-      "column_count": null,
-      "last_updated": null
+      "bls_ces_vintage.parquet": {
+        "file_hash": "9a6af0153f907d34c97a2d809d96cd520c68eb6fdb8d6c27b3727afb9ec15cc4",
+        "dataframe_hash": "3695a258dc1cd2a40706bc37033d653ea26e22135cacf0d5c71fa18d4e679ab3",
+        "row_count": 120,
+        "column_count": 4,
+        "columns": [
+          "date",
+          "series_id",
+          "value",
+          "series_name"
+        ]
+      }
     },
     "bls_laus": {
-      "vintage_date": "2024-01-15",
-      "sha256_hash": null,
-      "row_count": null,
-      "column_count": null,
-      "last_updated": null
+      "bls_laus_vintage.parquet": {
+        "file_hash": "17154d6a6326cc6eaa9fec5000cc1a7aa0fe28144c40a864456b2ba1f382aeb9",
+        "dataframe_hash": "7341c57b13e7f6b3d282353dc85c1f7fafd53404f7ebcfbc5887cbbcc36e9cb3",
+        "row_count": 120,
+        "column_count": 6,
+        "columns": [
+          "date",
+          "series_id",
+          "state_fips",
+          "state_name",
+          "measure",
+          "value"
+        ]
+      }
     },
     "strikes": {
-      "vintage_date": "2024-01-15",
-      "sha256_hash": null,
-      "row_count": null,
-      "column_count": null,
-      "last_updated": null
+      "strikes_vintage.parquet": {
+        "file_hash": "3f6015319630981ba048b10f7cf3b63b0fbc1528cecc1ad7bf938fb371692f31",
+        "dataframe_hash": "832176443c66205b92e1ffae237606265cc204f8a622fa86fb178b0355142bf8",
+        "row_count": 120,
+        "column_count": 2,
+        "columns": [
+          "date",
+          "value"
+        ]
+      }
     },
     "weather": {
-      "vintage_date": "2024-01-15",
-      "sha256_hash": null,
-      "row_count": null,
-      "column_count": null,
-      "last_updated": null
+      "weather_vintage.parquet": {
+        "file_hash": "4c4ad4cb9784e52ad259eafc1749addc8be442e9532fe9069671e48a3829edc3",
+        "dataframe_hash": "52f1c63ad19609a8dcc756ac0c5414490649ad963b5a04c4e60a298465c20415",
+        "row_count": 120,
+        "column_count": 2,
+        "columns": [
+          "date",
+          "value"
+        ]
+      }
     },
     "cnbfs": {
-      "vintage_date": "2024-01-15",
-      "sha256_hash": null,
-      "row_count": null,
-      "column_count": null,
-      "last_updated": null
+      "cnbfs_vintage.parquet": {
+        "file_hash": "6e68943ad8887c99a60984be7e4e7e131665a82b3bceb8747d42cede5da15c7d",
+        "dataframe_hash": "d0654efa130ea74c50a120d7c18439c420da057346ae1b81133ed329849a6871",
+        "row_count": 120,
+        "column_count": 2,
+        "columns": [
+          "date",
+          "value"
+        ]
+      }
     }
+  },
+  "metadata": {
+    "total_sources": 7,
+    "total_files": 7
   }
 }
-
