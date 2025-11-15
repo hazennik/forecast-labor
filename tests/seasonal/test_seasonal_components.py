@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from seasonal.spec_builder import SpecBuilder
+from seasonal.spec_builder import SpecBuilder, X13Spec
 from seasonal.regressors.holiday_regressors import HolidayRegressors
 from seasonal.regressors.strike_regressors import StrikeRegressors
 from seasonal.regressors.weather_regressors import WeatherRegressors
@@ -27,27 +27,26 @@ class TestSpecBuilder:
     
     def test_spec_builder_creation(self):
         """Test creating spec builder"""
-        builder = SpecBuilder(
-            series_id="TEST001",
-            frequency="monthly"
-        )
+        builder = SpecBuilder()  # Takes no parameters
         
-        assert builder.series_id == "TEST001"
-        assert builder.frequency == "monthly"
+        # SpecBuilder is initialized with no state
+        assert builder is not None
+        assert hasattr(builder, 'specs')
+        assert isinstance(builder.specs, dict)
     
     def test_build_basic_spec(self):
         """Test building basic X-13 spec"""
-        builder = SpecBuilder(
-            series_id="TEST001",
-            frequency="monthly"
+        builder = SpecBuilder()
+        
+        # Create X13Spec config
+        config = X13Spec(
+            series_name="TEST001",
+            title="Test Series",
+            start_year=2010,
+            start_month=1
         )
         
-        data = pd.Series(
-            range(120),
-            index=pd.date_range("2010-01-01", periods=120, freq="MS")
-        )
-        
-        spec = builder.build_spec(data)
+        spec = builder.build_spec(config)
         
         assert spec is not None
         assert isinstance(spec, str)
