@@ -28,8 +28,8 @@ SERVICES = {
     },
     "mlflow": {
         "name": "MLflow",
-        "port": 5000,
-        "health_endpoint": "http://localhost:5000/health"
+        "port": 5050,  # External port (mapped from container's 5000)
+        "health_endpoint": "http://localhost:5050/health"
     },
     "prefect": {
         "name": "Prefect",

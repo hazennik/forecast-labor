@@ -327,23 +327,33 @@ class FeatureBuilder:
         try:
             laus_df = self._load_vintage_data("bls_laus")  # Correct DataSource enum value
             if laus_df is not None and not laus_df.empty:
-                # LAUS data should have date, state, and employment columns
-                required_cols = ["date", "state"]
-                employment_col = None
+                # LAUS data has: date, state_name, state_fips, measure, value
+                # Find state column (state_fips, state_name, or state)
+                state_col = None
+                for col in ["state_fips", "state_name", "state"]:
+                    if col in laus_df.columns:
+                        state_col = col
+                        break
                 
                 # Find employment column
+                employment_col = None
                 for col in laus_df.columns:
                     if 'employ' in col.lower() and 'unemploy' not in col.lower():
                         employment_col = col
                         break
                 
-                if employment_col and all(col in laus_df.columns for col in required_cols):
+                # Check we have the required columns
+                if state_col and employment_col and "date" in laus_df.columns:
+                    # Filter to employment_level measure if measure column exists
+                    if "measure" in laus_df.columns:
+                        laus_df = laus_df[laus_df["measure"] == "employment_level"].copy()
+                    
                     aggregator = StateAggregator(agg_method="sum")
                     national = aggregator.aggregate(
                         laus_df,
                         value_col=employment_col,
                         date_col="date",
-                        state_col="state",
+                        state_col=state_col,
                     )
 
                     features["laus_national_employment"] = national.to_frame()

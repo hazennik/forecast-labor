@@ -20,10 +20,11 @@ from etl.common.storage import StorageClient
 
 
 # Series to seasonally adjust
+# NOTE: Paths use "source_name" which will be resolved to latest vintage automatically
 SERIES_CONFIG = {
     "ces_nfp": {
         "title": "Total Nonfarm Payrolls",
-        "path": "vintages/bls_ces/latest/ces.parquet",
+        "source_name": "bls_ces",  # Will auto-resolve to latest vintage
         "series_id": "CES0000000001",
         "mode": "mult",
         "easter": True,
@@ -34,7 +35,7 @@ SERIES_CONFIG = {
     },
     "ces_manufacturing": {
         "title": "Manufacturing Payrolls",
-        "path": "vintages/bls_ces/latest/ces.parquet",
+        "source_name": "bls_ces",
         "series_id": "CES3000000001",
         "mode": "mult",
         "easter": True,
@@ -43,7 +44,7 @@ SERIES_CONFIG = {
     },
     "laus_unemployment": {
         "title": "National Unemployment Rate",
-        "path": "vintages/bls_laus/latest/laus.parquet",
+        "source_name": "bls_laus",
         "series_id": "LASST000000000003",
         "mode": "add",  # Rates typically use additive
         "easter": False,
@@ -51,7 +52,7 @@ SERIES_CONFIG = {
     },
     "claims_initial": {
         "title": "Initial UI Claims (4-week MA)",
-        "path": "vintages/claims/latest/claims.parquet",
+        "source_name": "ui_claims",
         "column": "initial_claims_4wk",
         "mode": "mult",
         "easter": True,
@@ -60,6 +61,41 @@ SERIES_CONFIG = {
         "use_weather_regressors": True,
     },
 }
+
+
+def find_latest_vintage_path(source_name: str) -> str:
+    """
+    Find the latest vintage path for a given source.
+    
+    Args:
+        source_name: Source name (e.g., 'bls_ces', 'ui_claims')
+        
+    Returns:
+        Path to latest vintage file
+    """
+    # ETL creates: data/vintages/{source}/{YYYY-MM-DD}/{source}_vintage.parquet
+    vintage_base = Path("data/vintages") / source_name
+    
+    if not vintage_base.exists():
+        raise FileNotFoundError(f"No vintages found for {source_name} at {vintage_base}")
+    
+    # Find all dated directories (YYYY-MM-DD format)
+    dated_dirs = [d for d in vintage_base.iterdir() if d.is_dir() and len(d.name) == 10]
+    
+    if not dated_dirs:
+        raise FileNotFoundError(f"No dated vintage directories found in {vintage_base}")
+    
+    # Sort by date and get the latest
+    latest_dir = sorted(dated_dirs, key=lambda d: d.name, reverse=True)[0]
+    
+    # Construct the vintage file path
+    vintage_file = latest_dir / f"{source_name}_vintage.parquet"
+    
+    if not vintage_file.exists():
+        raise FileNotFoundError(f"Vintage file not found: {vintage_file}")
+    
+    logger.info(f"Found latest vintage for {source_name}: {vintage_file}")
+    return str(vintage_file)
 
 
 def load_series(
@@ -76,7 +112,14 @@ def load_series(
     Returns:
         Time series
     """
-    path = config["path"]
+    # Resolve source_name to latest vintage path
+    if "source_name" in config:
+        path = find_latest_vintage_path(config["source_name"])
+    elif "path" in config:
+        # Legacy path support
+        path = config["path"]
+    else:
+        raise ValueError("Config must have either 'source_name' or 'path'")
     
     logger.info(f"Loading series from: {path}")
     

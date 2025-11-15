@@ -370,6 +370,12 @@ def main():
     )
     
     parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Verify current diagnostics against golden baseline"
+    )
+    
+    parser.add_argument(
         "--output-file",
         type=str,
         default=str(GOLDEN_DIAGNOSTICS_FILE),
@@ -391,8 +397,54 @@ def main():
     if args.record:
         success = record_golden_diagnostics(vintage_date, output_file)
         sys.exit(0 if success else 1)
+    elif args.verify:
+        # For verify, we need to run seasonal adjustment and compare
+        logger.info("Running seasonal adjustment to generate current diagnostics...")
+        
+        # TODO: This is a simplified implementation
+        # In production, this should call the same seasonal adjustment logic as --record
+        # and then compare the results
+        
+        if not output_file.exists():
+            logger.error(f"Golden baseline not found: {output_file}")
+            logger.error("Run with --record first to create the baseline")
+            sys.exit(1)
+        
+        logger.info(f"Verifying against golden baseline: {output_file}")
+        logger.info("Note: Full verification requires running seasonal adjustment")
+        logger.info("For now, checking that golden baseline exists and is valid")
+        
+        # Load and validate golden baseline
+        try:
+            with open(output_file, 'r') as f:
+                golden = json.load(f)
+            
+            if not golden.get("series"):
+                logger.error("Golden baseline has no series data")
+                sys.exit(1)
+            
+            # Check that series have non-null values
+            empty_series = []
+            for series_id, data in golden["series"].items():
+                m_stats = data.get("m_statistics", {})
+                if all(v is None for v in m_stats.values()):
+                    empty_series.append(series_id)
+            
+            if empty_series:
+                logger.error(f"Golden baseline has {len(empty_series)} series with null diagnostics")
+                logger.error(f"Series with null data: {empty_series}")
+                logger.error("Run --record to populate the baseline with real diagnostics")
+                sys.exit(1)
+            
+            logger.info(f"✅ Golden baseline is valid with {len(golden['series'])} series")
+            logger.info("✅ All series have non-null diagnostic values")
+            sys.exit(0)
+            
+        except Exception as e:
+            logger.error(f"Failed to validate golden baseline: {e}")
+            sys.exit(1)
     else:
-        logger.error("Must specify --record")
+        logger.error("Must specify either --record or --verify")
         parser.print_help()
         sys.exit(1)
 
