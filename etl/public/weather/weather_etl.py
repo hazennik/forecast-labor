@@ -19,8 +19,10 @@ from etl.common.downloader import Downloader
 NOAA_STORM_EVENTS_URL = "https://www.ncdc.noaa.gov/stormevents/csv"
 NOAA_API_BASE = "https://www.ncei.noaa.gov/access/services/data/v1"
 
-# Production safety: Set to 'false' in production to fail instead of using fallback data
-ALLOW_FALLBACK_DATA = os.getenv("ALLOW_FALLBACK_DATA", "true").lower() == "true"
+# Production safety: Defaults to 'false' to prevent synthetic data in production
+# Set ALLOW_FALLBACK_DATA=true in development/testing to use synthetic data when API unavailable
+# Always provide NOAA_API_TOKEN in production and keep this false
+ALLOW_FALLBACK_DATA = os.getenv("ALLOW_FALLBACK_DATA", "false").lower() == "true"
 
 
 class WeatherETL(BaseETL):

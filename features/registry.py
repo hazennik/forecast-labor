@@ -1,18 +1,25 @@
 """
 Feature registry for metadata tracking and versioning.
 
+⚠️ IMPORTANT: Phase 4 implementation is IN-MEMORY ONLY
+Features are NOT persisted across process restarts.
+Database persistence is planned for Phase 5+.
+
 Tracks:
 - Feature names and descriptions
 - Source data and transformations
 - Versions and dependencies
 - Vintage dates (for reproducibility)
-- Database logging (optional)
 
 Enables:
-- Feature discovery
+- Feature discovery (within session)
 - Lineage tracking
 - Version management
 - Reproducibility validation
+
+Storage:
+- Phase 4: In-memory dictionary (current)
+- Phase 5+: PostgreSQL database (planned)
 """
 
 from typing import Dict, List, Optional, Any
@@ -80,14 +87,20 @@ class FeatureMetadata:
 class FeatureRegistry:
     """
     Registry for tracking feature metadata.
-
+    
+    ⚠️ IN-MEMORY ONLY: Features are not persisted across process restarts.
+    
     Provides:
-    - Feature registration and retrieval
+    - Feature registration and retrieval (in-memory)
     - Version management
     - Lineage tracking
     - Search and discovery
-    - Optional database persistence
+    - Database persistence (planned for Phase 5+, currently TODO)
 
+    Storage:
+    - Phase 4: In-memory dictionary (self._features)
+    - Phase 5+: PostgreSQL database (to be implemented)
+    
     Example:
         >>> registry = FeatureRegistry()
         >>> feature_id = registry.register({
@@ -97,6 +110,7 @@ class FeatureRegistry:
         ...     'transform': 'midas_lag'
         ... })
         >>> metadata = registry.get(feature_id)
+        >>> # NOTE: metadata is lost when process ends
     """
 
     def __init__(self, use_database: bool = False):

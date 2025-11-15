@@ -1,7 +1,27 @@
 #!/usr/bin/env python3
 """
-Test Data Pipelines
-Quick validation that all ETL pipelines work correctly
+Manual Integration Test - Live API Data Pipelines
+
+⚠️ WARNING: This script calls LIVE external APIs ⚠️
+
+This is a MANUAL INTEGRATION TEST for validating ETL pipelines with real data sources.
+It is NOT part of the automated test suite and should NOT be run in CI.
+
+Purpose:
+- Quick validation that all ETL pipelines work correctly with live APIs
+- Useful for testing API connectivity and data availability
+- Manual smoke testing before deployment
+
+For automated testing: See tests/etl/test_public_etl_pipelines.py (uses mocks)
+
+Requirements:
+- Internet connection
+- Optional API keys (BLS, Census, NOAA) for higher rate limits
+- Docker services running (PostgreSQL, MinIO)
+
+Usage:
+    python scripts/test_pipelines.py  # Test all pipelines
+    python scripts/test_pipelines.py --pipeline ui_claims  # Test specific pipeline
 """
 
 import sys
