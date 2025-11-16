@@ -108,8 +108,8 @@ Last Updated: 2025-11-13 (Phase 4 COMPLETE - Feature Engineering)
 
 ## 🧪 TEST INFRASTRUCTURE: Production-Ready & Sustainable
 
-**Status:** OPERATIONAL (2025-11-13)  
-**Test Results:** 250/287 passing (87% pass rate) ✅  
+**Status:** OPERATIONAL (2025-11-15)  
+**Test Results:** 287/287 passing (100% pass rate) ✅  
 **Infrastructure:** All services healthy
 
 ### Critical Fixes Applied (Sustainable & Best Practices)
@@ -218,12 +218,17 @@ Last Updated: 2025-11-13 (Phase 4 COMPLETE - Feature Engineering)
 |-----------|--------|----------|-------|
 | Infrastructure Health | ✅ COMPLETE | Health check script created | `scripts/check_infrastructure_health.py` |
 | Phase 1-4 Tests Complete | ✅ COMPLETE (100%) 🎊 | 287/287 passing | Comprehensive pytest suite, 100% coverage, production-ready |
-| Vintage Determinism | ✅ COMPLETE | Pinned vintage date (2024-01-15) + hash verification script | `scripts/verify_vintage_determinism.py` |
-| Seasonal Diagnostics | ✅ COMPLETE | Golden M-stats/Q-stats baseline system | `scripts/record_golden_diagnostics.py` |
+| Vintage Determinism | ✅ CI FUNCTIONAL (synthetic data) | Pinned vintage date + hash verification | Uses test vintages; prod should regenerate with real ETL |
+| Seasonal Diagnostics | ⚠️ CI FUNCTIONAL (placeholder data) | Baseline system operational | Placeholder values; `--verify` validates structure only |
 | Feature Engineering | ✅ COMPLETE | All components tested and production-ready | Phase 4 complete |
 | CI/CD Pipeline | ✅ COMPLETE | GitHub Actions workflow configured | `.github/workflows/test.yml` |
 
-**✅ PHASE 5 READY** - All criteria met! Ready for model development.
+**✅ PHASE 5 READY** - Code infrastructure complete. CI gates functional with test data.
+
+**⚠️ Production Deployment Notes:**
+- Vintage determinism uses synthetic test data for CI. Production deployment should run real ETL to generate production vintages.
+- Seasonal diagnostics are placeholder values. Production should run `scripts/record_golden_diagnostics.py --record` with real seasonal adjustment outputs.
+- See "Important Notes on Test Data" section above for details.
 
 **Recent Critical Fixes (2025-11-13)**:
 - ✅ Fixed SeasonalAdjustmentPipeline signature mismatch (was passing dict instead of individual args)
@@ -923,25 +928,36 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - ✅ Comprehensive test suite (ETL, Seasonal, Features, Validators)
 - ✅ All tests use mocks/fixtures (no external API calls)
 - ✅ Pytest infrastructure and fixtures
-- ✅ Vintage determinism baselines
-- ✅ Golden seasonal diagnostics
+- ✅ Vintage determinism baselines (synthetic test data for CI)
+- ✅ Golden seasonal diagnostics (placeholder values for CI infrastructure)
 - ✅ CI/CD pipeline with enforced gates
 - ✅ Go/No-Go gate verification operational
 
-**Note on test_pipelines.py:** This script is a manual integration test that calls live APIs for smoke testing. It is NOT part of the automated test suite. Automated tests (287 tests) use mocks and are in `tests/` directory.
+**⚠️ Important Notes on Test Data:**
+- **Vintages:** Current vintages in `data/vintages/` are synthetic test data created by `scripts/create_test_vintages.py`. They enable CI gates to function but are NOT production ETL outputs. Production deployment should regenerate with real ETL runs.
+- **Seasonal Diagnostics:** Current diagnostics are placeholder values for CI infrastructure testing. The `--verify` flag checks file validity but does NOT recompute seasonal adjustment. Production should run `--record` with real seasonal adjustment outputs.
+- **test_pipelines.py:** Manual integration test that calls live APIs for smoke testing. NOT part of automated test suite (287 tests).
 
-**Production Readiness (Per Codex Analysis 8):**
-- ✅ All 7 critical issues resolved
+**Production Readiness (Per Codex Analysis 8 & 9):**
+- ✅ All 7 critical issues resolved (Codex 8)
 - ✅ CI gates enforced (no silent failures)
 - ✅ Infrastructure health checks operational
 - ✅ Verification scripts functional
 - ✅ Path resolution fixed
 - ✅ Column detection flexible
+- ✅ Test data limitations documented (Codex 9)
+- ✅ Seasonal script storage bug fixed (Codex 9)
+- ✅ Documentation accuracy improved (Codex 9)
+
+**See Resolution Details:**
+- `docs/CODEX_ANALYSIS_8_RESOLUTION.md` for Codex 8 fixes
+- `docs/planning/CODEX_ANALYSIS_9_RESOLUTION.md` for Codex 9 fixes
 
 **Next Phase:** 🚀 **PHASE 5 - MODEL DEVELOPMENT**
 - Ready to begin econometric & ML model implementation
 - TDD/test-alongside approach established
 - Infrastructure and testing foundation solid
+- All critical bugs resolved
 
 **✅ Comprehensive Coverage Achieved:**
 - **Option 3 Implementation Complete** - Full audit of REPO_SCAFFOLDING.md performed

@@ -103,7 +103,7 @@ def load_series(
     config: dict
 ) -> pd.Series:
     """
-    Load a time series from storage
+    Load a time series from storage (local file or S3/MinIO)
     
     Args:
         storage: Storage client
@@ -114,19 +114,34 @@ def load_series(
     """
     # Resolve source_name to latest vintage path
     if "source_name" in config:
-        path = find_latest_vintage_path(config["source_name"])
+        local_path = find_latest_vintage_path(config["source_name"])
     elif "path" in config:
         # Legacy path support
-        path = config["path"]
+        local_path = config["path"]
     else:
         raise ValueError("Config must have either 'source_name' or 'path'")
     
-    logger.info(f"Loading series from: {path}")
+    logger.info(f"Looking for vintage data: {local_path}")
     
-    df = storage.read_parquet(path)
+    # Try local file first (development/CI)
+    # This allows the script to work with:
+    # 1. Local development (vintages in data/vintages/)
+    # 2. CI testing (synthetic test vintages)
+    # 3. Production (falls back to S3/MinIO if local files don't exist)
+    local_file = Path(local_path)
+    if local_file.exists():
+        logger.info(f"✅ Loading from local file: {local_path}")
+        df = pd.read_parquet(local_file)
+    else:
+        # Fall back to S3/MinIO
+        # Note: ETL uploads to S3 as: vintages/{source}/{date}/{file}
+        # (without the 'data/' prefix that local paths have)
+        s3_path = local_path.replace("data/vintages/", "vintages/")
+        logger.info(f"📦 Local file not found, loading from S3/MinIO: {s3_path}")
+        df = storage.read_parquet(s3_path)
     
     if df is None:
-        raise ValueError(f"Failed to load data from {path}")
+        raise ValueError(f"Failed to load data from {local_path} (local) or {s3_path if 's3_path' in locals() else 'S3'}")
     
     # Ensure date index
     if "date" in df.columns:

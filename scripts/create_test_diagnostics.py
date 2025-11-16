@@ -1,7 +1,16 @@
 #!/usr/bin/env python3
 """
 Create minimal test seasonal diagnostics for golden baseline verification.
-This creates placeholder diagnostics with realistic values for testing purposes.
+
+⚠️ WARNING: This creates PLACEHOLDER diagnostics for CI infrastructure testing ONLY.
+
+These are NOT real X-13ARIMA-SEATS diagnostics from actual seasonal adjustment.
+They are synthetic values within acceptable ranges to enable CI gates to function.
+
+For production deployment, run:
+    python scripts/record_golden_diagnostics.py --vintage-date <date> --record
+
+That will execute real seasonal adjustment and capture actual M-statistics and Q-statistics.
 """
 
 import json

@@ -399,11 +399,17 @@ def main():
         sys.exit(0 if success else 1)
     elif args.verify:
         # For verify, we need to run seasonal adjustment and compare
-        logger.info("Running seasonal adjustment to generate current diagnostics...")
+        logger.warning("⚠️  IMPORTANT: --verify is a SIMPLIFIED implementation for CI infrastructure")
+        logger.warning("⚠️  It checks file validity but does NOT run seasonal adjustment")
+        logger.warning("⚠️  It CANNOT detect regressions in seasonal adjustment quality")
         
-        # TODO: This is a simplified implementation
-        # In production, this should call the same seasonal adjustment logic as --record
-        # and then compare the results
+        # TODO: Full verification implementation (Phase 5+)
+        # This should:
+        # 1. Load current vintage data
+        # 2. Run seasonal adjustment (X-13ARIMA-SEATS)
+        # 3. Extract M-statistics and Q-statistics
+        # 4. Compare current diagnostics to golden baseline
+        # 5. Fail if diagnostics exceed acceptable degradation thresholds
         
         if not output_file.exists():
             logger.error(f"Golden baseline not found: {output_file}")
@@ -411,8 +417,7 @@ def main():
             sys.exit(1)
         
         logger.info(f"Verifying against golden baseline: {output_file}")
-        logger.info("Note: Full verification requires running seasonal adjustment")
-        logger.info("For now, checking that golden baseline exists and is valid")
+        logger.info("Current implementation: Validates file structure and non-null values only")
         
         # Load and validate golden baseline
         try:
