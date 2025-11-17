@@ -38,20 +38,47 @@ An elite, real-time U.S. labor-market forecasting system designed for institutio
 ---
 
 ## ✅ Quick Start (Local)
+
+### First Time Setup
 ```bash
+# Clone repository
+git clone <repo-url>
+cd forecast-labor
+
+# Generate test data (vintages are gitignored)
+make setup-test-data
+
+# Start Docker services
 make up
+
+# Seed production data (requires API keys in .env)
 make seed
+
+# Run pipeline
 make seasonal
 make features
 make train
 make backtest
+```
 
-✅ Deployment (Server)
-	1.	Clone repo.
-	2.	Create .env.server.
-	3.	Run docker compose up -d.
-	4.	Run ETL → seasonal → train pipeline.
-	5.	Enable miner service.
+**Note:** Vintage data is NOT in the repository (gitignored). Run `make setup-test-data` to generate synthetic test vintages for development, or `make seed` with production API keys for real data.
+
+### Testing
+```bash
+# Run full test suite (287 tests)
+make test
+
+# Test suite automatically uses synthetic test vintages
+# No real API calls made during testing
+```
+
+## ✅ Deployment (Server)
+1. Clone repo.
+2. Create `.env.server` with production API keys.
+3. Generate test data: `make setup-test-data` (or run real ETL)
+4. Run `docker compose up -d`.
+5. Run ETL → seasonal → train pipeline.
+6. Enable miner service.
 
 ⸻
 

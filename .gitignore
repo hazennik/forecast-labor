@@ -1,4 +1,9 @@
 # Data directories (local data lake - never commit)
+# NOTE: /data/ includes vintages, features, and all processed data
+# - Vintages are NOT in the repository (too large, regenerated from ETL)
+# - Test vintages are generated during CI via scripts/create_test_vintages.py
+# - Fresh clones: Run `make setup-test-data` or `python scripts/create_test_vintages.py`
+# - Production: Run real ETL pipelines to generate production vintages
 /data/
 /zone1/artifacts/
 /zone2/logs/

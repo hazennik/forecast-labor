@@ -38,6 +38,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Generate test vintages (CI only)
+        run: |
+          python scripts/create_test_vintages.py
+          python scripts/create_test_diagnostics.py
+        # NOTE: Vintages are gitignored (/data/) to keep repo clean.
+        # CI generates synthetic test vintages before running tests.
+        # Production should use real ETL outputs, not these synthetic vintages.
+      
       - name: Lint with ruff
         run: |
           pip install ruff

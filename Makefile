@@ -3,7 +3,7 @@
 # ===========================
 # One-command orchestration for the entire forecasting system
 
-.PHONY: help up down restart logs seed seasonal features train backtest submit miner clean test lint format
+.PHONY: help up down restart logs seed seasonal features train backtest submit miner clean test lint format setup-test-data
 
 # Default target
 .DEFAULT_GOAL := help
@@ -73,6 +73,13 @@ install: ## Install Python dependencies
 	pip install --upgrade pip
 	pip install -r requirements.txt
 	@echo "✅ Dependencies installed."
+
+setup-test-data: ## Generate synthetic test vintages and diagnostics (for development/CI)
+	@echo "🧪 Generating test data (synthetic vintages + diagnostics)..."
+	python scripts/setup_test_data.py
+	@echo "✅ Test data setup complete."
+	@echo "⚠️  This is SYNTHETIC data for testing only."
+	@echo "   For production, run: make seed"
 
 # ----------------------------
 # DATA PIPELINE
