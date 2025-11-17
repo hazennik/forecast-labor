@@ -2,6 +2,9 @@
 """
 Create minimal test vintage data for golden baseline verification.
 This creates stub vintages with realistic structure for testing purposes.
+
+CRITICAL: Uses fixed random seed for deterministic vintages.
+This ensures CI determinism verification can function correctly.
 """
 
 import sys
@@ -20,9 +23,16 @@ from loguru import logger
 # Pinned vintage date for testing
 VINTAGE_DATE = date(2024, 1, 15)
 
+# Fixed random seed for deterministic test data
+# CRITICAL: This seed ensures vintages are reproducible across CI runs
+# DO NOT CHANGE unless you regenerate baseline hashes
+RANDOM_SEED = 42
+
 def create_test_vintage(source_name: str, num_rows: int = 100) -> Path:
     """
     Create a test vintage file with realistic structure.
+    
+    CRITICAL: Sets random seed for deterministic output.
     
     Args:
         source_name: Source name (e.g., 'bls_ces', 'ui_claims')
@@ -31,6 +41,10 @@ def create_test_vintage(source_name: str, num_rows: int = 100) -> Path:
     Returns:
         Path to created vintage file
     """
+    # Set random seed for deterministic output
+    # CRITICAL: This ensures same vintages every time for determinism verification
+    np.random.seed(RANDOM_SEED)
+    
     # Create vintage directory structure: data/vintages/{source}/{YYYY-MM-DD}/
     vintage_dir = project_root / "data" / "vintages" / source_name / VINTAGE_DATE.isoformat()
     vintage_dir.mkdir(parents=True, exist_ok=True)

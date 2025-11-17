@@ -399,9 +399,22 @@ def main():
         sys.exit(0 if success else 1)
     elif args.verify:
         # For verify, we need to run seasonal adjustment and compare
-        logger.warning("⚠️  IMPORTANT: --verify is a SIMPLIFIED implementation for CI infrastructure")
-        logger.warning("⚠️  It checks file validity but does NOT run seasonal adjustment")
-        logger.warning("⚠️  It CANNOT detect regressions in seasonal adjustment quality")
+        logger.warning("=" * 70)
+        logger.warning("⚠️  CRITICAL LIMITATION: --verify is a STRUCTURE-ONLY CHECK")
+        logger.warning("=" * 70)
+        logger.warning("This implementation:")
+        logger.warning("  ✅ Validates JSON file structure")
+        logger.warning("  ✅ Checks for non-null diagnostic values")
+        logger.warning("  ❌ Does NOT run X-13ARIMA-SEATS seasonal adjustment")
+        logger.warning("  ❌ Does NOT compute current M-statistics/Q-statistics")
+        logger.warning("  ❌ Does NOT compare against golden baseline values")
+        logger.warning("  ❌ CANNOT detect seasonal adjustment quality regressions")
+        logger.warning("")
+        logger.warning("PRODUCTION IMPACT:")
+        logger.warning("  - This gate protects JSON structure only")
+        logger.warning("  - Seasonal quality regressions will NOT be caught")
+        logger.warning("  - Full verification requires Phase 5+ implementation")
+        logger.warning("=" * 70)
         
         # TODO: Full verification implementation (Phase 5+)
         # This should:
@@ -410,6 +423,7 @@ def main():
         # 3. Extract M-statistics and Q-statistics
         # 4. Compare current diagnostics to golden baseline
         # 5. Fail if diagnostics exceed acceptable degradation thresholds
+        # 6. Support tolerance bands for acceptable degradation
         
         if not output_file.exists():
             logger.error(f"Golden baseline not found: {output_file}")

@@ -1,4 +1,7 @@
 {
+  "_NOTE": "BASELINE NEEDS REGENERATION - Random seed added to create_test_vintages.py on 2025-11-16",
+  "_INSTRUCTIONS": "Run: python scripts/setup_test_data.py && python scripts/verify_vintage_determinism.py --vintage-date 2024-01-15 --create-baseline",
+  "_SEED": "Random seed 42 ensures deterministic vintages",
   "vintage_date": "2024-01-15",
   "created_at": "2025-11-15T09:10:46.203235",
   "sources": {

@@ -38,12 +38,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Generate test vintages (CI only)
+      - name: Generate test vintages and baselines (CI only)
         run: |
-          python scripts/create_test_vintages.py
-          python scripts/create_test_diagnostics.py
+          python scripts/regenerate_baselines.py
         # NOTE: Vintages are gitignored (/data/) to keep repo clean.
-        # CI generates synthetic test vintages before running tests.
+        # CI generates deterministic test vintages (seed=42) and baselines before tests.
+        # This ensures determinism verification can function correctly.
         # Production should use real ETL outputs, not these synthetic vintages.
       
       - name: Lint with ruff

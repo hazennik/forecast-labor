@@ -3,7 +3,7 @@
 # ===========================
 # One-command orchestration for the entire forecasting system
 
-.PHONY: help up down restart logs seed seasonal features train backtest submit miner clean test lint format setup-test-data
+.PHONY: help up down restart logs seed seasonal features train backtest submit miner clean test lint format setup-test-data regenerate-baselines
 
 # Default target
 .DEFAULT_GOAL := help
@@ -80,6 +80,12 @@ setup-test-data: ## Generate synthetic test vintages and diagnostics (for develo
 	@echo "✅ Test data setup complete."
 	@echo "⚠️  This is SYNTHETIC data for testing only."
 	@echo "   For production, run: make seed"
+
+regenerate-baselines: ## Regenerate golden baselines (vintage hashes + diagnostics)
+	@echo "🔄 Regenerating golden baselines for CI/CD..."
+	python scripts/regenerate_baselines.py
+	@echo "✅ Golden baselines regenerated."
+	@echo "📝 Commit the updated baseline files to git"
 
 # ----------------------------
 # DATA PIPELINE
