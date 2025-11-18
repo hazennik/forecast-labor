@@ -17,6 +17,7 @@ sys.path.insert(0, str(project_root))
 
 from seasonal.pipeline import SeasonalAdjustmentPipeline
 from etl.common.storage import StorageClient
+from etl.common.vintage_validator import validate_vintage_is_production
 
 
 # Series to seasonally adjust
@@ -142,6 +143,14 @@ def load_series(
     
     if df is None:
         raise ValueError(f"Failed to load data from {local_path} (local) or {s3_path if 's3_path' in locals() else 'S3'}")
+    
+    # CRITICAL: Validate this is production data, not synthetic test data
+    try:
+        validate_vintage_is_production(df, local_file, strict=True)
+    except Exception as e:
+        logger.error(f"❌ Vintage validation failed", error=str(e))
+        # Re-raise to prevent using synthetic data in production
+        raise
     
     # Ensure date index
     if "date" in df.columns:

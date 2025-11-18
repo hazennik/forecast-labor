@@ -99,12 +99,22 @@ def create_test_vintage(source_name: str, num_rows: int = 100) -> Path:
             "value": 1000 + np.random.randn(num_rows).cumsum() * 10
         })
     
-    # Save as vintage file
+    # Add provenance metadata to identify synthetic test data
+    # CRITICAL: This metadata prevents accidental use in production
+    df.attrs['is_synthetic'] = True
+    df.attrs['generated_by'] = 'scripts/create_test_vintages.py'
+    df.attrs['generation_date'] = datetime.now().isoformat()
+    df.attrs['purpose'] = 'CI/CD testing and development'
+    df.attrs['random_seed'] = RANDOM_SEED
+    df.attrs['warning'] = 'SYNTHETIC TEST DATA - DO NOT USE IN PRODUCTION'
+    
+    # Save as vintage file (attrs are preserved in parquet format)
     vintage_file = vintage_dir / f"{source_name}_vintage.parquet"
     df.to_parquet(vintage_file, index=False)
     
     logger.info(f"Created test vintage: {vintage_file}")
     logger.info(f"  Rows: {len(df)}, Columns: {list(df.columns)}")
+    logger.info(f"  🏷️  Tagged as SYNTHETIC (is_synthetic=True)")
     
     return vintage_file
 

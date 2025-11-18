@@ -293,10 +293,20 @@ class BaseETL(ABC):
             logger.warning(f"Vintage already exists: {filepath}")
             return filepath
         
-        # Save vintage (immutable) locally
+        # Add provenance metadata to identify production data
+        # CRITICAL: This metadata distinguishes production from synthetic test data
+        df.attrs['is_synthetic'] = False
+        df.attrs['generated_by'] = f'etl.{self.config.source_name}'
+        df.attrs['generation_date'] = datetime.now().isoformat()
+        df.attrs['purpose'] = 'Production ETL output'
+        df.attrs['source_name'] = self.config.source_name
+        df.attrs['vintage_date'] = vintage_date.isoformat()
+        
+        # Save vintage (immutable) locally (attrs are preserved in parquet format)
         df.to_parquet(filepath, compression="snappy", index=False)
         
         logger.info(f"Created vintage: {filepath}")
+        logger.info(f"  🏷️  Tagged as PRODUCTION (is_synthetic=False)")
         
         # Upload to MinIO if enabled
         if self.config.upload_to_storage and self.storage_client:

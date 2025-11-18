@@ -37,6 +37,7 @@ from features.aggregations.sector_aggregator import SectorAggregator
 from features.registry import FeatureRegistry
 from etl.common.storage import StorageClient
 from etl.common.vintage import VintageManager
+from etl.common.vintage_validator import validate_vintage_is_production, log_vintage_provenance
 
 
 class FeatureBuilder:
@@ -441,6 +442,18 @@ class FeatureBuilder:
 
             if Path(vintage_path).exists():
                 df = pd.read_parquet(vintage_path)
+                
+                # CRITICAL: Validate this is production data, not synthetic test data
+                try:
+                    validate_vintage_is_production(df, Path(vintage_path), strict=True)
+                except Exception as e:
+                    logger.error(
+                        f"❌ Vintage validation failed for {data_source}",
+                        error=str(e)
+                    )
+                    # Re-raise to prevent using synthetic data in production
+                    raise
+                
                 logger.info(
                     "vintage_data_loaded",
                     source=data_source,
