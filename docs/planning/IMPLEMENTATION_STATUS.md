@@ -218,12 +218,18 @@ Last Updated: 2025-11-13 (Phase 4 COMPLETE - Feature Engineering)
 |-----------|--------|----------|-------|
 | Infrastructure Health | ✅ COMPLETE | Health check script created | `scripts/check_infrastructure_health.py` |
 | Phase 1-4 Tests Complete | ✅ COMPLETE (100%) 🎊 | 287/287 passing | Comprehensive pytest suite, 100% coverage, production-ready |
-| Vintage Determinism | ✅ FUNCTIONAL | Deterministic test vintages (seed=42) | **Fixed 2025-11-16:** Seeded random generator enables reproducible hashes |
+| Vintage Determinism | ✅ FUNCTIONAL | Frozen baseline + seeded generator | **Fixed 2025-11-16:** Baselines frozen in git, gate detects regressions |
 | Seasonal Diagnostics | ⚠️ STRUCTURE-ONLY | JSON validation operational | ⚠️ **Limitation:** Does NOT verify X-13 quality (Phase 5+ planned) |
 | Feature Engineering | ✅ COMPLETE | All components tested and production-ready | Phase 4 complete |
-| CI/CD Pipeline | ✅ COMPLETE | GitHub Actions workflow configured | Auto-generates deterministic test data + baselines |
+| CI/CD Pipeline | ✅ COMPLETE | GitHub Actions workflow configured | Generates deterministic test vintages, frozen baselines |
 
-**✅ PHASE 5 READY** - Code infrastructure production-ready. CI gates functional with documented limitations.
+**✅ PHASE 5 READY** - Code infrastructure production-ready. CI gates functional for code quality.
+
+**⚠️ Production Data Readiness:**
+- **Synthetic Test Data:** CI uses synthetic vintages (seed=42) with frozen baselines
+- **Real ETL Path:** Not tested in CI; requires manual validation with `make seed`
+- **Production Deployment:** Must run real ETL and regenerate baselines with production data
+- **See:** `docs/BASELINE_UPDATE_PROCESS.md` for production baseline generation
 
 **⚠️ Fresh Clone Setup:**
 ```bash
@@ -946,9 +952,17 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - ✅ Go/No-Go gate verification operational
 
 **⚠️ Quality Gate Status:**
-- **Determinism Gate:** ✅ FUNCTIONAL (Fixed 2025-11-16: Seeded random generator ensures reproducible vintages)
+- **Determinism Gate:** ✅ FUNCTIONAL (Fixed 2025-11-16: Frozen baseline + seeded generator)
 - **Seasonal Diagnostics Gate:** ⚠️ STRUCTURE-ONLY (Phase 5+: Full X-13 quality verification planned)
 - **Test Suite:** ✅ FUNCTIONAL (287/287 tests with comprehensive mocking)
+- **Real ETL Testing:** ⚠️ NOT IN CI (Only synthetic test data; production path untested)
+
+**🔧 Recent Critical Fix (2025-11-16):**
+- **Codex 13:** Fixed determinism gate neutralization
+  - **Problem:** CI was regenerating baselines every run (tautological gate)
+  - **Fix:** Baselines now FROZEN in git; CI only generates vintages
+  - **Result:** Gate can now detect regressions
+  - **Process:** See `docs/BASELINE_UPDATE_PROCESS.md` for controlled updates
 
 **⚠️ Important Notes on Test Data:**
 - **Vintages are NOT in Repository:** The `/data/` directory is gitignored to keep the repository clean. Vintage data does NOT ship with the repository.
@@ -958,7 +972,7 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - **Seasonal Diagnostics:** Current diagnostics in `tests/fixtures/golden_baselines/` are placeholder values for CI infrastructure testing. The `--verify` flag checks file validity but does NOT recompute seasonal adjustment. Production should run `--record` with real seasonal adjustment outputs.
 - **test_pipelines.py:** Manual integration test that calls live APIs for smoke testing. NOT part of automated test suite (287 tests).
 
-**Production Readiness (Per Codex Analysis 8, 9, 11 & 12):**
+**Production Readiness (Per Codex Analysis 8, 9, 11, 12 & 13):**
 - ✅ All 7 critical issues resolved (Codex 8)
 - ✅ CI gates enforced (no silent failures)
 - ✅ Infrastructure health checks operational
@@ -971,15 +985,18 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - ✅ Fresh clone setup automated (Codex 11)
 - ✅ CI auto-generates test data (Codex 11)
 - ✅ Repository state clearly documented (Codex 11)
-- ✅ **Determinism gate fixed** (Codex 12: Seeded random generator)
-- ✅ **Diagnostics gate limitations documented** (Codex 12: Structure-only validation)
-- ✅ **Production readiness status clarified** (Codex 12: Honest assessment)
+- ✅ Determinism gate seeded (Codex 12: Seeded random generator)
+- ✅ Diagnostics gate limitations documented (Codex 12: Structure-only validation)
+- ✅ **Determinism gate truly functional** (Codex 13: Frozen baselines, no auto-regeneration)
+- ✅ **Baseline update process documented** (Codex 13: Controlled update process)
+- ✅ **Real ETL limitation acknowledged** (Codex 13: CI uses synthetic data only)
 
 **See Resolution Details:**
 - `docs/CODEX_ANALYSIS_8_RESOLUTION.md` for Codex 8 fixes
 - `docs/planning/CODEX_ANALYSIS_9_RESOLUTION.md` for Codex 9 fixes
 - `docs/planning/CODEX_ANALYSIS_11_RESOLUTION.md` for Codex 11 fixes
 - `docs/planning/CODEX_ANALYSIS_12_RESOLUTION.md` for Codex 12 fixes
+- `docs/planning/CODEX_ANALYSIS_13_RESOLUTION.md` for Codex 13 fixes
 
 **Next Phase:** 🚀 **PHASE 5 - MODEL DEVELOPMENT**
 - Ready to begin econometric & ML model implementation

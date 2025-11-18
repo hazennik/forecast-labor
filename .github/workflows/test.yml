@@ -38,12 +38,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Generate test vintages and baselines (CI only)
+      - name: Generate test vintages (CI only)
         run: |
-          python scripts/regenerate_baselines.py
+          python scripts/setup_test_data.py
         # NOTE: Vintages are gitignored (/data/) to keep repo clean.
-        # CI generates deterministic test vintages (seed=42) and baselines before tests.
-        # This ensures determinism verification can function correctly.
+        # CI generates deterministic test vintages (seed=42) ONLY.
+        # Baselines are FROZEN in git (tests/fixtures/golden_baselines/).
+        # Verification compares current vintages against frozen baseline.
+        # This allows the gate to detect regressions.
+        # 
+        # To update baselines (after legitimate code changes):
+        #   Run locally: make regenerate-baselines
+        #   Commit updated baseline files
+        # 
         # Production should use real ETL outputs, not these synthetic vintages.
       
       - name: Lint with ruff

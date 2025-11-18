@@ -45,7 +45,7 @@ An elite, real-time U.S. labor-market forecasting system designed for institutio
 git clone <repo-url>
 cd forecast-labor
 
-# Generate test data (vintages are gitignored)
+# Generate test data (vintages are gitignored, baselines are frozen in git)
 make setup-test-data
 
 # Start Docker services
