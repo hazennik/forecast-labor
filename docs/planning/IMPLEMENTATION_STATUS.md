@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last Updated: 2025-11-18 (Phase 4 COMPLETE - Codex 14 Review & Phase 10 Planning)
+Last Updated: 2025-11-19 (Phase 5 Planning Updated - Added Feature Registry DB & X-13 Quality Enhancement)
 
 ## ✅ PHASE 4 COMPLETE: Feature Engineering
 
@@ -103,6 +103,69 @@ Last Updated: 2025-11-18 (Phase 4 COMPLETE - Codex 14 Review & Phase 10 Planning
 ✅ **Vintage Awareness** - All features traceable to vintage date  
 ✅ **Modular Design** - Clean separation of concerns  
 ✅ **Sklearn-Compatible** - Familiar fit/transform API  
+
+---
+
+## 📋 PHASE 5 PLANNING UPDATE (2025-11-19)
+
+**Status:** Scope Expanded Based on Feedback Validation  
+**Added:** 2 explicit Phase 5+ deliverables previously omitted from plan
+
+### Additions to Phase 5 Scope
+
+**1. Feature Registry Database Persistence** ✨ NEW
+- **Source:** Explicitly stated in Phase 4 completion notes (line 77): "Database persistence (planned for Phase 5+)"
+- **Current State:** In-memory only (Phase 4)
+- **Phase 5 Work:**
+  - Migrate FeatureRegistry to PostgreSQL
+  - Add database schema for feature metadata
+  - Implement queries, indexes, and lineage tracking
+  - Maintain backward compatibility with in-memory mode
+  - Write migration scripts and tests
+- **Rationale:** Production-ready system requires persistent feature metadata for reproducibility
+
+**2. Full X-13 Quality Verification Enhancement** ✨ NEW
+- **Source:** Multiple references (lines 129, 172, 1131): "Full X-13 quality verification in Phase 5+"
+- **Current State:** Structure-only validation (placeholder M/Q statistics)
+- **Phase 5 Work:**
+  - Real M-statistics computation and validation
+  - Real Q-statistics computation and validation
+  - Quality threshold enforcement (not just structure)
+  - Integration with golden diagnostics baseline
+  - Automated quality degradation alerts
+- **Note:** May defer to Phase 6 (Backtesting) for comprehensive end-to-end validation
+- **Rationale:** Production deployment requires real X-13 quality gates, not just structural checks
+
+### Documentation Enhancements
+
+**Added to Phase 5 Documentation Requirements:**
+- Model selection decision tree (when to use DFM vs MIDAS vs GBM)
+- Hyperparameter sensitivity documentation
+- Feature registry database schema documentation
+- End-to-end integration test (ETL → features → models)
+
+### Explicit Deferrals (Clarified for Transparency)
+
+Items intentionally deferred to later phases:
+- **Model ensemble/averaging strategies** → Phase 6 (evaluate after backtesting individual models)
+- **Automated feature refresh on new vintages** → Phase 9 (Features Agent automation)
+- **Advanced hyperparameter optimization (Bayesian)** → Phase 6 (during backtesting cycles)
+- **Feature staleness detection automation** → Phase 9 (Features Agent monitoring)
+
+### Impact on Timeline
+
+- **Estimated Addition:** +2-3 days to Phase 5 timeline
+  - Feature registry database migration: 1-2 days
+  - X-13 quality enhancement: 1 day (or defer to Phase 6)
+- **Updated Phase 5 Duration:** 3.5-4.5 weeks (was 3-4 weeks)
+
+### Validation Source
+
+This update incorporates feedback validated against `.cursorrules` and `IMPLEMENTATION_STATUS.md`:
+- ✅ Feature registry database: Explicit Phase 5+ deliverable (85% validity score)
+- ✅ X-13 quality verification: Explicit Phase 5+ enhancement (80% validity score)
+- ✅ Documentation improvements: Aligns with production-ready standards
+- ⚠️ Feature automation & ensembles: Valid observations but out of Phase 5 scope
 
 ---
 
@@ -767,6 +830,27 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - [ ] Model registry integration
 - [ ] Artifact versioning and signing
 
+**Feature Registry Enhancement (Phase 5+ Deliverable)**
+- [ ] Database persistence for feature registry
+  - [ ] Migrate FeatureRegistry from in-memory to PostgreSQL
+  - [ ] Add database schema for feature metadata
+  - [ ] Implement database queries and indexes
+  - [ ] Update registry tests for database backend
+  - [ ] Maintain backward compatibility with in-memory mode
+  - [ ] Migration scripts for existing features
+- [ ] Feature lineage tracking in database
+- [ ] Feature versioning and rollback support
+
+**Quality Gates Enhancement (Phase 5+ Deliverable)**
+- [ ] Full X-13 seasonal diagnostics quality verification
+  - [ ] Real M-statistics computation and validation
+  - [ ] Real Q-statistics computation and validation
+  - [ ] Quality threshold enforcement (not just structure)
+  - [ ] Integration with golden diagnostics baseline
+  - [ ] Automated quality degradation alerts
+  - [ ] Update CI to run real X-13 quality checks
+- [ ] **Note:** May defer to Phase 6 (Backtesting) for end-to-end quality validation
+
 **Testing (Phase 5)**
 - [ ] Unit tests for each model class
 - [ ] Reproducibility tests (same seed → same model)
@@ -777,6 +861,21 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - [ ] MLflow integration tests
 - [ ] Prediction shape/type validation tests
 - [ ] Performance regression tests (speed benchmarks)
+- [ ] End-to-end integration test (ETL → features → models)
+- [ ] Feature registry database tests
+
+**Documentation (Phase 5)**
+- [ ] Model training guide (`docs/MODEL_TRAINING.md`)
+- [ ] Model selection decision tree (when to use DFM vs MIDAS vs GBM)
+- [ ] Hyperparameter sensitivity documentation
+- [ ] Feature registry database schema documentation
+- [ ] Update `docs/FORECASTING_CAPABILITIES.md` with model details
+
+**Deferred to Later Phases**
+- Model ensemble/averaging strategies → Phase 6 (evaluate after backtesting)
+- Automated feature refresh on new vintages → Phase 9 (Features Agent)
+- Advanced hyperparameter optimization (Bayesian) → Phase 6 (during backtesting)
+- Feature staleness detection automation → Phase 9 (Features Agent)
 
 ### Backtesting (Phase 6)
 **Core Backtesting**
@@ -1230,14 +1329,14 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - ✅ Phase 3: Validation + Seasonal Adjustment (Week 3) - COMPLETE
 - ✅ Phase 3.5: Testing Foundation (Week 3.5) - COMPLETE
 - ✅ **Phase 4: Feature Engineering + Tests (Week 4) - COMPLETE** ✅
-- Phase 5: Core Models + Reconciliation + Tests (Week 5-8)
+- Phase 5: Core Models + Reconciliation + Feature Registry DB + X-13 Quality + Tests (Week 5-8.5) ⚠️ **UPDATED**
 - Phase 6: Backtesting + Scenarios + Tests (Week 8.5-10.5)
 - Phase 6.5: API + Two-Zone Architecture + Tests (Week 10.5-11.5)
 - Phase 7: Subnet Integration (Adapter Pattern) + Tests (Week 11.5-13.5)
 - Phase 8: Dashboards + Tests (Week 13.5-14.5)
 - Phase 9: AI Agents (11 agents) + Tests (Week 14.5-16.5)
-- Phase 10: CI/CD Automation & Advanced Testing (Week 16.5-17.5)
-- **Full MVP with Testing:** 17-18 weeks
+- Phase 10: CI/CD Automation & Advanced Testing (Week 16.5-18)
+- **Full MVP with Testing:** 18 weeks (updated from 17-18 weeks due to Phase 5 expansion)
 
 **Testing Strategy (VALIDATED):**
 - ✅ **Phase 3.5:** All Phase 1-3 tests COMPLETE (60+ tests, 70% coverage)
@@ -1289,7 +1388,7 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 | `features/dfm_inputs/` | Phase 4 | 📋 Deferred | Factor extraction inputs (for DFM in Phase 5) |
 | `features/transforms/` | Phase 4 | ✅ Complete | Frequency, calendar, scaling, winsorization, pipeline |
 | `features/aggregations/` | Phase 4 | ✅ Complete | State→national, sector→total, hierarchical utilities |
-| `features/registry.py` | Phase 4 | ✅ Complete | Feature metadata, versioning, lineage tracking |
+| `features/registry.py` | Phase 4/5 | ⚠️ Partial | In-memory (Phase 4 ✅), Database persistence (Phase 5 📋) |
 
 ### Models & Reconciliation
 | Component | Phase | Status | Notes |
