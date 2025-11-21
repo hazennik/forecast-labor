@@ -34,7 +34,7 @@ from features.transforms.scaling import StandardScaler, Winsorizer
 from features.transforms.pipeline import TransformPipeline
 from features.aggregations.state_aggregator import StateAggregator
 from features.aggregations.sector_aggregator import SectorAggregator
-from features.registry import FeatureRegistry
+from features.registry import FeatureRegistry, get_registry_config_from_env
 from etl.common.storage import StorageClient
 from etl.common.vintage import VintageManager
 from etl.common.vintage_validator import validate_vintage_is_production, log_vintage_provenance
@@ -50,6 +50,10 @@ class FeatureBuilder:
     def __init__(self, vintage_date: str, output_dir: Path):
         """
         Initialize feature builder.
+        
+        The feature registry backend is configured via environment variables:
+        - FEATURE_REGISTRY_BACKEND: 'memory' (default) or 'database'
+        - POSTGRES_*: Database connection parameters (if backend='database')
 
         Args:
             vintage_date: Vintage date (YYYY-MM-DD)
@@ -59,7 +63,10 @@ class FeatureBuilder:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.registry = FeatureRegistry()
+        # Initialize registry with environment-based configuration
+        registry_config = get_registry_config_from_env()
+        self.registry = FeatureRegistry(**registry_config)
+        
         self.storage = StorageClient()
         self.vintage_mgr = VintageManager(storage_client=self.storage)
 
@@ -67,6 +74,7 @@ class FeatureBuilder:
             "feature_builder_initialized",
             vintage_date=vintage_date,
             output_dir=str(output_dir),
+            registry_backend=registry_config['backend'],
         )
 
     def build_all(self) -> Dict[str, pd.DataFrame]:

@@ -157,19 +157,48 @@ SELECT * FROM features.v_feature_lineage WHERE feature_name = 'treasury_withhold
 
 ## Quick Start
 
-### Prerequisites
+### Configuration Methods
 
-1. PostgreSQL 12+ installed and running
-2. Database created: `forecast_labor`
-3. Schema initialized: Run `infra/postgres/feature_registry_schema.sql`
-4. Python package `psycopg2-binary` installed
+The Feature Registry supports two configuration methods:
 
-### Basic Usage
+#### 1. Environment Variables (Recommended for Production)
+
+```bash
+# Set backend type
+export FEATURE_REGISTRY_BACKEND=database  # or 'memory' for testing
+
+# Set database connection parameters (required if backend=database)
+export POSTGRES_HOST=localhost
+export POSTGRES_PORT=5432
+export POSTGRES_DB=forecast_labor
+export POSTGRES_USER=forecast_labor
+export POSTGRES_PASSWORD=your_password
+```
+
+```python
+from features.registry import get_registry_config_from_env, FeatureRegistry
+
+# Automatic configuration from environment
+config = get_registry_config_from_env()
+registry = FeatureRegistry(**config)
+
+# Or use the global singleton
+from features.registry import get_global_registry
+registry = get_global_registry()  # Automatically uses environment config
+```
+
+**Advantages:**
+- ✅ No hardcoded credentials in code
+- ✅ Easy switching between memory (dev/test) and database (production)
+- ✅ Works seamlessly with Docker Compose and CI/CD
+- ✅ All scripts (`build_features.py`, model I/O) automatically use correct backend
+
+#### 2. Direct Configuration (For Testing/Scripts)
 
 ```python
 from features.registry import FeatureRegistry
 
-# Initialize with database backend
+# Explicitly configure database backend
 registry = FeatureRegistry(
     backend='database',
     db_config={
@@ -180,6 +209,34 @@ registry = FeatureRegistry(
         'password': 'your_password'
     }
 )
+```
+
+### Prerequisites
+
+1. **PostgreSQL 12+ installed and running**
+   ```bash
+   docker compose up postgres  # Or use your own Postgres instance
+   ```
+
+2. **Database created:** `forecast_labor`
+
+3. **Schema initialized:** Run migration script
+   ```bash
+   psql -U forecast_labor -d forecast_labor -f infra/postgres/feature_registry_schema.sql
+   ```
+
+4. **Python dependencies installed**
+   ```bash
+   pip install psycopg2-binary
+   ```
+
+### Basic Usage Example
+
+```python
+from features.registry import get_global_registry
+
+# Uses environment variables to determine backend
+registry = get_global_registry()
 
 # Register a feature
 feature_id = registry.register({
@@ -187,10 +244,12 @@ feature_id = registry.register({
     'source': 'bls_ces',
     'frequency': 'monthly',
     'description': 'Total nonfarm payrolls',
-    'status': 'active'
+    'status': 'active',
+    'vintage_date': '2024-01-15'
 })
 
 print(f"Registered feature: {feature_id}")
+print(f"Backend: {registry.backend}")  # 'database' or 'memory'
 ```
 
 ---

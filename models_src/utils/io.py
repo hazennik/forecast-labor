@@ -418,11 +418,54 @@ def save_model_with_metadata(
     if include_feature_info:
         try:
             # Import here to avoid circular dependency
-            # Full feature registry integration in Phase 5.2
-            logger.debug("Feature registry integration enabled")
-            # TODO: Query feature registry for feature metadata
+            from features.registry import get_global_registry
+            
+            registry = get_global_registry()
+            
+            # Get feature metadata for features used in model training
+            feature_info = []
+            if metadata.feature_names:
+                for feature_name in metadata.feature_names:
+                    try:
+                        # Search for feature by name
+                        matches = registry.search(name=feature_name)
+                        if matches:
+                            # Use the most recent version
+                            feature_metadata = matches[0]
+                            feature_info.append({
+                                'name': feature_metadata.get('name'),
+                                'source': feature_metadata.get('source'),
+                                'frequency': feature_metadata.get('frequency'),
+                                'vintage_date': feature_metadata.get('vintage_date'),
+                                'version': feature_metadata.get('version', 1),
+                            })
+                    except Exception as e:
+                        logger.warning(
+                            "Could not retrieve feature metadata",
+                            feature_name=feature_name,
+                            error=str(e)
+                        )
+            
+            metadata_dict["feature_registry_info"] = {
+                'features': feature_info,
+                'feature_count': len(feature_info),
+                'registry_backend': registry.backend,
+            }
+            
+            logger.info(
+                "Feature registry info included",
+                feature_count=len(feature_info),
+                registry_backend=registry.backend
+            )
+            
         except ImportError:
             logger.warning("Feature registry not available, skipping feature info")
+        except Exception as e:
+            logger.warning(
+                "Failed to query feature registry",
+                error=str(e),
+                exc_info=True
+            )
     
     # Save metadata
     try:

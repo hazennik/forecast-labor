@@ -29,6 +29,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, date
 import uuid
 import json
+import os
 from loguru import logger
 
 try:
@@ -957,19 +958,80 @@ class FeatureRegistry:
         logger.info("registry_imported", feature_count=len(features))
 
 
+def get_registry_config_from_env() -> Dict[str, Any]:
+    """
+    Get feature registry configuration from environment variables.
+    
+    Environment Variables:
+        FEATURE_REGISTRY_BACKEND: 'memory' or 'database' (default: 'memory')
+        POSTGRES_HOST: Database host (default: 'localhost')
+        POSTGRES_PORT: Database port (default: 5432)
+        POSTGRES_DB: Database name (default: 'forecast_labor')
+        POSTGRES_USER: Database user (default: 'forecast_labor')
+        POSTGRES_PASSWORD: Database password (default: 'forecast_labor')
+    
+    Returns:
+        Dictionary with 'backend' and optional 'db_config' keys
+        
+    Example:
+        >>> # Use in-memory (default)
+        >>> config = get_registry_config_from_env()
+        >>> registry = FeatureRegistry(**config)
+        
+        >>> # Use database (set FEATURE_REGISTRY_BACKEND=database)
+        >>> config = get_registry_config_from_env()
+        >>> registry = FeatureRegistry(**config)
+    """
+    backend = os.getenv('FEATURE_REGISTRY_BACKEND', 'memory')
+    
+    config: Dict[str, Any] = {'backend': backend}
+    
+    if backend == 'database':
+        config['db_config'] = {
+            'host': os.getenv('POSTGRES_HOST', 'localhost'),
+            'port': int(os.getenv('POSTGRES_PORT', '5432')),
+            'database': os.getenv('POSTGRES_DB', 'forecast_labor'),
+            'user': os.getenv('POSTGRES_USER', 'forecast_labor'),
+            'password': os.getenv('POSTGRES_PASSWORD', 'forecast_labor'),
+        }
+        
+        logger.info(
+            "registry_config_from_env",
+            backend="database",
+            host=config['db_config']['host'],
+            database=config['db_config']['database']
+        )
+    else:
+        logger.debug("registry_config_from_env", backend="memory")
+    
+    return config
+
 
 # Convenience function
 def get_global_registry() -> FeatureRegistry:
     """
     Get global feature registry singleton.
-
+    
+    The registry backend is configured via environment variables:
+    - FEATURE_REGISTRY_BACKEND: 'memory' (default) or 'database'
+    - POSTGRES_*: Database connection parameters (if backend='database')
+    
     Returns:
         Global FeatureRegistry instance
+        
+    Example:
+        >>> # Development (in-memory)
+        >>> registry = get_global_registry()  # Uses memory backend
+        
+        >>> # Production (database)
+        >>> os.environ['FEATURE_REGISTRY_BACKEND'] = 'database'
+        >>> registry = get_global_registry()  # Uses PostgreSQL backend
     """
     global _GLOBAL_REGISTRY
 
     if "_GLOBAL_REGISTRY" not in globals():
-        _GLOBAL_REGISTRY = FeatureRegistry()
+        config = get_registry_config_from_env()
+        _GLOBAL_REGISTRY = FeatureRegistry(**config)
 
     return _GLOBAL_REGISTRY
 
