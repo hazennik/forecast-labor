@@ -6,6 +6,7 @@ with multi-quantile predictions.
 """
 
 from models_src.gbm_quantile.xgb_quantile import XGBoostQuantile
+from models_src.gbm_quantile.lgb_quantile import LightGBMQuantile
 
-__all__ = ['XGBoostQuantile']
+__all__ = ['XGBoostQuantile', 'LightGBMQuantile']
 

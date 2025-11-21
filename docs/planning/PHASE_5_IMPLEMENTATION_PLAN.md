@@ -331,18 +331,18 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 **✅ COMPLETE** (35 tests passing, 227 total model tests)
 
 #### 5.5.2. LightGBM Quantile Implementation
-- [ ] **Create:** `models_src/gbm_quantile/lgb_quantile.py`
-  - [ ] LightGBM with quantile loss
-  - [ ] Same interface as XGBoost version
-  - [ ] Type hints, docstrings, logging
-  - [ ] Feature registry integration
-- [ ] **Test:** `tests/models/test_lgb_quantile.py`
-  - [ ] Same test suite as XGBoost
-  - [ ] Cross-model consistency tests
+- [x] **Create:** `models_src/gbm_quantile/lgb_quantile.py`
+  - [x] LightGBM with quantile loss
+  - [x] Same interface as XGBoost version
+  - [x] Type hints, docstrings, logging
+  - [x] Feature registry integration
+- [x] **Test:** `tests/models/test_lgb_quantile.py`
+  - [x] Same test suite as XGBoost
+  - [x] Cross-model consistency tests
 
-**✅ WHEN COMPLETE:** 
-- Mark `- [x] XGBoost quantile model` in IMPLEMENTATION_STATUS.md line 818
-- Update line 3 to "Phase 5: 52% - GBM Models Complete"
+✅ SECTION 5.5.2 (LightGBM) COMPLETE:
+- Mark `- [x] LightGBM quantile model` in IMPLEMENTATION_STATUS.md line 819
+- Update line 3 to "Phase 5: 57% - GBM Complete (XGBoost + LightGBM)"
 
 ---
 
