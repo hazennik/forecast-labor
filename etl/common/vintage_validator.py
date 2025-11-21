@@ -93,9 +93,36 @@ def validate_vintage_is_production(
             else:
                 logger.debug(f"No metadata flag found for {vintage_path}, proceeding with heuristic checks")
     
-    # Check 2: Suspiciously small dataset (test data has 120 rows)
+    # Check 2 & 3 Combined: Test data pinned date + row count (check together for better error)
     TEST_DATA_ROW_COUNT = 120
-    if len(df) == TEST_DATA_ROW_COUNT:
+    TEST_PINNED_DATE = "2024-01-15"
+    has_test_row_count = len(df) == TEST_DATA_ROW_COUNT
+    has_test_pinned_date = TEST_PINNED_DATE in str(vintage_path)
+    
+    # Check for MULTIPLE indicators first (highest confidence)
+    if has_test_pinned_date and has_test_row_count and strict and not allow_test_data:
+        error_msg = (
+            f"❌ MULTIPLE TEST DATA INDICATORS\n"
+            f"   File: {vintage_path}\n"
+            f"   - Pinned test date: {TEST_PINNED_DATE}\n"
+            f"   - Test row count: {len(df)} rows\n"
+            f"   🔴 HIGH CONFIDENCE: This is synthetic test data!"
+        )
+        logger.error(error_msg)
+        raise VintageValidationError(error_msg)
+    
+    # Check pinned date alone (medium confidence)
+    if has_test_pinned_date:
+        warning_msg = (
+            f"⚠️  Test data pinned date detected: {TEST_PINNED_DATE}\n"
+            f"   File: {vintage_path}\n"
+            f"   This is the standard date for synthetic test data.\n"
+            f"   ⚠️  Confirm this is intentional production use."
+        )
+        logger.warning(warning_msg)
+    
+    # Check suspicious row count alone (medium confidence)
+    if has_test_row_count:
         error_msg = (
             f"⚠️  SUSPICIOUS: Dataset has exactly {TEST_DATA_ROW_COUNT} rows\n"
             f"   File: {vintage_path}\n"
@@ -103,7 +130,8 @@ def validate_vintage_is_production(
             f"   ⚠️  High probability this is synthetic test data!"
         )
         
-        if strict and not allow_test_data:
+        if strict and not allow_test_data and not has_test_pinned_date:
+            # Only raise for row count if we didn't already check pinned date above
             logger.error(error_msg)
             raise VintageValidationError(error_msg)
         else:
@@ -114,30 +142,6 @@ def validate_vintage_is_production(
             f"⚠️  Small dataset ({len(df)} rows) detected: {vintage_path}\n"
             f"   Verify this is legitimate production data."
         )
-    
-    # Check 3: Test data pinned date
-    TEST_PINNED_DATE = "2024-01-15"
-    if TEST_PINNED_DATE in str(vintage_path):
-        warning_msg = (
-            f"⚠️  Test data pinned date detected: {TEST_PINNED_DATE}\n"
-            f"   File: {vintage_path}\n"
-            f"   This is the standard date for synthetic test data.\n"
-            f"   ⚠️  Confirm this is intentional production use."
-        )
-        logger.warning(warning_msg)
-        
-        if strict and not allow_test_data:
-            # For pinned date + strict mode, require explicit confirmation
-            if len(df) == TEST_DATA_ROW_COUNT:
-                error_msg = (
-                    f"❌ MULTIPLE TEST DATA INDICATORS\n"
-                    f"   File: {vintage_path}\n"
-                    f"   - Pinned test date: {TEST_PINNED_DATE}\n"
-                    f"   - Test row count: {len(df)} rows\n"
-                    f"   🔴 HIGH CONFIDENCE: This is synthetic test data!"
-                )
-                logger.error(error_msg)
-                raise VintageValidationError(error_msg)
     
     # Check 4: Path contains "test" keyword
     if "test" in str(vintage_path).lower() and "test" not in "latest":
@@ -256,4 +260,106 @@ def log_vintage_provenance(df: pd.DataFrame, vintage_path: Path) -> None:
         )
     else:
         logger.warning(f"⚠️  Unknown provenance: {vintage_path}")
+
+
+def save_vintage_with_metadata(df: pd.DataFrame, path: Path) -> None:
+    """
+    Save DataFrame to parquet with attrs metadata preserved.
+    
+    Pandas doesn't preserve DataFrame.attrs by default when writing parquet.
+    This function manually stores attrs as parquet file metadata.
+    
+    Args:
+        df: DataFrame with attrs metadata to save
+        path: Path to save parquet file
+        
+    Example:
+        ```python
+        df = pd.DataFrame({"value": [1, 2, 3]})
+        df.attrs['is_synthetic'] = False
+        df.attrs['generated_by'] = 'etl.bls_ces'
+        save_vintage_with_metadata(df, Path("data/vintages/ces/data.parquet"))
+        ```
+    """
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    
+    # Convert DataFrame to Arrow table
+    table = pa.Table.from_pandas(df)
+    
+    # Extract attrs and convert to metadata
+    if hasattr(df, 'attrs') and df.attrs:
+        # Convert attrs values to strings for metadata storage
+        metadata_dict = {
+            key: str(value) if value is not None else ""
+            for key, value in df.attrs.items()
+        }
+        
+        # Merge with existing metadata
+        existing_metadata = table.schema.metadata or {}
+        combined_metadata = {**existing_metadata, **metadata_dict}
+        
+        # Update table schema with metadata
+        table = table.replace_schema_metadata(combined_metadata)
+    
+    # Write to parquet
+    pq.write_table(table, path)
+    logger.debug(f"Saved vintage with metadata: {path}")
+
+
+def load_vintage_with_metadata(path: Path) -> pd.DataFrame:
+    """
+    Load DataFrame from parquet with attrs metadata restored.
+    
+    Restores DataFrame.attrs that were saved by save_vintage_with_metadata().
+    
+    Args:
+        path: Path to parquet file
+        
+    Returns:
+        DataFrame with attrs restored
+        
+    Example:
+        ```python
+        df = load_vintage_with_metadata(Path("data/vintages/ces/data.parquet"))
+        assert df.attrs['is_synthetic'] is False
+        ```
+    """
+    import pyarrow.parquet as pq
+    
+    # Read parquet with metadata
+    table = pq.read_table(path)
+    df = table.to_pandas()
+    
+    # Restore attrs from metadata
+    if table.schema.metadata:
+        # Convert known keys back to appropriate types
+        attrs = {}
+        for key_bytes, value_bytes in table.schema.metadata.items():
+            key = key_bytes.decode('utf-8') if isinstance(key_bytes, bytes) else key_bytes
+            value = value_bytes.decode('utf-8') if isinstance(value_bytes, bytes) else value_bytes
+            
+            # Convert string back to bool for is_synthetic
+            if key == 'is_synthetic':
+                if value.lower() == 'true':
+                    attrs[key] = True
+                elif value.lower() == 'false':
+                    attrs[key] = False
+                elif value == '':
+                    attrs[key] = None
+                else:
+                    attrs[key] = value
+            # Convert string back to int for random_seed
+            elif key == 'random_seed':
+                try:
+                    attrs[key] = int(value) if value else None
+                except ValueError:
+                    attrs[key] = value
+            else:
+                attrs[key] = value if value != '' else None
+        
+        df.attrs = attrs
+        logger.debug(f"Loaded vintage with metadata: {path}")
+    
+    return df
 

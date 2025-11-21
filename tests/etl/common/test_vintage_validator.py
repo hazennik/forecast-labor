@@ -15,6 +15,8 @@ from etl.common.vintage_validator import (
     is_synthetic_data,
     get_vintage_provenance,
     VintageValidationError,
+    save_vintage_with_metadata,
+    load_vintage_with_metadata,
 )
 
 
@@ -257,12 +259,12 @@ class TestVintageValidationIntegration:
         df.attrs['generated_by'] = 'test_etl'
         df.attrs['generation_date'] = datetime.now().isoformat()
         
-        # Write to parquet
+        # Write to parquet using metadata-preserving function
         parquet_file = tmp_path / "test.parquet"
-        df.to_parquet(parquet_file)
+        save_vintage_with_metadata(df, parquet_file)
         
-        # Read back
-        df_loaded = pd.read_parquet(parquet_file)
+        # Read back using metadata-restoring function
+        df_loaded = load_vintage_with_metadata(parquet_file)
         
         # Verify metadata preserved
         assert df_loaded.attrs['is_synthetic'] is False
@@ -285,13 +287,15 @@ class TestEdgeCases:
         )
     
     def test_dataframe_without_attrs(self):
-        """Test DataFrame without attrs attribute"""
+        """Test DataFrame without attrs metadata (empty attrs dict)"""
         df = pd.DataFrame({"value": [1, 2, 3]})
-        # Explicitly remove attrs if it exists
-        if hasattr(df, 'attrs'):
-            delattr(df, 'attrs')
+        # Note: pandas DataFrames always have .attrs property (as empty dict by default)
+        # We can't delete it (it's a property descriptor), but we test with empty attrs
+        # which represents DataFrames from older ETL versions without metadata
+        assert hasattr(df, 'attrs')  # attrs property always exists
+        assert len(df.attrs) == 0     # but can be empty
         
-        # Should pass with warning
+        # Should pass with warning (no metadata to validate)
         validate_vintage_is_production(
             df,
             Path("data/vintages/test/2024-11-16/no_attrs.parquet"),
