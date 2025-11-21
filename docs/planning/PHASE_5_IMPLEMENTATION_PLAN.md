@@ -353,15 +353,19 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 **Update IMPLEMENTATION_STATUS.md:** Line 820 when complete
 
 #### 5.6.1. Isotonic Regression Calibration
-- [ ] **Create:** `models_src/calibration/isotonic.py`
-  - [ ] Isotonic regression calibrator
-  - [ ] Fit on validation set predictions
-  - [ ] Transform new predictions
-  - [ ] Sklearn-compatible API
-- [ ] **Test:** `tests/models/test_calibration_isotonic.py`
-  - [ ] Calibration improvement test (before/after ECE)
-  - [ ] Reliability diagram validation
-  - [ ] Edge case tests
+- [x] **Create:** `models_src/calibration/isotonic.py`
+  - [x] Isotonic regression calibrator
+  - [x] Fit on validation set predictions
+  - [x] Transform new predictions
+  - [x] Sklearn-compatible API
+- [x] **Test:** `tests/models/test_calibration_isotonic.py`
+  - [x] Calibration improvement test (before/after ECE)
+  - [x] Reliability diagram validation
+  - [x] Edge case tests
+
+✅ SECTION 5.6.1 (Isotonic Calibration) COMPLETE:
+- Mark `- [x] Calibration layer` in IMPLEMENTATION_STATUS.md line 821
+- Update line 3 to "Phase 5: 60% - Calibration Layer Complete"
 
 #### 5.6.2. Conformal Prediction
 - [ ] **Create:** `models_src/calibration/conformal.py`
