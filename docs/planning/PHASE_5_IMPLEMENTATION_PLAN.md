@@ -236,22 +236,24 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 **Update IMPLEMENTATION_STATUS.md:** Line 816 when complete
 
 #### 5.3.1. DFM Core Implementation
-- [ ] **Create:** `models_src/dfm/dfm_model.py`
-  - [ ] State-space DFM implementation
-  - [ ] EM algorithm for parameter estimation
-  - [ ] Kalman filter for nowcasting
-  - [ ] Support for mixed frequencies (daily, weekly, monthly)
-  - [ ] Missing data handling (ragged edge)
-  - [ ] Inherits from `BaseForecaster`
-  - [ ] Type hints, docstrings, logging
-  - [ ] Feature registry integration (track features used)
-- [ ] **Test:** `tests/models/test_dfm.py`
-  - [ ] Fit test with synthetic data
-  - [ ] Prediction shape validation
-  - [ ] Reproducibility test (same seed → same output)
-  - [ ] Missing data handling test
-  - [ ] Parameter convergence test
-  - [ ] Feature registry tracking test
+- [x] **Create:** `models_src/dfm/dfm_model.py`
+  - [x] State-space DFM implementation
+  - [x] EM algorithm for parameter estimation
+  - [x] Kalman filter for nowcasting
+  - [x] Support for mixed frequencies (daily, weekly, monthly)
+  - [x] Missing data handling (ragged edge)
+  - [x] Inherits from `BaseForecaster`
+  - [x] Type hints, docstrings, logging
+  - [x] Feature registry integration (track features used)
+- [x] **Test:** `tests/models/test_dfm.py`
+  - [x] Fit test with synthetic data
+  - [x] Prediction shape validation
+  - [x] Reproducibility test (same seed → same output)
+  - [x] Missing data handling test
+  - [x] Parameter convergence test
+  - [x] Feature registry tracking test
+
+**✅ COMPLETE** (25 tests passing, 134 total model tests)
 
 #### 5.3.2. DFM Utilities
 - [ ] **Create:** `models_src/dfm/state_space.py`
