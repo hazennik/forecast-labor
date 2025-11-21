@@ -252,6 +252,89 @@ Based on Codex 14 feedback and project automation goals, Phase 10 now focuses on
 
 ---
 
+## 📊 CODEX ANALYSIS 16: Phase 5 Model Development Gate (2025-11-21)
+
+**Purpose:** Verify Phases 1-5.6 completion and readiness before advancing to remaining Phase 5 workstreams
+
+**Status:** ✅ FINDING 3 RESOLVED (Feature Registry Wiring)
+
+### Finding 3 Resolution: Feature Registry Database Persistence Now Fully Operational
+
+**Original Problem (Codex Analysis 16 - Finding 3):**
+- Database backend existed but was never used in practice
+- `FeatureBuilder` and `get_global_registry()` hardcoded in-memory mode
+- No configuration path for runtime backend selection
+- Model I/O had unimplemented TODO for registry queries
+- No integration tests with real PostgreSQL
+
+**Resolution (2025-11-21):** ✅ **COMPLETE**
+
+**What Was Fixed:**
+1. ✅ **Environment Variable Configuration** (`features/registry.py`)
+   - Added `get_registry_config_from_env()` function
+   - Supports `FEATURE_REGISTRY_BACKEND` (memory/database)
+   - Postgres connection via `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, etc.
+
+2. ✅ **Runtime Integration** (`scripts/build_features.py`)
+   - `FeatureBuilder` now uses `get_registry_config_from_env()`
+   - Automatically selects backend based on environment
+
+3. ✅ **Global Registry Integration** (`features/registry.py`)
+   - `get_global_registry()` now uses `get_registry_config_from_env()`
+   - Singleton respects environment configuration
+
+4. ✅ **Model I/O Integration** (`models_src/utils/io.py`)
+   - Implemented TODO: Query registry for feature metadata
+   - When `include_feature_info=True`, queries registry for each feature
+   - Includes metadata in saved model artifacts
+
+5. ✅ **Integration Tests** (`tests/integration/test_registry_postgres_integration.py`)
+   - 8 comprehensive integration tests with real PostgreSQL
+   - Tests: connection, CRUD, search, lineage, env config, FeatureBuilder, Model I/O
+   - Requires `docker compose up postgres`
+
+6. ✅ **Documentation** (`docs/FEATURE_REGISTRY_DATABASE.md`)
+   - Updated with environment configuration examples
+   - Quick start guide for both memory and database modes
+
+**Impact:**
+- **Before:** Database backend existed but unused, all code defaulted to memory mode
+- **After:** Full environment-based configuration, persistent metadata, production-ready
+
+**Usage:**
+```bash
+# Development (in-memory, no database needed)
+export FEATURE_REGISTRY_BACKEND=memory
+
+# Production (PostgreSQL persistence)
+export FEATURE_REGISTRY_BACKEND=database
+export POSTGRES_HOST=localhost
+# ... other Postgres env vars
+```
+
+**Documentation:**
+- Complete resolution: `docs/planning/CODEX_ANALYSIS_16_FINDING_3_RESOLUTION.md`
+- Configuration guide: `docs/FEATURE_REGISTRY_DATABASE.md`
+- Analysis: `codex_analysis_16.md` (Finding 3 marked resolved)
+
+**Files Modified:**
+- `features/registry.py` - Environment config support
+- `scripts/build_features.py` - FeatureBuilder integration
+- `models_src/utils/io.py` - Registry query implementation
+- `docs/FEATURE_REGISTRY_DATABASE.md` - Configuration documentation
+
+**New Files:**
+- `tests/integration/test_registry_postgres_integration.py` - 8 integration tests
+- `docs/planning/CODEX_ANALYSIS_16_FINDING_3_RESOLUTION.md` - Full resolution doc
+
+**Verification:**
+- ✅ Backward compatibility maintained (memory mode default)
+- ✅ Integration tests pass with real PostgreSQL
+- ✅ No linting errors
+- ✅ Feature lineage survives process restarts when database mode enabled
+
+---
+
 ## 🧪 TEST INFRASTRUCTURE: Production-Ready & Sustainable
 
 **Status:** OPERATIONAL (2025-11-15)  
@@ -841,6 +924,14 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
   - [x] Migration scripts for existing features
 - [x] Feature lineage tracking in database
 - [x] Feature versioning and rollback support
+- [x] **Runtime integration and wiring** ✅ (2025-11-21: Codex Analysis 16 - Finding 3 RESOLVED)
+  - [x] Environment variable configuration (`FEATURE_REGISTRY_BACKEND`)
+  - [x] `FeatureBuilder` uses environment config
+  - [x] `get_global_registry()` uses environment config
+  - [x] Model I/O queries registry for feature metadata
+  - [x] Integration tests with real PostgreSQL (`tests/integration/test_registry_postgres_integration.py`)
+  - [x] Documentation updated with configuration examples
+  - [x] See: `docs/planning/CODEX_ANALYSIS_16_FINDING_3_RESOLUTION.md`
 
 **Quality Gates Enhancement (Phase 5+ Deliverable)**
 - [ ] Full X-13 seasonal diagnostics quality verification
@@ -1484,6 +1575,7 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 | `tests/validators/` | Phase 3.5 | ✅ COMPLETE | 30/30 passing (Schema, Quality, Freshness, Reports) |
 | `tests/fixtures/` | Phase 3.5 | ✅ COMPLETE | Golden baselines populated |
 | `tests/features/` | Phase 4 | ✅ COMPLETE | 172/172 passing (MIDAS, Transforms, Aggregations, Registry) |
+| `tests/integration/` | Phase 5 | ✅ STARTED | 8 tests (Feature Registry + PostgreSQL integration) |
 | `tests/models/` | Phase 5 | 📋 Planned | Alongside models |
 | `tests/backtests/` | Phase 6 | 📋 Planned | Alongside backtests |
 | `tests/subnets/` | Phase 7 | 📋 Planned | Alongside subnet integration |

@@ -227,6 +227,31 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 
 **✅ COMPLETE:** Comprehensive 600+ line documentation with examples, troubleshooting, API reference
 
+#### 5.2.5. Runtime Integration & Codex Analysis 16 Resolution ✅
+- [x] **Resolved:** Codex Analysis 16 - Finding 3 (2025-11-21)
+  - [x] Added environment variable configuration (`get_registry_config_from_env()`)
+  - [x] Updated `FeatureBuilder` to use environment-based backend selection
+  - [x] Updated `get_global_registry()` to use environment-based backend selection
+  - [x] Implemented TODO in `models_src/utils/io.py` - registry queries for feature metadata
+  - [x] Created integration tests with real PostgreSQL (`tests/integration/test_registry_postgres_integration.py`)
+  - [x] Updated documentation with environment configuration examples
+- [x] **Environment Variables:**
+  - `FEATURE_REGISTRY_BACKEND` - 'memory' (default) or 'database'
+  - `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- [x] **Files Modified:**
+  - `features/registry.py` - Added `get_registry_config_from_env()`, updated `get_global_registry()`
+  - `scripts/build_features.py` - Uses environment config in `FeatureBuilder.__init__`
+  - `models_src/utils/io.py` - Queries registry when `include_feature_info=True`
+- [x] **New Files:**
+  - `tests/integration/test_registry_postgres_integration.py` (8 integration tests)
+  - `docs/planning/CODEX_ANALYSIS_16_FINDING_3_RESOLUTION.md` (complete resolution doc)
+- [x] **Documentation:**
+  - See `docs/planning/CODEX_ANALYSIS_16_FINDING_3_RESOLUTION.md` for full details
+  - See `docs/FEATURE_REGISTRY_DATABASE.md` for configuration guide
+  - See `codex_analysis_16.md` for validation and impact analysis
+
+**✅ COMPLETE:** Database persistence fully wired and operational in production runtime
+
 ---
 
 ### 5.3. Dynamic Factor Model (DFM) (Week 5, Day 5 - Week 6, Day 1)
