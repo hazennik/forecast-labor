@@ -14,7 +14,7 @@
 1. **Start at the top** - Follow sections in order (dependencies matter)
 2. **Check boxes as you complete** - Use `- [x]` syntax in this file
 3. **Update IMPLEMENTATION_STATUS.md** - Mark corresponding items (see instructions below)
-4. **Commit frequently** - Atomic commits after each component
+4. **Commit frequently** - Prompt the user to commit after each component is completed
 5. **Run tests continuously** - Don't wait until the end
 
 ### Updating IMPLEMENTATION_STATUS.md
