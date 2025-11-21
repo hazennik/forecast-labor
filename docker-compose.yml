@@ -177,9 +177,11 @@ services:
       NOAA_API_KEY: ${NOAA_API_KEY:-}
       PREFECT_API_URL: ${PREFECT_API_URL:-http://prefect:4200/api}
     volumes:
+      - ./setup.py:/app/setup.py
       - ./etl:/app/etl
       - ./seasonal:/app/seasonal
       - ./features:/app/features
+      - ./models_src:/app/models_src
       - ./data:/app/data
       - ./scripts:/app/scripts
       - ./tests:/app/tests
