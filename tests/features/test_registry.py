@@ -135,19 +135,24 @@ class TestFeatureRegistry:
         assert latest["version"] == "2.0.0"
 
     def test_database_logging(self):
-        """Test that database logging is deferred to Phase 5+."""
+        """Test that database backend can be mocked for testing."""
         from features.registry import FeatureRegistry
 
-        # Database persistence is not yet implemented (Phase 5+)
-        # Registry should work in-memory mode even with use_database=True
-        registry = FeatureRegistry(use_database=True)
-
-        feature_id = registry.register({"name": "test_feature", "source": "ces"})
-
-        # Should register successfully in-memory
-        assert feature_id is not None
-        retrieved = registry.get(feature_id)
-        assert retrieved["name"] == "test_feature"
+        # Test backward compatibility with deprecated use_database parameter
+        # Should use in-memory when no db_config provided
+        with patch('features.registry.DatabaseBackend') as mock_backend_class:
+            mock_backend = Mock()
+            mock_backend_class.return_value = mock_backend
+            mock_backend.register_feature.return_value = 'mock-uuid'
+            
+            # Using deprecated parameter but with db_config
+            registry = FeatureRegistry(use_database=True, db_config={'host': 'localhost'})
+            
+            feature_id = registry.register({"name": "test_feature", "source": "ces"})
+            
+            # Should register via database backend
+            assert feature_id == 'mock-uuid'
+            mock_backend.register_feature.assert_called_once()
 
     def test_feature_lineage_tracking(self):
         """Test tracking feature lineage (dependencies)."""
