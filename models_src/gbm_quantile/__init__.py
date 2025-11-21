@@ -1,0 +1,11 @@
+"""
+Gradient Boosting Machine (GBM) models for quantile regression.
+
+Provides XGBoost and LightGBM implementations for probabilistic forecasting
+with multi-quantile predictions.
+"""
+
+from models_src.gbm_quantile.xgb_quantile import XGBoostQuantile
+
+__all__ = ['XGBoostQuantile']
+
