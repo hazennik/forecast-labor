@@ -113,19 +113,21 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 **✅ COMPLETE** (17 tests passing, 322/322 total)
 
 #### 5.1.2. Metrics & Evaluation
-- [ ] **Create:** `models_src/utils/metrics.py`
-  - [ ] RMSE (Root Mean Squared Error)
-  - [ ] sMAPE (Symmetric Mean Absolute Percentage Error)
-  - [ ] CRPS (Continuous Ranked Probability Score)
-  - [ ] Turning point detection accuracy
-  - [ ] Prediction interval coverage (80%, 90%, 95%)
-  - [ ] Expected Calibration Error (ECE)
-  - [ ] All functions with type hints & docstrings
-- [ ] **Test:** `tests/models/test_metrics.py`
-  - [ ] Unit tests for each metric (known inputs → expected outputs)
-  - [ ] Edge case tests (zeros, negative values, NaNs)
-  - [ ] Interval coverage validation tests
-  - [ ] ECE calculation validation
+- [x] **Create:** `models_src/utils/metrics.py`
+  - [x] RMSE (Root Mean Squared Error)
+  - [x] sMAPE (Symmetric Mean Absolute Percentage Error)
+  - [x] CRPS (Continuous Ranked Probability Score)
+  - [x] Turning point detection accuracy
+  - [x] Prediction interval coverage (80%, 90%, 95%)
+  - [x] Expected Calibration Error (ECE)
+  - [x] All functions with type hints & docstrings
+- [x] **Test:** `tests/models/test_metrics.py`
+  - [x] Unit tests for each metric (known inputs → expected outputs)
+  - [x] Edge case tests (zeros, negative values, NaNs)
+  - [x] Interval coverage validation tests
+  - [x] ECE calculation validation
+
+**✅ COMPLETE** (33 tests passing, 355/355 total)
 
 #### 5.1.3. Model I/O & Serialization
 - [ ] **Create:** `models_src/utils/io.py`
