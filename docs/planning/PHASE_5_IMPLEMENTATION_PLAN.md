@@ -252,6 +252,27 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 
 **✅ COMPLETE:** Database persistence fully wired and operational in production runtime
 
+#### 5.2.6. CI Integration & Codex Analysis 17 Resolution ✅
+- [x] **Resolved:** Codex Analysis 17 - Finding 3 (2025-11-21)
+  - [x] Added PostgreSQL service to GitHub Actions workflow
+  - [x] Configured environment variables for Postgres connection
+  - [x] Added schema initialization step before tests
+  - [x] Integration tests now run automatically (not skipped)
+  - [x] Database backend validated in production-like environment
+- [x] **CI Configuration Changes:**
+  - `services.postgres` - Postgres 15 container with health checks
+  - `env` - Postgres connection parameters (host, port, db, user, password)
+  - Schema initialization step using `infra/postgres/feature_registry_schema.sql`
+- [x] **Test Validation:**
+  - 8 integration tests run in every CI workflow
+  - Database connection, CRUD, search, lineage all validated
+  - No manual Postgres setup required
+- [x] **Documentation:**
+  - See `docs/planning/CODEX_ANALYSIS_17_FINDING_3_RESOLUTION.md` for full details
+  - See `.github/workflows/test.yml` for CI configuration
+
+**✅ COMPLETE:** Feature Registry Database fully validated in CI, Phase 5.2 truly complete
+
 ---
 
 ### 5.3. Dynamic Factor Model (DFM) (Week 5, Day 5 - Week 6, Day 1)

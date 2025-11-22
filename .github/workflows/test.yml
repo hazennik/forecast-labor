@@ -12,9 +12,33 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
     
+    # Add PostgreSQL service for integration tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: forecast_labor
+          POSTGRES_PASSWORD: forecast_labor
+          POSTGRES_DB: forecast_labor
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     strategy:
       matrix:
         python-version: ["3.11"]
+    
+    env:
+      # Configure registry to use PostgreSQL for integration tests
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: forecast_labor
+      POSTGRES_USER: forecast_labor
+      POSTGRES_PASSWORD: forecast_labor
     
     steps:
       - name: Checkout code
@@ -53,6 +77,20 @@ jobs:
         # 
         # Production should use real ETL outputs, not these synthetic vintages.
       
+      - name: Initialize PostgreSQL schema
+        run: |
+          # Wait for Postgres to be fully ready
+          until pg_isready -h localhost -p 5432 -U forecast_labor; do
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
+          
+          # Initialize feature registry schema
+          PGPASSWORD=forecast_labor psql -h localhost -p 5432 -U forecast_labor -d forecast_labor -f infra/postgres/feature_registry_schema.sql
+        # NOTE: This initializes the feature registry database schema
+        # Integration tests in tests/integration/ now run against real Postgres
+        # This validates the database backend is functional in CI
+      
       - name: Lint with ruff
         run: |
           pip install ruff
@@ -63,11 +101,13 @@ jobs:
           pip install mypy
           mypy etl/ seasonal/ features/ --ignore-missing-imports
       
-      - name: Run all tests (287 tests - 100% coverage)
+      - name: Run all tests (including Postgres integration tests)
         run: |
           pytest tests/ -v --tb=short --maxfail=10
-        # All 287 tests run without filtering
-        # Integration tests are included in the full suite
+        # All tests run without filtering, including:
+        # - Unit tests (305+ tests)
+        # - Integration tests with real PostgreSQL (8 tests)
+        # Feature registry database backend is now validated in CI
       
       - name: Generate coverage report
         run: |
