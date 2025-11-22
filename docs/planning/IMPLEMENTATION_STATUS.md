@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last Updated: 2025-11-22 (Phase 5: 73% - MinT/WLS Complete, 770+ Tests)
+Last Updated: 2025-11-22 (Phase 5: 75% - MinT/WLS/Coherence Complete, 798+ Tests)
 
 ## ✅ PHASE 4 COMPLETE: Feature Engineering
 
@@ -971,11 +971,14 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - [x] LightGBM quantile model ✅ COMPLETE (2025-11-21: 25 tests total, native quantile support, cross-model consistency tests, same interface as XGBoost)
 - [x] Revision model ✅ COMPLETE (2025-11-22: 38 tests total, Ridge regression, revision magnitude/direction prediction, feature importance, mean reversion & persistence patterns)
 - [x] Calibration layer ✅ COMPLETE (2025-11-21: 85 tests total, isotonic calibration + conformal prediction + comprehensive metrics, ECE/Brier/LogLoss, reliability curves, sharpness, interval evaluation)
-- [x] Hierarchical reconciliation (MinT/WLS) ✅ COMPLETE (2025-11-22: 59 tests total, OLS/WLS/MinT(Sample)/MinT(Shrink) methods, standalone WLS utilities, comprehensive validation)
-  - [x] MinT reconciliation methods (30 tests)
-  - [x] Shrinkage covariance estimation (Ledoit-Wolf)
-  - [x] Coherence tests (nation == Σstates)
+- [x] Hierarchical reconciliation (MinT/WLS/Coherence) ✅ COMPLETE (2025-11-22: 87 tests total, full reconciliation & validation suite)
+  - [x] MinT reconciliation methods (30 tests) - OLS/WLS/MinT(Sample)/MinT(Shrink), Ledoit-Wolf shrinkage
   - [x] WLS reconciliation utilities (29 tests) - Standalone utilities in `recon/mint/wls_utils.py`
+  - [x] Coherence testing (28 tests) - Comprehensive validation in `recon/tests/test_coherence.py`
+    - [x] validate_coherence(): Perfect/incoherent forecasts, tolerance levels
+    - [x] compute_coherence_errors(): Error computation and magnitude checks
+    - [x] build_summing_matrix(): Hierarchy construction and validation
+    - [x] Reconciliation error bounds: 100-job threshold, numerical precision, realistic NFP scenarios
 
 **Model Infrastructure**
 - [ ] Training pipelines (Prefect workflows)

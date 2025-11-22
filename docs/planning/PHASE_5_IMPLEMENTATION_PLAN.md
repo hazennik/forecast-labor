@@ -537,15 +537,28 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 - ✅ Integration with MinT reconciler (can be used independently)
 - ✅ TDD workflow followed (tests written first, all passing)
 
-#### 5.8.3. Coherence Testing
-- [ ] **Create:** `recon/tests/test_coherence.py`
-  - [ ] Validate nation == Σstates (within tolerance)
-  - [ ] Validate sector sums
-  - [ ] Reconciliation error bounds
+#### 5.8.3. Coherence Testing ✅ COMPLETE (2025-11-22)
+- [x] **Create:** `recon/tests/test_coherence.py` (28 tests, 100% passing)
+  - [x] Validate nation == Σstates (within tolerance) - 7 tests
+  - [x] Validate sector sums - 3 tests  
+  - [x] Reconciliation error bounds - 5 tests
+  - [x] Summing matrix construction - 6 tests
+  - [x] Integration tests - 3 tests
+  - [x] Realistic NFP forecasting scenarios
 
-**✅ WHEN COMPLETE:** 
-- Mark ALL items in IMPLEMENTATION_STATUS.md lines 821-825 as `[x]`
-- Update line 3 to "Phase 5: 75% - MinT/WLS Complete"
+**Test Coverage:**
+- `validate_coherence()`: Perfect coherence, incoherent forecasts, tolerance levels, edge cases
+- `compute_coherence_errors()`: Zero errors, nonzero errors, negative incoherence, magnitude checks
+- `build_summing_matrix()`: Single-level hierarchies, various sizes, edge cases
+- Error bounds: 100-job threshold validation, numerical precision, sector aggregation
+- Integration: Full workflow, summing matrix formulation, realistic NFP scenarios
+
+**✅ SECTION 5.8 (MINT/WLS/COHERENCE) FULLY COMPLETE (2025-11-22):**
+- ✅ Phase 5.8.1: MinT Reconciliation (30 tests)
+- ✅ Phase 5.8.2: WLS Utilities (29 tests)
+- ✅ Phase 5.8.3: Coherence Testing (28 tests)
+- ✅ **Total: 87 tests, all passing**
+- ✅ Coverage: OLS, WLS, MinT (sample & shrinkage), standalone utilities, comprehensive coherence validation
 
 ---
 
