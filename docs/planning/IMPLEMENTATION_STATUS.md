@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last Updated: 2025-11-22 (Phase 5: 70% - Revision Model Complete, 710+ Tests)
+Last Updated: 2025-11-22 (Phase 5: 72% - MinT Reconciliation Complete, 740+ Tests)
 
 ## ✅ PHASE 4 COMPLETE: Feature Engineering
 
@@ -971,11 +971,11 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - [x] LightGBM quantile model ✅ COMPLETE (2025-11-21: 25 tests total, native quantile support, cross-model consistency tests, same interface as XGBoost)
 - [x] Revision model ✅ COMPLETE (2025-11-22: 38 tests total, Ridge regression, revision magnitude/direction prediction, feature importance, mean reversion & persistence patterns)
 - [x] Calibration layer ✅ COMPLETE (2025-11-21: 85 tests total, isotonic calibration + conformal prediction + comprehensive metrics, ECE/Brier/LogLoss, reliability curves, sharpness, interval evaluation)
-- [ ] Hierarchical reconciliation (MinT/WLS)
-  - [ ] MinT reconciliation methods
-  - [ ] Shrinkage covariance estimation
-  - [ ] Coherence tests (nation == Σstates)
-  - [ ] WLS reconciliation utilities
+- [x] Hierarchical reconciliation (MinT/WLS) ✅ COMPLETE (2025-11-22: 30 tests total, OLS/WLS/MinT(Sample)/MinT(Shrink) methods, Ledoit-Wolf shrinkage, perfect coherence enforcement, comprehensive validation)
+  - [x] MinT reconciliation methods
+  - [x] Shrinkage covariance estimation
+  - [x] Coherence tests (nation == Σstates)
+  - [x] WLS reconciliation utilities (integrated into reconciler)
 
 **Model Infrastructure**
 - [ ] Training pipelines (Prefect workflows)
@@ -1485,10 +1485,10 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
   - ✅ Hierarchical utilities (MinT prep, coherence validation)
   - ✅ Feature registry (metadata, versioning, lineage)
   - ✅ Build features script (CLI runner)
-- **Testing Coverage:** ~75% ✅ (470+ comprehensive tests)
+- **Testing Coverage:** ~75% ✅ (500+ comprehensive tests)
 - **Testing Infrastructure:** 100% ✅ (pytest, fixtures, CI/CD)
-- **Models:** 50% 🔨 (Phase 5 in progress: DFM + MIDAS + XGBoost + LightGBM + Calibration + Revision complete)
-- **Overall Project:** ~68% complete (Phase 5: 70%)
+- **Models:** 55% 🔨 (Phase 5 in progress: DFM + MIDAS + XGBoost + LightGBM + Calibration + Revision + MinT complete)
+- **Overall Project:** ~69% complete (Phase 5: 72%)
 
 **Estimated Timeline:**
 - ✅ Phase 1: Foundation (Week 1) - COMPLETE
