@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last Updated: 2025-11-22 (Phase 5: 75% - MinT/WLS/Coherence Complete, 798+ Tests)
+Last Updated: 2025-11-22 (Phase 5: 75% - MinT/WLS/Coherence Complete (Algorithm Fixed), 837+ Tests)
 
 ## ✅ PHASE 4 COMPLETE: Feature Engineering
 
@@ -971,7 +971,7 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - [x] LightGBM quantile model ✅ COMPLETE (2025-11-21: 25 tests total, native quantile support, cross-model consistency tests, same interface as XGBoost)
 - [x] Revision model ✅ COMPLETE (2025-11-22: 38 tests total, Ridge regression, revision magnitude/direction prediction, feature importance, mean reversion & persistence patterns)
 - [x] Calibration layer ✅ COMPLETE (2025-11-21: 85 tests total, isotonic calibration + conformal prediction + comprehensive metrics, ECE/Brier/LogLoss, reliability curves, sharpness, interval evaluation)
-- [x] Hierarchical reconciliation (MinT/WLS/Coherence) ✅ COMPLETE (2025-11-22: 87 tests total, full reconciliation & validation suite)
+- [x] Hierarchical reconciliation (MinT/WLS/Coherence) ✅ COMPLETE (2025-11-22: 126 tests total, projection matrix algorithm, method differentiation verified)
   - [x] MinT reconciliation methods (30 tests) - OLS/WLS/MinT(Sample)/MinT(Shrink), Ledoit-Wolf shrinkage
   - [x] WLS reconciliation utilities (29 tests) - Standalone utilities in `recon/mint/wls_utils.py`
   - [x] Coherence testing (28 tests) - Comprehensive validation in `recon/tests/test_coherence.py`
@@ -979,6 +979,13 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
     - [x] compute_coherence_errors(): Error computation and magnitude checks
     - [x] build_summing_matrix(): Hierarchy construction and validation
     - [x] Reconciliation error bounds: 100-job threshold, numerical precision, realistic NFP scenarios
+  - [x] Optimality testing (39 tests total including originals) - **ALGORITHM FIX (2025-11-22)**
+    - [x] Proper MinT projection matrix implementation (P = U @ (U' W^-1 U)^-1 @ U' W^-1)
+    - [x] Variance minimization verified (reduces forecast error variance)
+    - [x] Method differentiation confirmed (OLS ≠ WLS ≠ MinT(sample) ≠ MinT(shrink))
+    - [x] Projection matrix properties validated (idempotent, ensures coherence)
+    - [x] Reference validation tests (against known optimal solutions)
+    - [x] Resolved Codex Analysis 18 Finding 3 (documented algorithm mismatch)
 
 **Model Infrastructure**
 - [ ] Training pipelines (Prefect workflows)

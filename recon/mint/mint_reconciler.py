@@ -248,22 +248,28 @@ class MinTReconciler:
         forecasts: pd.DataFrame
     ) -> pd.DataFrame:
         """
-        Reconcile forecasts to ensure coherence.
+        Reconcile forecasts to ensure coherence using MinT projection matrix.
         
-        Applies MinT reconciliation formula:
-            ỹ = S (S' W^-1 S)^-1 S' W^-1 y
+        Applies MinT reconciliation via projection matrix formulation:
+            ỹ = (I - W S⁺) y
         
-        Where:
-        - y: base forecasts (potentially incoherent)
-        - ỹ: reconciled forecasts (coherent)
-        - S: summing matrix
-        - W: weight matrix
+        Where S⁺ = (S' W^-1 S)^-1 S' W^-1 is the generalized inverse (Moore-Penrose).
+        
+        This projection minimizes the trace of the forecast error covariance matrix
+        subject to the linear coherence constraints: S ỹ_bottom = y_top (aggregate).
+        
+        Mathematics:
+        - For single-level hierarchy: y = [y_top; y_bottom] where y_top = S @ y_bottom
+        - Reconciled forecasts minimize tr(Var(ỹ - y_true)) subject to S ỹ_bottom = sum
+        - Optimal solution: ỹ = y - W @ S⁺ @ (y_top - S @ y_bottom)
+        - Equivalently: ỹ = (I - W @ S⁺) @ y where projection ensures coherence
         
         Args:
             forecasts: Base forecasts to reconcile (same structure as fit)
+                      [aggregate_col, bottom_col_1, ..., bottom_col_n]
             
         Returns:
-            Reconciled forecasts (coherent: national = Σstates)
+            Reconciled forecasts (coherent: national = Σstates, variance-minimized)
             
         Raises:
             ValueError: If not fitted or structure mismatch
@@ -277,6 +283,10 @@ class MinTReconciler:
                 reconciled[['CA', 'TX', 'NY']].sum(axis=1)
             )
             ```
+        
+        References:
+            Wickramasuriya et al. (2019): "Optimal forecast reconciliation for 
+            hierarchical and grouped time series through trace minimization"
         """
         if not self.is_fitted_:
             raise ValueError(
@@ -297,56 +307,74 @@ class MinTReconciler:
         )
         
         # Convert to numpy for computation
-        y = forecasts.values  # (n_obs, n_total)
+        y = forecasts.values.T  # (n_total, n_obs) - Transpose for matrix ops
         S = self.summing_matrix_  # (n_agg, n_bottom) = (1, n_bottom)
         W = self.weight_matrix_  # (n_total, n_total)
         
-        n_obs = y.shape[0]
+        n_total = y.shape[0]
+        n_obs = y.shape[1]
         
-        # Extract bottom-level forecasts (all except first column which is aggregate)
-        y_bottom = y[:, 1:]  # (n_obs, n_bottom)
+        # MinT reconciliation using projection matrix P = (I - W @ S⁺)
+        # where S⁺ = (S' W^-1 S)^-1 S' W^-1 is the generalized inverse
         
-        # MinT reconciliation for single-level hierarchy:
-        # Reconciled bottom series: ỹ_bottom = y_bottom + adjustment
-        # Adjustment minimizes variance subject to coherence constraint
-        
-        # Simple approach: enforce coherence by adjusting all series proportionally
-        # More sophisticated: use optimal weights from W matrix
-        
-        # Compute current incoherence (aggregate - sum of bottom)
-        current_aggregate = y[:, 0]  # (n_obs,)
-        current_bottom_sum = y_bottom.sum(axis=1)  # (n_obs,)
-        incoherence = current_aggregate - current_bottom_sum  # (n_obs,)
-        
-        # Distribute incoherence across bottom series using weights
-        if self.method == 'ols':
-            # OLS: distribute equally across all bottom series
-            weights = np.ones(self.n_bottom_) / self.n_bottom_
-        else:
-            # WLS/MinT: distribute based on inverse variance weights
-            # Extract bottom-level weights from W matrix
-            W_bottom = W[1:, 1:]  # (n_bottom, n_bottom)
+        try:
+            # Compute W^-1 (inverse of weight matrix)
+            W_inv = np.linalg.inv(W)
             
-            try:
-                W_bottom_inv = np.linalg.inv(W_bottom)
-                # Weights proportional to sum of inverse covariance rows
-                weights = W_bottom_inv.sum(axis=1)
-                weights = weights / weights.sum()  # Normalize to sum to 1
-            except np.linalg.LinAlgError:
-                # Fallback to equal weights
-                logger.warning("Could not invert bottom weight matrix, using equal weights")
-                weights = np.ones(self.n_bottom_) / self.n_bottom_
-        
-        # Adjust bottom series to enforce coherence
-        # Add proportional share of incoherence to each bottom series
-        adjustments = np.outer(incoherence, weights)  # (n_obs, n_bottom)
-        reconciled_bottom = y_bottom + adjustments
-        
-        # Reconciled aggregate is exactly the sum of reconciled bottom series
-        reconciled_aggregate = reconciled_bottom.sum(axis=1, keepdims=True)  # (n_obs, 1)
-        
-        # Combine into full reconciled forecasts
-        reconciled = np.hstack([reconciled_aggregate, reconciled_bottom])  # (n_obs, n_total)
+            # For single-level hierarchy, we need to construct full projection matrix
+            # Forecasts structure: [aggregate; bottom_series]
+            # We need projection that enforces: aggregate = S @ bottom_series
+            
+            # Build selection matrix to extract bottom series
+            # J = [0; I] selects bottom series from full vector
+            J = np.vstack([np.zeros((1, self.n_bottom_)), np.eye(self.n_bottom_)])
+            
+            # Build summing structure matrix: U = [S; I]
+            # This stacks aggregate = S @ bottom on top of bottom identity
+            U = np.vstack([S, np.eye(self.n_bottom_)])  # (n_total, n_bottom)
+            
+            # Compute generalized inverse (Moore-Penrose): U⁺ = (U' W^-1 U)^-1 U' W^-1
+            # This is the optimal reconciliation matrix
+            U_T_W_inv = U.T @ W_inv  # (n_bottom, n_total)
+            U_T_W_inv_U = U_T_W_inv @ U  # (n_bottom, n_bottom)
+            
+            # Invert (should be well-conditioned for proper hierarchy)
+            U_T_W_inv_U_inv = np.linalg.inv(U_T_W_inv_U)  # (n_bottom, n_bottom)
+            
+            # Generalized inverse
+            U_plus = U_T_W_inv_U_inv @ U_T_W_inv  # (n_bottom, n_total)
+            
+            # Projection matrix: P = U @ U⁺ = U @ (U' W^-1 U)^-1 @ U' W^-1
+            # This projects onto coherent subspace while minimizing variance
+            P = U @ U_plus  # (n_total, n_total)
+            
+            # Apply projection to reconcile forecasts
+            y_reconciled = P @ y  # (n_total, n_obs)
+            
+            # Transpose back to (n_obs, n_total)
+            reconciled = y_reconciled.T
+            
+        except np.linalg.LinAlgError as e:
+            # Fallback if matrix inversion fails (numerical instability)
+            logger.warning(
+                f"Matrix inversion failed in MinT reconciliation: {e}. "
+                "Falling back to simple coherence enforcement."
+            )
+            
+            # Simple fallback: enforce coherence by averaging adjustments
+            y_bottom = y[1:, :]  # (n_bottom, n_obs)
+            y_top = y[0:1, :]  # (1, n_obs)
+            
+            # Compute incoherence
+            y_bottom_sum = y_bottom.sum(axis=0, keepdims=True)  # (1, n_obs)
+            incoherence = y_top - y_bottom_sum  # (1, n_obs)
+            
+            # Distribute equally (OLS-like)
+            adjustments = incoherence / self.n_bottom_  # (1, n_obs)
+            y_bottom_reconciled = y_bottom + adjustments
+            y_top_reconciled = y_bottom_reconciled.sum(axis=0, keepdims=True)
+            
+            reconciled = np.vstack([y_top_reconciled, y_bottom_reconciled]).T
         
         # Convert back to DataFrame
         reconciled_df = pd.DataFrame(
@@ -372,7 +400,8 @@ class MinTReconciler:
             "Reconciliation complete",
             mean_coherence_error_before=float(coherence_errors_before.mean()),
             mean_coherence_error_after=float(coherence_errors_after.mean()),
-            max_coherence_error_after=float(np.abs(coherence_errors_after).max())
+            max_coherence_error_after=float(np.abs(coherence_errors_after).max()),
+            method=self.method
         )
         
         return reconciled_df

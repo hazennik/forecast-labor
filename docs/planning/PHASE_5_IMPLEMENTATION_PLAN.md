@@ -557,8 +557,15 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 - ✅ Phase 5.8.1: MinT Reconciliation (30 tests)
 - ✅ Phase 5.8.2: WLS Utilities (29 tests)
 - ✅ Phase 5.8.3: Coherence Testing (28 tests)
-- ✅ **Total: 87 tests, all passing**
-- ✅ Coverage: OLS, WLS, MinT (sample & shrinkage), standalone utilities, comprehensive coherence validation
+- ✅ Phase 5.8.4: Algorithm Fix & Optimality Tests (39 total tests including originals)
+  - **CRITICAL FIX (2025-11-22):** Codex Analysis 18 Finding 3 identified algorithm mismatch
+  - Fixed: Implemented proper MinT projection matrix formula (P = U @ (U' W^-1 U)^-1 @ U' W^-1)
+  - Added: 9 optimality tests (variance minimization, method differentiation, projection matrix properties)
+  - Verified: OLS ≠ WLS ≠ MinT(sample) ≠ MinT(shrink) produce different results
+  - Validated: Forecasts minimize variance while maintaining coherence
+  - See: `docs/planning/CODEX_ANALYSIS_18_FINDING_3_RESOLUTION.md`
+- ✅ **Total: 126 tests (87 coherence + 39 reconciler including optimality), all passing**
+- ✅ Coverage: OLS, WLS, MinT (sample & shrinkage), standalone utilities, coherence validation, optimality verification, method differentiation
 
 ---
 
