@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last Updated: 2025-11-22 (Phase 5: 75% - MinT/WLS/Coherence Complete (Algorithm Fixed), 837+ Tests)
+Last Updated: 2025-11-22 (Phase 5: 77% - Mathematical Validation Complete, 874+ Tests, Phase 6 Monitoring Criteria Defined)
 
 ## ✅ PHASE 4 COMPLETE: Feature Engineering
 
@@ -965,12 +965,12 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 
 ### Models (Phase 5)
 **Core Models**
-- [x] Dynamic Factor Model (DFM) ✅ COMPLETE (2025-11-21: 51 tests total, EM algorithm, Kalman filter, state-space utilities, missing data support)
-- [x] MIDAS regression ✅ COMPLETE (2025-11-21: 32 tests total, Almon polynomial weights, NLS estimation, multi-horizon forecasting)
+- [x] Dynamic Factor Model (DFM) ✅ COMPLETE (2025-11-21: 64 tests total including 13 property tests, EM algorithm validated, Kalman filter, state-space utilities, missing data support)
+- [x] MIDAS regression ✅ COMPLETE (2025-11-21: 45 tests total including 13 property tests, Almon polynomial weights validated, NLS estimation, multi-horizon forecasting)
 - [x] XGBoost quantile model ✅ COMPLETE (2025-11-21: 35 tests total, multi-quantile predictions, quantile crossing prevention, feature importance)
 - [x] LightGBM quantile model ✅ COMPLETE (2025-11-21: 25 tests total, native quantile support, cross-model consistency tests, same interface as XGBoost)
 - [x] Revision model ✅ COMPLETE (2025-11-22: 38 tests total, Ridge regression, revision magnitude/direction prediction, feature importance, mean reversion & persistence patterns)
-- [x] Calibration layer ✅ COMPLETE (2025-11-21: 85 tests total, isotonic calibration + conformal prediction + comprehensive metrics, ECE/Brier/LogLoss, reliability curves, sharpness, interval evaluation)
+- [x] Calibration layer ✅ COMPLETE (2025-11-21: 96 tests total including 11 isotonic property tests, isotonic calibration + conformal prediction + comprehensive metrics, ECE/Brier/LogLoss, reliability curves, sharpness, interval evaluation)
 - [x] Hierarchical reconciliation (MinT/WLS/Coherence) ✅ COMPLETE (2025-11-22: 126 tests total, projection matrix algorithm, method differentiation verified)
   - [x] MinT reconciliation methods (30 tests) - OLS/WLS/MinT(Sample)/MinT(Shrink), Ledoit-Wolf shrinkage
   - [x] WLS reconciliation utilities (29 tests) - Standalone utilities in `recon/mint/wls_utils.py`
@@ -1041,6 +1041,13 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - [ ] End-to-end integration test (ETL → features → models)
 - [ ] Feature registry database tests
 
+**Mathematical Validation (Phase 5)** ✅ COMPLETE (2025-11-22)
+- [x] DFM property tests (13 tests) - EM likelihood, Kalman covariance, stability
+- [x] MIDAS property tests (13 tests) - Almon weights, NLS convergence, coefficient properties
+- [x] Isotonic property tests (11 tests) - Monotonicity, ranking preservation, calibration
+- [x] Created: `docs/planning/PHASE_5_MATHEMATICAL_VALIDATION_COMPLETE.md`
+- [x] Identified monitoring criteria for Phase 6 backtesting (see Phase 6 section below)
+
 **Documentation (Phase 5)**
 - [ ] Model training guide (`docs/MODEL_TRAINING.md`)
 - [ ] Model selection decision tree (when to use DFM vs MIDAS vs GBM)
@@ -1064,6 +1071,59 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
   - [ ] Storm/hurricane scenarios
   - [ ] Strike impact scenarios
   - [ ] Policy change scenarios
+
+**Model Health Monitoring Criteria (Based on Phase 5 Validation)**
+
+During Phase 6 backtesting, monitor for these specific issues identified during Phase 5 mathematical validation (see `docs/planning/PHASE_5_MATHEMATICAL_VALIDATION_COMPLETE.md`):
+
+**1. DFM Instability (Low Concern)**
+- **What to watch:** Forecasts > 1 million jobs or < -1 million jobs (unrealistic magnitudes)
+- **Root cause:** Unconstrained EM can learn unstable transition matrices (eigenvalues |λ| > 1)
+- **Action:** Add eigenvalue constraint in M-step: `|λ| < 0.99`
+- **Effort:** 2-3 hours (modify `models_src/dfm/dfm_model.py` M-step)
+- **Severity:** Low (current tests show stability in typical cases)
+
+**2. MIDAS Convergence Failures (Low Concern)**
+- **What to watch:** Frequent "optimization_failed" warnings in logs
+- **Root cause:** NLS optimization can fail to converge with poor initial values
+- **Action:** Try different optimization methods (L-BFGS-B, Powell) or smarter initial values
+- **Effort:** 1-2 hours (modify `models_src/midas/midas_model.py` optimization)
+- **Severity:** Low (fallback to simple weighted average exists)
+
+**3. Poor Calibration Coverage (Medium Concern)**
+- **What to watch:** 90% prediction interval coverage < 80% or > 98% on backtest vintages
+- **Root cause:** Miscalibrated uncertainty estimates (isotonic regression or conformal prediction)
+- **Action:** Tune conformal prediction alpha or increase isotonic calibration bins
+- **Effort:** 2-4 hours (adjust `models_src/calibration/` parameters)
+- **Severity:** Medium (affects subnet scoring, but can be tuned)
+- **Go/No-Go:** Coverage must be 85-95% to pass deployment gate
+
+**4. Weak Overall Accuracy (Medium Concern)**
+- **What to watch:** sMAPE > 20% across all models on backtest vintages
+- **Root cause:** Insufficient features, poor hyperparameters, or need for ensembles
+- **Action:** Add more features, try model ensembles, tune hyperparameters systematically
+- **Effort:** 1-2 days (iterative improvement cycle)
+- **Severity:** Medium (project goal is elite-tier accuracy: sMAPE < 15%)
+- **Go/No-Go:** At least one model must achieve sMAPE < 20% to pass Phase 6
+
+**5. MinT Reconciliation Degradation (Low Concern)**
+- **What to watch:** Reconciled forecasts have higher error than base forecasts
+- **Root cause:** Poor covariance estimates or numerical instability
+- **Action:** Use shrinkage covariance (MinT-Shrink) or add regularization
+- **Effort:** 1-2 hours (already implemented, just switch method)
+- **Severity:** Low (algorithm validated, just needs right method for data)
+
+**Phase 6 Success Criteria (Hard Requirements):**
+- [ ] sMAPE < 20% for at least one model (preferably < 15% for elite tier)
+- [ ] 90% PI coverage: 85-95% (calibration working)
+- [ ] No forecasts with |magnitude| > 2 million (stability check)
+- [ ] MinT reconciliation improves or maintains base forecast accuracy
+- [ ] All mathematical property tests still passing after backtesting tuning
+
+**References:**
+- Full validation report: `docs/planning/PHASE_5_MATHEMATICAL_VALIDATION_COMPLETE.md`
+- Mathematical testing guide: `docs/TESTING_MATHEMATICAL_ALGORITHMS.md`
+- Property test suites: `tests/models/test_*_properties.py`
 
 **Testing (Phase 6)**
 - [ ] Unit tests for vintage reconstruction
