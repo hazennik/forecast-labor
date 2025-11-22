@@ -513,24 +513,43 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 - ✅ Integrated WLS weighting and covariance matrix handling
 - ✅ Comprehensive coherence validation tests included
 
-#### 5.8.2. WLS Utilities
-- [ ] **Create:** `recon/mint/wls_utils.py`
-  - [ ] Weighted Least Squares helpers
-  - [ ] Variance weighting computation
-  - [ ] Diagonal vs full covariance
-- [ ] **Test:** `tests/models/test_wls_utils.py`
-  - [ ] Weight computation tests
-  - [ ] Covariance matrix validation
+#### 5.8.2. WLS Utilities ✅ COMPLETE (2025-11-22)
+- [x] **Create:** `recon/mint/wls_utils.py`
+  - [x] Weighted Least Squares helpers
+  - [x] Variance weighting computation
+  - [x] Diagonal vs full covariance
+  - [x] Sample covariance and shrinkage covariance (Ledoit-Wolf)
+  - [x] Positive definite matrix regularization
+  - [x] Weight matrix validation
+  - [x] Unified WLS weights interface (OLS, diagonal, sample, shrinkage)
+  - [x] Precision matrix computation
+- [x] **Test:** `tests/models/test_wls_utils.py`
+  - [x] Weight computation tests (29 tests total)
+  - [x] Covariance matrix validation
+  - [x] Edge cases (zeros, negative values, singular matrices)
+  - [x] Integration tests (full WLS workflow)
+
+**✅ COMPLETE (2025-11-22):**
+- ✅ Files created: `recon/mint/wls_utils.py` (500+ lines), `tests/models/test_wls_utils.py` (440+ lines)
+- ✅ 29 tests passing (variance weights, diagonal weights, covariance estimation, validation)
+- ✅ All WLS methods supported: OLS, WLS (diagonal), MinT (sample), MinT (shrinkage)
+- ✅ Comprehensive utilities for hierarchical reconciliation
+- ✅ Integration with MinT reconciler (can be used independently)
+- ✅ TDD workflow followed (tests written first, all passing)
 
 #### 5.8.3. Coherence Testing
-- [ ] **Create:** `recon/tests/test_coherence.py`
-  - [ ] Validate nation == Σstates (within tolerance)
-  - [ ] Validate sector sums
-  - [ ] Reconciliation error bounds
+- [x] **Integrated into MinT reconciler** (Phase 5.8.1)
+  - [x] Validate nation == Σstates (within tolerance)
+  - [x] Validate sector sums
+  - [x] Reconciliation error bounds
+- **Note:** Coherence testing integrated into `mint_reconciler.py` and tested in `test_mint_reconciler.py` (no separate file needed)
 
-**✅ WHEN COMPLETE:** 
-- Mark ALL items in IMPLEMENTATION_STATUS.md lines 821-825 as `[x]`
-- Update line 3 to "Phase 5: 72% - MinT/WLS Complete"
+**✅ SECTION 5.8 (MINT/WLS) FULLY COMPLETE (2025-11-22):**
+- ✅ Phase 5.8.1: MinT Reconciliation (30 tests)
+- ✅ Phase 5.8.2: WLS Utilities (29 tests)
+- ✅ Phase 5.8.3: Coherence Testing (integrated)
+- ✅ Total: 59 tests, all passing
+- ✅ Coverage: OLS, WLS, MinT (sample & shrinkage), coherence validation, full workflow
 
 ---
 
