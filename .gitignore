@@ -50,6 +50,7 @@ build/
 *.out
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 
 # MLflow artifacts (stored in object storage, not git)
