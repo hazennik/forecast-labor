@@ -234,6 +234,70 @@ class TestFeatureName:
 - Every bug fix includes regression test
 - Golden baselines for determinism (vintage hashes, M-stats)
 
+### Testing Mathematical Algorithms (CRITICAL)
+**⚠️ WARNING: Avoid TDD blindspots when implementing mathematical algorithms**
+
+**See:** `docs/TESTING_MATHEMATICAL_ALGORITHMS.md` for comprehensive guide
+
+**Key Lessons from Codex Analysis 18 (MinT Reconciliation):**
+- ✅ Tests validated **observable behavior** (coherence) → passed
+- ❌ Tests didn't validate **mathematical correctness** (optimality) → algorithm wrong
+- ❌ Tests didn't verify **method differentiation** (OLS ≠ WLS ≠ MinT)
+- **Result:** 30 tests passed, but algorithm didn't match documented formula
+
+**Mandatory Tests for Mathematical Algorithms:**
+1. **Mathematical Properties** - Test the algorithm's defining property
+   - MinT: Variance minimization, not just coherence
+   - EM: Likelihood increases monotonically
+   - Conformal: Empirical coverage ≈ nominal coverage
+   - Kalman: Covariance matrices positive semi-definite
+2. **Algorithmic Invariants** - Test mathematical constraints that must hold
+   - Projection matrices idempotent: `P @ P = P`
+   - Weights sum to constraints: `sum(weights) = 1.0`
+   - Monotonicity: `f(x1) <= f(x2)` for `x1 <= x2` (isotonic regression)
+3. **Method Differentiation** - If offering OLS/WLS/MinT, verify they differ
+   - Test that different methods produce meaningfully different results
+   - Differences should align with theory (variance vs covariance weighting)
+4. **Reference Validation** - Compare against known solutions
+   - Analytical solutions for simple cases
+   - Reference implementations (R packages, established libraries)
+   - Published examples from research papers
+5. **Convergence Properties** - For iterative algorithms
+   - Objective function improves monotonically
+   - Convergence criteria meaningful (not arbitrary)
+
+**Red Flags (Stop and Review):**
+- 🚩 "All methods produce similar results" → likely not using weights correctly
+- 🚩 "Tests only check output format" → missing algorithmic correctness
+- 🚩 "Docstring says X, code does Y" → document/code mismatch
+- 🚩 "Can't explain why test passes" → test may be trivial
+
+**Example: Good vs Bad Tests**
+
+❌ **Bad (Observable Behavior Only):**
+```python
+def test_reconcile_works():
+    reconciled = reconciler.reconcile(forecasts)
+    assert reconciled is not None  # Trivial check
+```
+
+✅ **Good (Mathematical Property):**
+```python
+def test_reconcile_minimizes_variance():
+    """MinT must minimize forecast error variance."""
+    base_cov_trace = np.trace(np.cov(base_error.T))
+    reconciled_cov_trace = np.trace(np.cov(reconciled_error.T))
+    assert reconciled_cov_trace <= base_cov_trace * 1.1
+```
+
+✅ **Good (Method Differentiation):**
+```python
+def test_ols_vs_wls_differ():
+    """OLS and WLS must produce different results."""
+    diff = (reconciled_ols - reconciled_wls).abs().max()
+    assert diff > 0.01, "Methods should differ significantly"
+```
+
 ### Git Workflow
 - **Commits:** Atomic, descriptive messages
 - **Branches:** Feature branches for new work
@@ -247,6 +311,7 @@ class TestFeatureName:
 - `docs/planning/IMPLEMENTATION_STATUS.md` - Current phase, tasks, blockers
 - `docs/planning/REPO_SCAFFOLDING.md` - Complete directory structure
 - `docs/planning/SUBNET_ADAPTER_REFACTOR.md` - Adapter pattern decision
+- `docs/TESTING_MATHEMATICAL_ALGORITHMS.md` - **Mathematical algorithm testing (MANDATORY)**
 - `docs/5_PILLARS.md` - Architecture principles
 - `docs/PROJECT_INSTRUCTIONS.md` - Build specifications
 - `docs/AGENTS_AND_OPS_RUNBOOK.md` - Agent automation details
