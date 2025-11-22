@@ -538,18 +538,14 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 - ✅ TDD workflow followed (tests written first, all passing)
 
 #### 5.8.3. Coherence Testing
-- [x] **Integrated into MinT reconciler** (Phase 5.8.1)
-  - [x] Validate nation == Σstates (within tolerance)
-  - [x] Validate sector sums
-  - [x] Reconciliation error bounds
-- **Note:** Coherence testing integrated into `mint_reconciler.py` and tested in `test_mint_reconciler.py` (no separate file needed)
+- [ ] **Create:** `recon/tests/test_coherence.py`
+  - [ ] Validate nation == Σstates (within tolerance)
+  - [ ] Validate sector sums
+  - [ ] Reconciliation error bounds
 
-**✅ SECTION 5.8 (MINT/WLS) FULLY COMPLETE (2025-11-22):**
-- ✅ Phase 5.8.1: MinT Reconciliation (30 tests)
-- ✅ Phase 5.8.2: WLS Utilities (29 tests)
-- ✅ Phase 5.8.3: Coherence Testing (integrated)
-- ✅ Total: 59 tests, all passing
-- ✅ Coverage: OLS, WLS, MinT (sample & shrinkage), coherence validation, full workflow
+**✅ WHEN COMPLETE:** 
+- Mark ALL items in IMPLEMENTATION_STATUS.md lines 821-825 as `[x]`
+- Update line 3 to "Phase 5: 75% - MinT/WLS Complete"
 
 ---
 
