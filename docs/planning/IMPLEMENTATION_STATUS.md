@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last Updated: 2025-11-22 (Phase 5: 77% - Mathematical Validation Complete, 874+ Tests, Phase 6 Monitoring Criteria Defined)
+Last Updated: 2025-11-23 (Phase 5: 85% - Model Registry & Artifact Signing Complete, 1161+ Tests, Secure Zone Transfer Ready)
 
 ## ✅ PHASE 4 COMPLETE: Feature Engineering
 
@@ -942,8 +942,6 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 
 ---
 
-## 📋 TODO (Upcoming Phases)
-
 ### ✅ Feature Engineering (Phase 4) - COMPLETE
 **Core Features** ✅
 - [x] MIDAS lag constructors
@@ -988,10 +986,41 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
     - [x] Resolved Codex Analysis 18 Finding 3 (documented algorithm mismatch)
 
 **Model Infrastructure**
-- [ ] Training pipelines (Prefect workflows)
-- [ ] Model utilities (metrics, IO, MLflow loggers)
-- [ ] Model registry integration
-- [ ] Artifact versioning and signing
+- [x] Training pipelines (Prefect workflows) ✅ COMPLETE (2025-11-23: Phase 5.9.1)
+  - [x] `TrainingConfig` with date validation and vintage-aware splits
+  - [x] `create_time_series_splits()` with strict data leakage prevention
+  - [x] `train_model()` with vintage date tracking
+  - [x] `evaluate_model()` with comprehensive metrics (RMSE, MAE, MAPE, sMAPE)
+  - [x] `train_pipeline()` orchestrated end-to-end workflow
+  - [x] Feature registry integration for metadata tracking
+  - [x] MLflow experiment tracking and logging
+  - [x] Model saving with metadata and artifact hashing
+  - [x] Comprehensive test suite (88 tests) covering:
+    - Vintage-aware splits (no data leakage)
+    - Model training and evaluation
+    - End-to-end pipeline execution
+    - MLflow integration (mocked)
+    - Feature registry integration (mocked)
+    - Error handling and edge cases
+    - Reproducibility validation
+  - [x] Added `mae()`, `mape()`, and `compute_metrics()` to metrics module
+- [x] Cross-validation pipelines ✅ COMPLETE (2025-11-23: Phase 5.9.2)
+  - [x] `CrossValidationConfig` with validation
+  - [x] `generate_expanding_window_folds()` with strict chronological order
+  - [x] `cross_validate_model()` for model evaluation across folds
+  - [x] `aggregate_cv_metrics()` for metric aggregation (mean, std, min, max)
+  - [x] Expanding window approach (training data grows with each fold)
+  - [x] Comprehensive test suite (64 tests) covering:
+    - Fold generation and expanding window behavior
+    - Data leakage prevention across folds
+    - Chronological ordering validation
+    - Vintage date constraints
+    - Metric aggregation statistics
+    - Edge cases and error handling
+    - Reproducibility validation
+- [x] Model utilities (metrics, IO, MLflow loggers) ✅ (Already existed)
+- [x] Model registry integration
+- [x] Artifact versioning and signing
 
 **Feature Registry Enhancement (Phase 5+ Deliverable)** ✅
 - [x] Database persistence for feature registry
@@ -1060,6 +1089,9 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 - Automated feature refresh on new vintages → Phase 9 (Features Agent)
 - Advanced hyperparameter optimization (Bayesian) → Phase 6 (during backtesting)
 - Feature staleness detection automation → Phase 9 (Features Agent)
+
+
+## 📋 TODO (Upcoming Phases)
 
 ### Backtesting (Phase 6)
 **Core Backtesting**
@@ -1555,10 +1587,10 @@ During Phase 6 backtesting, monitor for these specific issues identified during 
   - ✅ Hierarchical utilities (MinT prep, coherence validation)
   - ✅ Feature registry (metadata, versioning, lineage)
   - ✅ Build features script (CLI runner)
-- **Testing Coverage:** ~75% ✅ (500+ comprehensive tests)
+- **Testing Coverage:** ~80% ✅ (1161+ comprehensive tests)
 - **Testing Infrastructure:** 100% ✅ (pytest, fixtures, CI/CD)
-- **Models:** 55% 🔨 (Phase 5 in progress: DFM + MIDAS + XGBoost + LightGBM + Calibration + Revision + MinT complete)
-- **Overall Project:** ~69% complete (Phase 5: 72%)
+- **Models:** 68% 🔨 (Phase 5 in progress: DFM + MIDAS + XGBoost + LightGBM + Calibration + Revision + MinT + Training + Cross-Validation + Registry + Signing complete)
+- **Overall Project:** ~74% complete (Phase 5: 85%)
 
 **Estimated Timeline:**
 - ✅ Phase 1: Foundation (Week 1) - COMPLETE

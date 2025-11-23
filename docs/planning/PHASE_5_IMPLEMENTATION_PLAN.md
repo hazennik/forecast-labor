@@ -648,35 +648,53 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 
 **Update IMPLEMENTATION_STATUS.md:** Line 828 when complete
 
-#### 5.9.1. Training Pipeline Implementation
-- [ ] **Create:** `models_src/pipelines/train_pipeline.py`
-  - [ ] Prefect flow for model training
-  - [ ] Load features from Phase 4 (via feature registry)
-  - [ ] Train/val/test split (vintage-aware)
-  - [ ] Model fitting
-  - [ ] Evaluation & logging
-  - [ ] MLflow experiment tracking
-  - [ ] Model saving to registry
-  - [ ] Feature metadata linkage
-- [ ] **Test:** `tests/models/test_train_pipeline.py`
-  - [ ] Mock Prefect flow test
-  - [ ] Data leakage prevention test (no future data)
-  - [ ] Pipeline end-to-end test
-  - [ ] Feature registry integration test
+#### 5.9.1. Training Pipeline Implementation ✅ COMPLETE (2025-11-23)
+- [x] **Create:** `models_src/pipelines/train_pipeline.py`
+  - [x] Prefect flow for model training
+  - [x] Load features from Phase 4 (via feature registry)
+  - [x] Train/val/test split (vintage-aware)
+  - [x] Model fitting
+  - [x] Evaluation & logging
+  - [x] MLflow experiment tracking
+  - [x] Model saving to registry
+  - [x] Feature metadata linkage
+- [x] **Test:** `tests/models/test_train_pipeline.py`
+  - [x] Mock Prefect flow test
+  - [x] Data leakage prevention test (no future data)
+  - [x] Pipeline end-to-end test
+  - [x] Feature registry integration test
 
-#### 5.9.2. Cross-Validation Pipeline
-- [ ] **Create:** `models_src/pipelines/cross_validation.py`
-  - [ ] Time-series cross-validation
-  - [ ] Expanding window (vintage-aware)
-  - [ ] Metric aggregation across folds
-- [ ] **Test:** `tests/models/test_cross_validation.py`
-  - [ ] Fold generation tests
-  - [ ] No data leakage tests
-  - [ ] Vintage-aware split validation
+**✅ COMPLETE (2025-11-23):**
+- ✅ Files created: `models_src/pipelines/train_pipeline.py`, `tests/models/test_train_pipeline.py`, `models_src/pipelines/__init__.py`
+- ✅ 88 comprehensive tests covering all aspects of training pipeline
+- ✅ Full MLflow integration, feature registry integration, model persistence
+- ✅ Added `mae()`, `mape()`, and `compute_metrics()` to metrics module
+- ✅ TDD methodology followed: tests written first, implementation follows
+- ✅ All data leakage prevention tests passing
 
-**✅ WHEN COMPLETE:** 
-- Mark `- [x] Training pipelines (Prefect workflows)` in IMPLEMENTATION_STATUS.md line 828
-- Update line 3 to "Phase 5: 78% - Training Pipelines Complete"
+#### 5.9.2. Cross-Validation Pipeline ✅ COMPLETE (2025-11-23)
+- [x] **Create:** `models_src/pipelines/cross_validation.py`
+  - [x] Time-series cross-validation
+  - [x] Expanding window (vintage-aware)
+  - [x] Metric aggregation across folds
+- [x] **Test:** `tests/models/test_cross_validation.py`
+  - [x] Fold generation tests
+  - [x] No data leakage tests
+  - [x] Vintage-aware split validation
+
+**✅ COMPLETE (2025-11-23):**
+- ✅ Files created: `models_src/pipelines/cross_validation.py`, `tests/models/test_cross_validation.py`
+- ✅ 64 comprehensive tests covering expanding window CV
+- ✅ Expanding window implementation (training data grows with each fold)
+- ✅ Strict data leakage prevention across all folds
+- ✅ Metric aggregation (mean, std, min, max per metric)
+- ✅ TDD methodology followed: tests written first, implementation follows
+- ✅ All chronological ordering and vintage-aware tests passing
+
+**✅ SECTION 5.9 (TRAINING PIPELINES) FULLY COMPLETE:** 
+- ✅ Marked `- [x] Training pipelines (Prefect workflows)` in IMPLEMENTATION_STATUS.md line 991
+- ✅ Marked `- [x] Cross-validation pipelines` in IMPLEMENTATION_STATUS.md
+- ✅ Updated line 3 to "Phase 5: 82% - Training & Cross-Validation Pipelines Complete"
 
 ---
 
@@ -687,35 +705,81 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 **Update IMPLEMENTATION_STATUS.md:** Lines 829-831 when complete
 
 #### 5.10.1. Registry Operations
-- [ ] **Create:** `models_src/utils/registry.py`
-  - [ ] Register model to MLflow registry
-  - [ ] Link model to feature registry (features used)
-  - [ ] Promote to staging/production
-  - [ ] Retrieve latest model by name/stage
-  - [ ] Model metadata queries
-  - [ ] Feature lineage queries (which features does this model use?)
-- [ ] **Test:** `tests/models/test_registry.py`
-  - [ ] Registration tests (mock MLflow)
-  - [ ] Feature linkage tests
-  - [ ] Promotion tests
-  - [ ] Retrieval tests
-  - [ ] Lineage query tests
+- [x] **Create:** `models_src/utils/registry.py`
+  - [x] Register model to MLflow registry
+  - [x] Link model to feature registry (features used)
+  - [x] Promote to staging/production
+  - [x] Retrieve latest model by name/stage
+  - [x] Model metadata queries
+  - [x] Feature lineage queries (which features does this model use?)
+- [x] **Test:** `tests/models/test_registry.py`
+  - [x] Registration tests (mock MLflow)
+  - [x] Feature linkage tests
+  - [x] Promotion tests
+  - [x] Retrieval tests
+  - [x] Lineage query tests
+
+**✅ Phase 5.10.1 Complete**
+
+Files created:
+- `models_src/utils/registry.py` (952 lines) - Model registry client with MLflow and feature registry integration
+- `tests/models/test_registry.py` (632 lines) - Comprehensive tests for registry operations
+
+Tests: 64 new tests covering:
+- Model registration to MLflow registry
+- Feature linkage and lineage tracking
+- Model promotion (Staging/Production)
+- Model retrieval by name and stage
+- Feature impact analysis (which models use a feature?)
+- Error handling and edge cases
+
+Key features:
+- `ModelRegistryClient`: Unified interface for model registry operations
+- Feature lineage: Track which features each model uses
+- Impact analysis: Find all models affected by feature changes
+- Standalone convenience functions for common operations
+- Full MLflow integration with feature registry metadata
 
 #### 5.10.2. Artifact Versioning & Signing
-- [ ] **Create:** `models_src/utils/signing.py`
-  - [ ] SHA256 artifact signing
-  - [ ] Signature verification
-  - [ ] Metadata embedding (including feature checksums)
-  - [ ] Zone 1 → Zone 2 artifact preparation
-- [ ] **Test:** `tests/models/test_signing.py`
-  - [ ] Sign/verify round-trip tests
-  - [ ] Tamper detection tests
-  - [ ] Feature checksum validation
+- [x] **Create:** `models_src/utils/signing.py`
+  - [x] SHA256 artifact signing
+  - [x] Signature verification
+  - [x] Metadata embedding (including feature checksums)
+  - [x] Zone 1 → Zone 2 artifact preparation
+- [x] **Test:** `tests/models/test_signing.py`
+  - [x] Sign/verify round-trip tests
+  - [x] Tamper detection tests
+  - [x] Feature checksum validation
+
+**✅ Phase 5.10.2 Complete**
+
+Files created:
+- `models_src/utils/signing.py` (748 lines) - Cryptographic signing for model artifacts
+- `tests/models/test_signing.py` (793 lines) - Comprehensive signing and verification tests
+
+Tests: 71 new tests covering:
+- SHA256 file hashing (deterministic, tamper-sensitive)
+- Feature checksum computation
+- Artifact signing with metadata embedding
+- Signature verification with tamper detection
+- Round-trip sign/verify operations
+- Signed bundle creation for Zone 1 → Zone 2 transfer
+- Bundle extraction with verification
+- Complete zone transfer workflow
+
+Key features:
+- `ArtifactSigner`: Sign and verify model artifacts
+- `SignedArtifact`: Dataclass for signed artifact metadata
+- SHA256 signatures covering file + metadata + feature checksums
+- Tamper detection (any modification invalidates signature)
+- Signed bundles (zip files) for secure zone transfers
+- Feature lineage validation via checksums
+- Production security model for two-zone architecture
 
 **✅ WHEN COMPLETE:** 
-- Mark `- [x] Model registry integration` in IMPLEMENTATION_STATUS.md line 829
-- Mark `- [x] Artifact versioning and signing` in IMPLEMENTATION_STATUS.md line 831
-- Update line 3 to "Phase 5: 83% - Model Registry Complete"
+- Mark `- [x] Model registry integration` in IMPLEMENTATION_STATUS.md line 1024
+- Mark `- [x] Artifact versioning and signing` in IMPLEMENTATION_STATUS.md line 1025
+- Update line 3 to "Phase 5: 85% - Model Registry Complete"
 
 ---
 
