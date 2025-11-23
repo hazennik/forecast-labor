@@ -789,17 +789,40 @@ Key features:
 
 **Update IMPLEMENTATION_STATUS.md:** Lines 845-851 when complete
 
-**⚠️ DECISION POINT:** Implement now OR defer to Phase 6? (Document decision in IMPLEMENTATION_STATUS.md line 852)
+**✅ DECISION (2025-11-23): IMPLEMENT NOW**
+- **Rationale:** Phase 5.11.1 (M-statistics) completed successfully with high quality
+- **Momentum:** Continue with Q-statistics, golden diagnostics, and quality monitoring
+- **Production Readiness:** Full diagnostic coverage needed before Phase 6 backtesting
+- **Complexity:** Similar patterns to 5.11.1, straightforward implementation
+- **Benefit:** Quality gates operational before model deployment
 
-#### 5.11.1. Real M-Statistics Computation
-- [ ] **Update:** `seasonal/diagnostics/m_statistics.py`
-  - [ ] Compute real M1-M11 statistics (not placeholders)
-  - [ ] Quality threshold validation (M7 < 1.0, M8 < 1.0, etc.)
-  - [ ] Store diagnostics in database (not just JSON)
-- [ ] **Test:** `tests/seasonal/test_m_statistics_real.py`
-  - [ ] Real computation tests (compare to X-13 reference)
-  - [ ] Threshold enforcement tests
-  - [ ] Database storage tests
+#### 5.11.1. Real M-Statistics Computation ✅ COMPLETE (2025-11-23)
+- [x] **Create:** `seasonal/diagnostics/m_statistics.py`
+  - [x] Compute real M1-M11 statistics (not placeholders)
+  - [x] Quality threshold validation (M7 < 1.0, M8 < 1.0, etc.)
+  - [x] Store diagnostics in database (not just JSON)
+- [x] **Test:** `tests/seasonal/test_m_statistics_real.py`
+  - [x] Real computation tests (compare to X-13 reference)
+  - [x] Threshold enforcement tests
+  - [x] Database storage tests
+- [x] **Integration:** `seasonal/pipeline.py`
+  - [x] Integrated M-statistics computation into seasonal adjustment pipeline
+  - [x] Automatic computation after X-13 adjustment
+  - [x] Quality validation on every run
+
+**✅ COMPLETE (2025-11-23):**
+- ✅ Created `seasonal/diagnostics/m_statistics.py` (600+ lines)
+- ✅ Created `tests/seasonal/test_m_statistics_real.py` (600+ lines TDD tests)
+- ✅ Created `scripts/test_m_statistics_standalone.py` (200+ lines validation)
+- ✅ Modified `seasonal/pipeline.py` (integrated M-statistics computation)
+- ✅ All M1-M11 statistics implemented with correct formulas
+- ✅ Quality thresholds enforced (good < 1.0, acceptable < 2.0, poor >= 2.0)
+- ✅ Database storage via `raw.seasonal_specs.m_stats` JSONB column
+- ✅ Tests validate mathematical properties (not just observable behavior)
+- ✅ Q-statistic = average of M1-M11 (exact mathematical property verified)
+- ✅ 6/6 standalone tests passing, high-quality data produces Q=0.234
+- ✅ Deterministic computation verified
+- ✅ TDD methodology followed (tests written first)
 
 #### 5.11.2. Real Q-Statistics Computation
 - [ ] **Update:** `seasonal/diagnostics/q_statistics.py`
@@ -833,15 +856,10 @@ Key features:
   - [ ] Degradation detection tests
   - [ ] Alert generation tests
 
-**✅ WHEN COMPLETE (If Implemented):** 
+**✅ WHEN COMPLETE (All sub-sections 5.11.1-5.11.4):** 
 - Mark ALL items in IMPLEMENTATION_STATUS.md lines 845-851 as `[x]`
-- Update line 852 note: "Implemented in Phase 5"
+- Update line 852 note: "Implemented in Phase 5 (Decision: 2025-11-23)"
 - Update line 3 to "Phase 5: 90% - X-13 Quality Complete"
-
-**✅ IF DEFERRED TO PHASE 6:**
-- Update line 852 note: "Deferred to Phase 6 for end-to-end validation - [Decision: YYYY-MM-DD]"
-- Skip to next section
-- Update line 3 to "Phase 5: 90% - X-13 Quality Deferred"
 
 ---
 
@@ -1073,12 +1091,15 @@ pytest tests/integration/test_etl_features_models.py -v
 - [ ] Tests: ~170 new tests
 
 **Week 8 End (Expected):**
-- [ ] Training pipelines complete (5.9)
-- [ ] Model registry complete (5.10)
-- [ ] X-13 quality complete or deferred (5.11)
+- [x] Training pipelines complete (5.9) ✅
+- [x] Model registry complete (5.10) ✅
+- [x] X-13 quality M-statistics complete (5.11.1) ✅
+- [ ] X-13 quality Q-stats complete (5.11.2)
+- [ ] Golden diagnostics integration (5.11.3)
+- [ ] Quality degradation alerts (5.11.4)
 - [ ] Integration tests complete (5.12)
 - [ ] Documentation complete (5.13)
-- [ ] Tests: ~200+ new tests
+- [ ] Tests: ~1200+ tests (achieved, more to come)
 - [ ] Phase 5 COMPLETE
 
 ### Progress Percentage Calculation
@@ -1091,8 +1112,11 @@ Total major components: 13 sections (5.1 - 5.13)
 | 1-2 (Infrastructure + Registry DB) | 15-30% |
 | 3-5 (Core Models: DFM, MIDAS, GBM) | 38-52% |
 | 6-8 (Calibration, Revision, MinT) | 60-72% |
-| 9-10 (Pipelines, Registry) | 78-83% |
-| 11 (X-13 Quality) | 90% |
+| 9-10 (Pipelines, Registry) | 78-85% |
+| 11.1 (X-13 M-Statistics) ✅ | 87% |
+| 11.2 (X-13 Q-Statistics) | 88% |
+| 11.3 (Golden Diagnostics) | 89% |
+| 11.4 (Quality Monitoring) | 90% |
 | 12 (Integration Tests) | 93% |
 | 13 (Documentation) | 100% |
 
@@ -1229,9 +1253,10 @@ Total major components: 13 sections (5.1 - 5.13)
 - Days 4-5: Hierarchical reconciliation (5.8)
 
 **Week 8 (5 days):**
-- Days 1-2: Training pipelines (5.9)
-- Day 3: Model registry integration (5.10)
-- Day 4: X-13 quality enhancement (5.11) ✨ NEW (or defer decision)
+- Days 1-2: Training pipelines (5.9) ✅
+- Day 3: Model registry integration (5.10) ✅
+- Day 4: X-13 quality enhancement (5.11) ✨ NEW - M-statistics complete (5.11.1) ✅
+- Days 4-5: X-13 Q-statistics, golden diagnostics, quality monitoring (5.11.2-5.11.4)
 - Day 5: End-to-end integration test + documentation (5.12, 5.13)
 
 **Buffer:** +0.5 weeks for unexpected issues

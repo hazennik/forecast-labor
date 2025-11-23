@@ -16,6 +16,7 @@ from seasonal.x13_service import X13Service
 from seasonal.regressors.holiday_regressors import HolidayRegressors
 from seasonal.regressors.strike_regressors import StrikeRegressors
 from seasonal.regressors.weather_regressors import WeatherRegressors
+from seasonal.diagnostics.m_statistics import MStatisticsComputer, validate_quality_thresholds
 from etl.common.storage import StorageClient
 
 
@@ -58,6 +59,9 @@ class SeasonalAdjustmentPipeline:
         
         # Spec builder
         self.spec_builder = SpecBuilder()
+        
+        # M-statistics computer
+        self.m_stats_computer = MStatisticsComputer()
     
     def run(
         self,
@@ -262,7 +266,7 @@ class SeasonalAdjustmentPipeline:
             )
             
             # Extract key outputs
-            return {
+            output_results = {
                 "seasonally_adjusted": results.get("d11"),
                 "trend": results.get("d12"),
                 "irregular": results.get("d13"),
@@ -275,9 +279,79 @@ class SeasonalAdjustmentPipeline:
                 }
             }
             
+            # Compute M-statistics from decomposition components
+            try:
+                m_stats = self._compute_m_statistics(
+                    series_name,
+                    series_data,
+                    output_results
+                )
+                output_results["m_statistics"] = m_stats
+                output_results["diagnostics"].update(m_stats)
+            except Exception as e:
+                logger.error(f"Failed to compute M-statistics: {e}", exc_info=True)
+                output_results["m_statistics"] = {}
+            
+            return output_results
+            
         except Exception as e:
             logger.error(f"X-13 adjustment failed: {e}")
             raise
+    
+    def _compute_m_statistics(
+        self,
+        series_name: str,
+        original_series: pd.Series,
+        x13_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Compute M-statistics from X-13 decomposition
+        
+        Args:
+            series_name: Series identifier
+            original_series: Original time series
+            x13_results: X-13 output results with components
+        
+        Returns:
+            Dictionary with M-statistics and quality assessment
+        """
+        logger.info(f"Computing M-statistics for {series_name}")
+        
+        # Extract components
+        sa = x13_results.get("seasonally_adjusted")
+        trend = x13_results.get("trend")
+        irregular = x13_results.get("irregular")
+        seasonal = x13_results.get("seasonal_factors")
+        
+        # Check if we have all required components
+        if sa is None or trend is None or irregular is None:
+            logger.warning("Missing required components for M-statistics computation")
+            return {}
+        
+        # Build components dictionary
+        components = {
+            'original': original_series,
+            'seasonally_adjusted': sa,
+            'trend': trend,
+            'irregular': irregular,
+            'seasonal': seasonal if seasonal is not None else original_series - sa,
+        }
+        
+        # Compute M-statistics
+        m_stats = self.m_stats_computer.compute(components)
+        
+        # Validate quality thresholds
+        quality_assessment = validate_quality_thresholds(m_stats)
+        
+        logger.info(
+            f"M-statistics computed: Q={m_stats.get('q_statistic', 0):.3f}, "
+            f"Quality={quality_assessment['overall_quality']}"
+        )
+        
+        return {
+            **m_stats,
+            'quality_assessment': quality_assessment
+        }
     
     def _store_results(self, series_name: str, results: Dict[str, Any]):
         """
@@ -295,7 +369,7 @@ class SeasonalAdjustmentPipeline:
             output_path = f"seasonal/adjusted/{series_name}_sa.parquet"
             self.storage.write_parquet(sa_df, output_path)
         
-        # Store diagnostics
+        # Store diagnostics (including M-statistics)
         if results.get("diagnostics"):
             diag_df = pd.DataFrame([results["diagnostics"]])
             output_path = f"seasonal/diagnostics/{series_name}_diagnostics.parquet"
