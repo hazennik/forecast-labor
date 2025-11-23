@@ -476,3 +476,148 @@ def turning_point_accuracy(
     
     return float(accuracy_percentage)
 
+
+def mae(
+    y_true: Union[np.ndarray, list],
+    y_pred: Union[np.ndarray, list]
+) -> float:
+    """
+    Calculate Mean Absolute Error (MAE).
+    
+    MAE measures the average magnitude of errors without considering direction.
+    Lower is better. Scale-dependent metric (same units as target variable).
+    
+    Formula: MAE = mean(|y_true - y_pred|)
+    
+    Args:
+        y_true: True values (N samples)
+        y_pred: Predicted values (N samples)
+        
+    Returns:
+        MAE value (float >= 0)
+        
+    Raises:
+        ValueError: If arrays are invalid (empty, different lengths, contain NaN)
+        
+    Example:
+        ```python
+        y_true = np.array([100, 200, 300, 400, 500])
+        y_pred = np.array([110, 190, 310, 380, 520])
+        
+        error = mae(y_true, y_pred)
+        print(f"MAE: {error:.2f}")  # MAE: 14.00
+        ```
+    """
+    y_true, y_pred = _validate_arrays(y_true, y_pred, name="MAE")
+    
+    absolute_errors = np.abs(y_true - y_pred)
+    mae_value = np.mean(absolute_errors)
+    
+    logger.debug(f"MAE calculated: {mae_value:.4f} (n={len(y_true)})")
+    
+    return float(mae_value)
+
+
+def mape(
+    y_true: Union[np.ndarray, list],
+    y_pred: Union[np.ndarray, list],
+    epsilon: float = 1e-10
+) -> float:
+    """
+    Calculate Mean Absolute Percentage Error (MAPE).
+    
+    MAPE expresses error as a percentage of true values. Scale-independent.
+    Lower is better. Can be problematic when y_true contains zeros.
+    
+    Formula: MAPE = mean(|y_true - y_pred| / |y_true|) * 100
+    
+    Args:
+        y_true: True values (N samples, ideally non-zero)
+        y_pred: Predicted values (N samples)
+        epsilon: Small constant to avoid division by zero
+        
+    Returns:
+        MAPE value (percentage, float >= 0)
+        
+    Raises:
+        ValueError: If arrays are invalid (empty, different lengths, contain NaN)
+        
+    Warning:
+        MAPE is undefined for zero true values. Use sMAPE instead for series
+        with zeros.
+        
+    Example:
+        ```python
+        y_true = np.array([100, 200, 300, 400, 500])
+        y_pred = np.array([110, 190, 310, 380, 520])
+        
+        error = mape(y_true, y_pred)
+        print(f"MAPE: {error:.2f}%")  # MAPE: 5.83%
+        ```
+    """
+    y_true, y_pred = _validate_arrays(y_true, y_pred, name="MAPE")
+    
+    # Avoid division by zero
+    denominator = np.maximum(np.abs(y_true), epsilon)
+    
+    percentage_errors = np.abs(y_true - y_pred) / denominator
+    mape_value = np.mean(percentage_errors) * 100
+    
+    logger.debug(f"MAPE calculated: {mape_value:.4f}% (n={len(y_true)})")
+    
+    return float(mape_value)
+
+
+def compute_metrics(
+    y_true: Union[np.ndarray, list],
+    y_pred: Union[np.ndarray, list]
+) -> dict:
+    """
+    Compute comprehensive set of forecasting metrics.
+    
+    Convenience function that computes multiple metrics at once:
+    - RMSE: Root Mean Squared Error
+    - MAE: Mean Absolute Error
+    - MAPE: Mean Absolute Percentage Error
+    - sMAPE: Symmetric Mean Absolute Percentage Error
+    
+    Args:
+        y_true: True values (N samples)
+        y_pred: Predicted values (N samples)
+        
+    Returns:
+        Dictionary with metric names as keys and float values
+        
+    Raises:
+        ValueError: If arrays are invalid (empty, different lengths, contain NaN)
+        
+    Example:
+        ```python
+        y_true = np.array([100, 200, 300, 400, 500])
+        y_pred = np.array([110, 190, 310, 380, 520])
+        
+        metrics = compute_metrics(y_true, y_pred)
+        print(f"RMSE: {metrics['rmse']:.2f}")
+        print(f"MAE: {metrics['mae']:.2f}")
+        print(f"MAPE: {metrics['mape']:.2f}%")
+        print(f"sMAPE: {metrics['smape']:.2f}%")
+        ```
+    """
+    y_true, y_pred = _validate_arrays(y_true, y_pred, name="compute_metrics")
+    
+    metrics_dict = {
+        "rmse": rmse(y_true, y_pred),
+        "mae": mae(y_true, y_pred),
+        "mape": mape(y_true, y_pred),
+        "smape": smape(y_true, y_pred),
+    }
+    
+    logger.debug(
+        "Computed metrics",
+        rmse=metrics_dict["rmse"],
+        mae=metrics_dict["mae"],
+        smape=metrics_dict["smape"],
+    )
+    
+    return metrics_dict
+
