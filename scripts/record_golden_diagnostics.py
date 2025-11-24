@@ -24,6 +24,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from seasonal.pipeline import SeasonalAdjustmentPipeline
 from seasonal.diagnostics.extractor import DiagnosticsExtractor
+from seasonal.diagnostics.m_statistics import validate_quality_thresholds
+from seasonal.diagnostics.q_statistics import validate_residual_randomness
 from etl.common.storage import StorageClient
 
 # Golden diagnostics file
@@ -222,53 +224,78 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
                     config={"frequency": "monthly"}
                 )
                 
-                # Extract diagnostics
+                # Extract diagnostics (now includes M-statistics and Q-statistics from pipeline)
                 diagnostics = result.get("diagnostics", {})
+                m_statistics = result.get("m_statistics", {})
+                q_statistics = result.get("q_statistics", {})
                 
-                if diagnostics:
-                    # Calculate Q-statistic from M-statistics if available
-                    m_vals = [diagnostics.get(f"m{i}") for i in range(1, 12)]
-                    m_vals = [v for v in m_vals if v is not None]
+                if diagnostics or m_statistics:
+                    logger.info(f"  ✅ Extracted diagnostics from seasonal adjustment")
                     
-                    if m_vals:
-                        q_stat = sum(m_vals) / len(m_vals)
-                        diagnostics["q"] = q_stat
+                    # Get M-statistics quality assessment
+                    m_quality = m_statistics.get('m_quality_assessment', {})
+                    m_quality_grade = m_quality.get('overall_quality', 'unknown')
                     
-                    logger.info(f"  ✅ Extracted {len(diagnostics)} diagnostic metrics")
+                    # Get Q-statistics quality assessment
+                    q_quality = q_statistics.get('q_quality_assessment', {})
+                    q_quality_grade = q_quality.get('quality', 'unknown')
+                    q_is_random = q_quality.get('random', None)
                     
-                    # Assess quality
-                    quality_assessment = extractor.assess_quality(diagnostics)
-                    quality_grade = quality_assessment.get("overall_quality", "unknown")
+                    # Overall quality: worst of M-statistics and Q-statistics
+                    if m_quality_grade == 'poor' or q_quality_grade == 'poor':
+                        overall_quality = 'poor'
+                    elif m_quality_grade == 'acceptable' or q_quality_grade == 'acceptable':
+                        overall_quality = 'acceptable'
+                    elif m_quality_grade == 'good' and q_quality_grade == 'good':
+                        overall_quality = 'good'
+                    else:
+                        overall_quality = 'unknown'
                     
-                    logger.info(f"  Quality: {quality_grade}")
+                    logger.info(f"  M-statistics quality: {m_quality_grade}")
+                    logger.info(f"  Q-statistics quality: {q_quality_grade} (random: {q_is_random})")
+                    logger.info(f"  Overall quality: {overall_quality}")
                     
-                    # Define thresholds based on literature
+                    # Define thresholds based on Census Bureau guidelines
+                    # These are maximum acceptable values for each statistic
                     thresholds = {
-                        "m1_max": 0.30,
-                        "m2_max": 0.35,
-                        "m3_max": 0.80,
-                        "m4_max": 0.70,
-                        "m5_max": 0.50,
-                        "m6_max": 0.40,
-                        "m7_max": 0.60,
-                        "m8_max": 0.65,
-                        "m9_max": 0.35,
-                        "m10_max": 0.80,
-                        "m11_max": 0.85,
-                        "q_max": 1.0,  # Q < 1.0 = acceptable, Q < 0.5 = good
+                        "m1_max": 1.0,   # Irregular contribution over 3-month span
+                        "m2_max": 1.0,   # Irregular contribution to changes
+                        "m3_max": 1.0,   # Month-to-month irregular vs trend
+                        "m4_max": 1.0,   # Autocorrelation in irregular
+                        "m5_max": 1.0,   # Heteroscedasticity in irregular
+                        "m6_max": 1.0,   # Duration of runs in irregular
+                        "m7_max": 1.0,   # Combined seasonality test
+                        "m8_max": 1.0,   # Closeness of annual totals
+                        "m9_max": 1.0,   # Stability of seasonal factors
+                        "m10_max": 1.0,  # Recent movements in seasonal factors
+                        "m11_max": 1.0,  # Linear trend in seasonal factors
+                        "q_statistic_max": 1.0,  # Q-statistic (average of M1-M11)
+                        "ljung_box_p_min": 0.05,  # Ljung-Box p-value (> 0.05 = good)
                     }
                     
-                    # Store in golden diagnostics
+                    # Store in golden diagnostics with enhanced structure
                     golden_diagnostics["series"][series_id] = {
                         "name": series_info["name"],
                         "source": series_info["source"],
                         "m_statistics": {
-                            k: v for k, v in diagnostics.items() 
-                            if k.startswith('m') or k == 'q'
+                            k: v for k, v in m_statistics.items() 
+                            if k.startswith('m') or k == 'q_statistic'
+                        },
+                        "q_statistics": {
+                            "q_statistic": q_statistics.get('q_statistic'),
+                            "p_value": q_statistics.get('p_value'),
+                            "lags_tested": q_statistics.get('lags_tested'),
+                        } if q_statistics else {},
+                        "quality_assessment": {
+                            "m_quality": m_quality_grade,
+                            "q_quality": q_quality_grade,
+                            "q_is_random": q_is_random,
+                            "overall": overall_quality
                         },
                         "thresholds": thresholds,
-                        "quality_grade": quality_grade,
-                        "notes": "Real diagnostics from X-13 seasonal adjustment"
+                        "quality_grade": overall_quality,
+                        "recorded_at": datetime.now().isoformat(),
+                        "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
                     }
                     
                 else:
@@ -295,18 +322,25 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
         return False
 
 
-def verify_diagnostics(current_diagnostics: Dict[str, Any], golden_file: Path = GOLDEN_DIAGNOSTICS_FILE) -> bool:
+def verify_diagnostics(
+    current_diagnostics: Dict[str, Any], 
+    golden_file: Path = GOLDEN_DIAGNOSTICS_FILE,
+    tolerance_pct: float = 10.0
+) -> bool:
     """
-    Verify current diagnostics against golden baseline.
+    Verify current diagnostics against golden baseline with tolerance bands.
     
     Args:
-        current_diagnostics: Current M-stats to verify
+        current_diagnostics: Current diagnostics to verify (dict of series_id -> stats)
         golden_file: Golden diagnostics file
+        tolerance_pct: Percentage tolerance for degradation (default: 10%)
         
     Returns:
         True if within acceptable thresholds
     """
+    logger.info("=" * 70)
     logger.info("Verifying seasonal diagnostics against golden baseline")
+    logger.info("=" * 70)
     
     if not golden_file.exists():
         logger.error(f"Golden diagnostics file not found: {golden_file}")
@@ -316,36 +350,134 @@ def verify_diagnostics(current_diagnostics: Dict[str, Any], golden_file: Path = 
         golden = json.load(f)
     
     all_pass = True
+    total_checks = 0
+    passed_checks = 0
+    failed_checks = 0
     
     for series_id, current_stats in current_diagnostics.items():
         if series_id not in golden["series"]:
-            logger.warning(f"Series {series_id} not in golden baseline")
+            logger.warning(f"Series {series_id} not in golden baseline - skipping")
             continue
         
-        golden_stats = golden["series"][series_id]
-        thresholds = golden_stats["thresholds"]
+        golden_series = golden["series"][series_id]
+        golden_m_stats = golden_series.get("m_statistics", {})
+        golden_q_stats = golden_series.get("q_statistics", {})
+        thresholds = golden_series.get("thresholds", {})
         
-        logger.info(f"Checking {series_id}...")
+        logger.info(f"\nVerifying {series_id}: {golden_series.get('name', 'Unknown')}")
         
-        # Check each M-statistic
-        for stat_name in ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10", "m11", "q"]:
-            if stat_name in current_stats:
-                current_val = current_stats[stat_name]
-                threshold_key = f"{stat_name}_max"
+        # Check M-statistics (M1-M11 and Q-statistic)
+        for i in range(1, 12):
+            m_key = f"m{i}"
+            if m_key in current_stats:
+                current_val = current_stats[m_key]
+                golden_val = golden_m_stats.get(m_key)
+                threshold_key = f"{m_key}_max"
+                threshold = thresholds.get(threshold_key, 1.0)
                 
-                if threshold_key in thresholds:
-                    threshold = thresholds[threshold_key]
-                    
-                    if current_val > threshold:
-                        logger.error(f"  ❌ {stat_name}: {current_val:.3f} > {threshold:.3f} (threshold)")
+                total_checks += 1
+                
+                # Check against absolute threshold
+                if current_val > threshold:
+                    logger.error(
+                        f"  ❌ {m_key.upper()}: {current_val:.3f} > {threshold:.3f} (threshold)"
+                    )
+                    all_pass = False
+                    failed_checks += 1
+                # Check for degradation from golden baseline (with tolerance)
+                elif golden_val is not None:
+                    max_allowed = golden_val * (1 + tolerance_pct / 100)
+                    if current_val > max_allowed:
+                        logger.warning(
+                            f"  ⚠️  {m_key.upper()}: {current_val:.3f} > {max_allowed:.3f} "
+                            f"(degraded >{tolerance_pct}% from golden {golden_val:.3f})"
+                        )
                         all_pass = False
+                        failed_checks += 1
                     else:
-                        logger.info(f"  ✅ {stat_name}: {current_val:.3f} <= {threshold:.3f}")
+                        logger.info(
+                            f"  ✅ {m_key.upper()}: {current_val:.3f} (golden: {golden_val:.3f}, "
+                            f"threshold: {threshold:.3f})"
+                        )
+                        passed_checks += 1
+                else:
+                    logger.info(
+                        f"  ✅ {m_key.upper()}: {current_val:.3f} <= {threshold:.3f}"
+                    )
+                    passed_checks += 1
+        
+        # Check Q-statistic (average of M1-M11)
+        if "q_statistic" in current_stats:
+            current_q = current_stats["q_statistic"]
+            golden_q = golden_m_stats.get("q_statistic") or golden_m_stats.get("q")
+            threshold = thresholds.get("q_statistic_max", 1.0)
+            
+            total_checks += 1
+            
+            if current_q > threshold:
+                logger.error(
+                    f"  ❌ Q-STAT: {current_q:.3f} > {threshold:.3f} (threshold)"
+                )
+                all_pass = False
+                failed_checks += 1
+            elif golden_q is not None:
+                max_allowed = golden_q * (1 + tolerance_pct / 100)
+                if current_q > max_allowed:
+                    logger.warning(
+                        f"  ⚠️  Q-STAT: {current_q:.3f} > {max_allowed:.3f} "
+                        f"(degraded >{tolerance_pct}% from golden {golden_q:.3f})"
+                    )
+                    all_pass = False
+                    failed_checks += 1
+                else:
+                    logger.info(
+                        f"  ✅ Q-STAT: {current_q:.3f} (golden: {golden_q:.3f})"
+                    )
+                    passed_checks += 1
+            else:
+                logger.info(f"  ✅ Q-STAT: {current_q:.3f} <= {threshold:.3f}")
+                passed_checks += 1
+        
+        # Check Ljung-Box Q-statistic p-value
+        if "p_value" in current_stats:
+            current_p = current_stats["p_value"]
+            golden_p = golden_q_stats.get("p_value")
+            p_min_threshold = thresholds.get("ljung_box_p_min", 0.05)
+            
+            total_checks += 1
+            
+            if current_p < p_min_threshold:
+                logger.error(
+                    f"  ❌ LJUNG-BOX: p={current_p:.4f} < {p_min_threshold} "
+                    f"(significant autocorrelation detected)"
+                )
+                all_pass = False
+                failed_checks += 1
+            else:
+                if golden_p is not None:
+                    logger.info(
+                        f"  ✅ LJUNG-BOX: p={current_p:.4f} (golden: {golden_p:.4f}, "
+                        f"threshold: >{p_min_threshold})"
+                    )
+                else:
+                    logger.info(
+                        f"  ✅ LJUNG-BOX: p={current_p:.4f} > {p_min_threshold}"
+                    )
+                passed_checks += 1
+    
+    # Summary
+    logger.info("\n" + "=" * 70)
+    logger.info(f"Verification Summary:")
+    logger.info(f"  Total checks: {total_checks}")
+    logger.info(f"  Passed: {passed_checks}")
+    logger.info(f"  Failed: {failed_checks}")
+    logger.info(f"  Tolerance: ±{tolerance_pct}%")
     
     if all_pass:
         logger.info("✅ All diagnostics within acceptable thresholds")
     else:
-        logger.error("❌ Some diagnostics exceeded thresholds")
+        logger.error("❌ Some diagnostics exceeded thresholds or degraded significantly")
+    logger.info("=" * 70)
     
     return all_pass
 

@@ -127,11 +127,23 @@ jobs:
         # NOTE: This gate will block merges if vintage data has changed unexpectedly
         # To populate baselines initially: python scripts/verify_vintage_determinism.py --vintage-date 2024-01-15 --record
       
-      - name: Check golden diagnostics
+      - name: Check golden diagnostics (X-13 Quality Gate)
         run: |
           python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --verify
-        # NOTE: This gate will block merges if seasonal diagnostics degrade
-        # To populate baselines initially: python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --record
+        # NOTE: This gate validates seasonal adjustment quality (M-statistics + Q-statistics)
+        # Phase 5.11.3: Enhanced with real M-statistics and Q-statistics (Ljung-Box) computation
+        # 
+        # Current behavior:
+        # - Attempts to run X-13ARIMA-SEATS seasonal adjustment
+        # - Computes M1-M11 statistics (irregular contribution, seasonality strength)
+        # - Computes Q-statistics (Ljung-Box test for autocorrelation)
+        # - Compares against golden baseline with tolerance bands (±10%)
+        # - Fails build if quality degrades beyond acceptable thresholds
+        # 
+        # Fallback: If X-13 service not available, validates JSON structure only
+        # Full verification requires X-13 Docker service (add in Phase 6+)
+        # 
+        # To populate baselines: python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --record
       
       - name: Test summary
         if: always()
