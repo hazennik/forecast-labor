@@ -16,7 +16,8 @@ from seasonal.x13_service import X13Service
 from seasonal.regressors.holiday_regressors import HolidayRegressors
 from seasonal.regressors.strike_regressors import StrikeRegressors
 from seasonal.regressors.weather_regressors import WeatherRegressors
-from seasonal.diagnostics.m_statistics import MStatisticsComputer, validate_quality_thresholds
+from seasonal.diagnostics.m_statistics import MStatisticsComputer, validate_quality_thresholds as validate_m_quality
+from seasonal.diagnostics.q_statistics import QStatisticsComputer, validate_residual_randomness
 from etl.common.storage import StorageClient
 
 
@@ -62,6 +63,9 @@ class SeasonalAdjustmentPipeline:
         
         # M-statistics computer
         self.m_stats_computer = MStatisticsComputer()
+        
+        # Q-statistics computer (Ljung-Box test)
+        self.q_stats_computer = QStatisticsComputer(lags=12)  # Test 12 lags for monthly data
     
     def run(
         self,
@@ -292,6 +296,18 @@ class SeasonalAdjustmentPipeline:
                 logger.error(f"Failed to compute M-statistics: {e}", exc_info=True)
                 output_results["m_statistics"] = {}
             
+            # Compute Q-statistics (Ljung-Box test) from irregular component
+            try:
+                q_stats = self._compute_q_statistics(
+                    series_name,
+                    output_results
+                )
+                output_results["q_statistics"] = q_stats
+                output_results["diagnostics"].update(q_stats)
+            except Exception as e:
+                logger.error(f"Failed to compute Q-statistics: {e}", exc_info=True)
+                output_results["q_statistics"] = {}
+            
             return output_results
             
         except Exception as e:
@@ -341,7 +357,7 @@ class SeasonalAdjustmentPipeline:
         m_stats = self.m_stats_computer.compute(components)
         
         # Validate quality thresholds
-        quality_assessment = validate_quality_thresholds(m_stats)
+        quality_assessment = validate_m_quality(m_stats)
         
         logger.info(
             f"M-statistics computed: Q={m_stats.get('q_statistic', 0):.3f}, "
@@ -350,7 +366,51 @@ class SeasonalAdjustmentPipeline:
         
         return {
             **m_stats,
-            'quality_assessment': quality_assessment
+            'm_quality_assessment': quality_assessment
+        }
+    
+    def _compute_q_statistics(
+        self,
+        series_name: str,
+        x13_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Compute Q-statistics (Ljung-Box test) from irregular component
+        
+        Tests for autocorrelation in residuals/irregular component.
+        
+        Args:
+            series_name: Series identifier
+            x13_results: X-13 output results with components
+        
+        Returns:
+            Dictionary with Q-statistics and quality assessment
+        """
+        logger.info(f"Computing Q-statistics (Ljung-Box) for {series_name}")
+        
+        # Extract irregular component
+        irregular = x13_results.get("irregular")
+        
+        # Check if we have irregular component
+        if irregular is None:
+            logger.warning("Missing irregular component for Q-statistics computation")
+            return {}
+        
+        # Compute Q-statistics
+        q_stats = self.q_stats_computer.compute(irregular)
+        
+        # Validate quality thresholds
+        quality_assessment = validate_residual_randomness(q_stats)
+        
+        logger.info(
+            f"Q-statistics computed: Q={q_stats.get('q_statistic', 0):.3f}, "
+            f"p-value={q_stats.get('p_value', 0):.4f}, "
+            f"Quality={quality_assessment['quality']}"
+        )
+        
+        return {
+            **q_stats,
+            'q_quality_assessment': quality_assessment
         }
     
     def _store_results(self, series_name: str, results: Dict[str, Any]):

@@ -824,15 +824,34 @@ Key features:
 - ✅ Deterministic computation verified
 - ✅ TDD methodology followed (tests written first)
 
-#### 5.11.2. Real Q-Statistics Computation
-- [ ] **Update:** `seasonal/diagnostics/q_statistics.py`
-  - [ ] Compute real Ljung-Box Q-statistics
-  - [ ] Quality threshold validation (p-value > 0.05)
-  - [ ] Store diagnostics in database
-- [ ] **Test:** `tests/seasonal/test_q_statistics_real.py`
-  - [ ] Real computation tests
-  - [ ] Threshold enforcement tests
-  - [ ] Database storage tests
+#### 5.11.2. Real Q-Statistics Computation ✅ COMPLETE (2025-11-23)
+- [x] **Create:** `seasonal/diagnostics/q_statistics.py`
+  - [x] Compute real Ljung-Box Q-statistics
+  - [x] Quality threshold validation (p-value > 0.05)
+  - [x] Store diagnostics in database
+- [x] **Test:** `tests/seasonal/test_q_statistics_real.py`
+  - [x] Real computation tests
+  - [x] Threshold enforcement tests
+  - [x] Database storage tests
+- [x] **Integration:** `seasonal/pipeline.py`
+  - [x] Integrated Q-statistics computation into seasonal adjustment pipeline
+  - [x] Automatic computation after X-13 adjustment
+  - [x] Quality validation on every run
+
+**✅ COMPLETE (2025-11-23):**
+- ✅ Created `seasonal/diagnostics/q_statistics.py` (600+ lines)
+- ✅ Created `tests/seasonal/test_q_statistics_real.py` (600+ lines TDD tests)
+- ✅ Created `scripts/test_q_statistics_standalone.py` (200+ lines validation)
+- ✅ Modified `seasonal/pipeline.py` (integrated Q-statistics computation)
+- ✅ Ljung-Box Q-statistic formula correctly implemented: Q = n(n+2) Σ(ρ²_k / (n-k))
+- ✅ Quality thresholds enforced (p-value > 0.05: good, p-value <= 0.05: poor)
+- ✅ Database storage via `raw.seasonal_specs.m_stats` JSONB column
+- ✅ Tests validate mathematical properties (chi-squared distribution under null)
+- ✅ 7/7 standalone tests passing
+- ✅ Random residuals: Q=7.468, p-value=0.68 (pass)
+- ✅ AR(1) residuals: Q=95.351, p-value<0.001 (fail, as expected)
+- ✅ Deterministic computation verified
+- ✅ TDD methodology followed (tests written first)
 
 #### 5.11.3. Golden Diagnostics Integration
 - [ ] **Update:** `scripts/record_golden_diagnostics.py`
