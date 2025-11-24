@@ -48,6 +48,8 @@ class CrossValidationConfig:
         feature_columns: List of feature column names
         vintage_date: Vintage date constraint (YYYY-MM-DD)
         gap_size: Number of periods to skip between train and test (default: 0)
+        max_time_per_fold_seconds: Maximum time allowed per fold in seconds (default: None = no limit)
+        total_max_time_seconds: Maximum total time for all folds in seconds (default: None = no limit)
     
     Example:
         >>> config = CrossValidationConfig(
@@ -58,6 +60,8 @@ class CrossValidationConfig:
         ...     target_column="target",
         ...     feature_columns=["feature_1", "feature_2"],
         ...     vintage_date="2024-12-31",
+        ...     max_time_per_fold_seconds=300,  # 5 minutes per fold
+        ...     total_max_time_seconds=1800,    # 30 minutes total
         ... )
     """
     
@@ -69,6 +73,8 @@ class CrossValidationConfig:
     feature_columns: List[str]
     vintage_date: str
     gap_size: int = 0
+    max_time_per_fold_seconds: Optional[int] = None
+    total_max_time_seconds: Optional[int] = None
     
     def __post_init__(self):
         """Validate configuration after initialization."""
@@ -95,6 +101,15 @@ class CrossValidationConfig:
         # Validate gap_size
         if self.gap_size < 0:
             raise ValueError("gap_size must be non-negative")
+        
+        # Validate timeout parameters (Phase 5.9.2 Quality Gap Resolution)
+        if self.max_time_per_fold_seconds is not None:
+            if self.max_time_per_fold_seconds <= 0:
+                raise ValueError("max_time_per_fold_seconds must be positive")
+        
+        if self.total_max_time_seconds is not None:
+            if self.total_max_time_seconds <= 0:
+                raise ValueError("total_max_time_seconds must be positive")
         
         logger.info(
             "Cross-validation configuration validated",

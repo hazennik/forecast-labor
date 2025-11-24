@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     
     # Add PostgreSQL service for integration tests
+    # NOTE: X-13 service requires pre-built Docker image (see docs/CI_X13_SETUP.md)
+    # For now, tests use graceful fallback to mock X-13 service
+    # Phase 5.9.2: X-13 integration prepared, full service deployment in Phase 6+
     services:
       postgres:
         image: postgres:15
@@ -132,16 +135,18 @@ jobs:
           python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --verify
         # NOTE: This gate validates seasonal adjustment quality (M-statistics + Q-statistics)
         # Phase 5.11.3: Enhanced with real M-statistics and Q-statistics (Ljung-Box) computation
+        # Phase 5.9.2: X-13 CI integration prepared (graceful fallback if service unavailable)
         # 
         # Current behavior:
         # - Attempts to run X-13ARIMA-SEATS seasonal adjustment
-        # - Computes M1-M11 statistics (irregular contribution, seasonality strength)
-        # - Computes Q-statistics (Ljung-Box test for autocorrelation)
-        # - Compares against golden baseline with tolerance bands (±10%)
-        # - Fails build if quality degrades beyond acceptable thresholds
+        # - If X-13 service available: Computes M1-M11, Q-statistics, compares to baseline
+        # - If X-13 service unavailable: Falls back to JSON structure validation
+        # - Graceful degradation ensures CI doesn't block on X-13 availability
         # 
-        # Fallback: If X-13 service not available, validates JSON structure only
-        # Full verification requires X-13 Docker service (add in Phase 6+)
+        # Future enhancement (Phase 6+):
+        # - Deploy X-13 Docker image to GitHub Container Registry
+        # - Enable full X-13 service in CI via services: configuration
+        # - Remove fallback, require full verification
         # 
         # To populate baselines: python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --record
       

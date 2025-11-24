@@ -19,6 +19,8 @@ from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 from datetime import date, datetime
+from contextlib import contextmanager
+import time
 import sys
 
 import pandas as pd
@@ -29,6 +31,45 @@ from models_src.utils.base_model import BaseForecaster
 from models_src.utils.io import save_model_with_metadata, ModelMetadata
 from models_src.utils.mlflow_logger import MLflowLogger, ExperimentConfig
 from models_src.utils.metrics import compute_metrics
+
+
+# ============================================================================
+# Performance Monitoring Utilities
+# ============================================================================
+
+
+@contextmanager
+def timer(operation_name: str, log_result: bool = True):
+    """
+    Context manager for timing operations.
+    
+    Usage:
+        with timer("Model training"):
+            model.fit(X_train, y_train)
+    
+    Args:
+        operation_name: Name of the operation being timed
+        log_result: Whether to log the timing result (default: True)
+        
+    Yields:
+        Dictionary with timing information (updated after context exits)
+    """
+    timing_info = {'elapsed_seconds': None, 'operation': operation_name}
+    start_time = time.time()
+    
+    try:
+        yield timing_info
+    finally:
+        elapsed = time.time() - start_time
+        timing_info['elapsed_seconds'] = elapsed
+        
+        if log_result:
+            logger.info(
+                f"{operation_name} completed",
+                operation=operation_name,
+                elapsed_seconds=round(elapsed, 3),
+                elapsed_minutes=round(elapsed / 60, 2)
+            )
 
 
 # ============================================================================
@@ -326,8 +367,9 @@ def train_model(
     )
     
     try:
-        # Train model
-        model.fit(X_train, y_train, vintage_date=vintage_date)
+        # Train model with timing
+        with timer(f"Training {type(model).__name__}"):
+            model.fit(X_train, y_train, vintage_date=vintage_date)
         
         logger.info(
             "Model training completed successfully",
@@ -382,8 +424,9 @@ def evaluate_model(
     )
     
     try:
-        # Generate predictions
-        y_pred = model.predict(X)
+        # Generate predictions with timing
+        with timer(f"Prediction ({split_name})"):
+            y_pred = model.predict(X)
         
         # Compute metrics using utility function
         metrics = compute_metrics(y_true=y.values, y_pred=y_pred)
