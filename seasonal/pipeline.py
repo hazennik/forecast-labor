@@ -18,6 +18,7 @@ from seasonal.regressors.strike_regressors import StrikeRegressors
 from seasonal.regressors.weather_regressors import WeatherRegressors
 from seasonal.diagnostics.m_statistics import MStatisticsComputer, validate_quality_thresholds as validate_m_quality
 from seasonal.diagnostics.q_statistics import QStatisticsComputer, validate_residual_randomness
+from seasonal.diagnostics.quality_monitor import QualityMonitor
 from etl.common.storage import StorageClient
 
 
@@ -66,6 +67,9 @@ class SeasonalAdjustmentPipeline:
         
         # Q-statistics computer (Ljung-Box test)
         self.q_stats_computer = QStatisticsComputer(lags=12)  # Test 12 lags for monthly data
+        
+        # Quality monitor (Phase 5.11.4)
+        self.quality_monitor = QualityMonitor(window_size=10, alert_threshold=3)
     
     def run(
         self,
@@ -307,6 +311,47 @@ class SeasonalAdjustmentPipeline:
             except Exception as e:
                 logger.error(f"Failed to compute Q-statistics: {e}", exc_info=True)
                 output_results["q_statistics"] = {}
+            
+            # Monitor quality over time (Phase 5.11.4)
+            try:
+                # Combine M and Q statistics for monitoring
+                combined_diagnostics = {
+                    **output_results.get("m_statistics", {}),
+                    **output_results.get("q_statistics", {})
+                }
+                
+                # Record diagnostics
+                self.quality_monitor.record_diagnostics(
+                    series_name=series_name,
+                    diagnostics=combined_diagnostics,
+                    timestamp=datetime.now()
+                )
+                
+                # Check for degradation
+                degradation_result = self.quality_monitor.check_for_degradation(
+                    series_name=series_name,
+                    generate_alert=True  # Generate alerts for production use
+                )
+                
+                # Add quality monitoring results to output
+                output_results["quality_monitoring"] = {
+                    "degraded": degradation_result["degraded"],
+                    "message": degradation_result["message"],
+                    "quality_score": self.quality_monitor.calculate_quality_score(combined_diagnostics),
+                    "quality_grade": self.quality_monitor.assess_quality_grade(combined_diagnostics)
+                }
+                
+                logger.info(
+                    f"Quality monitoring complete for {series_name}",
+                    series_name=series_name,
+                    quality_score=output_results["quality_monitoring"]["quality_score"],
+                    quality_grade=output_results["quality_monitoring"]["quality_grade"],
+                    degraded=degradation_result["degraded"]
+                )
+                
+            except Exception as e:
+                logger.error(f"Failed to monitor quality: {e}", exc_info=True)
+                output_results["quality_monitoring"] = {"error": str(e)}
             
             return output_results
             
