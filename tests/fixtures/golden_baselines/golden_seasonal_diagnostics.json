@@ -1,9 +1,11 @@
 {
-  "_comment": "Golden seasonal diagnostics for X-13 regression testing",
-  "_generated_by": "scripts/create_test_diagnostics.py (TEST DATA)",
+  "_comment": "Golden seasonal diagnostics baseline for CI structure validation",
+  "_generated_by": "scripts/create_test_diagnostics.py (SYNTHETIC DATA BASELINE)",
   "_pinned_vintage_date": "2024-01-15",
-  "_instructions": "These are PLACEHOLDER values for testing. Production should run: python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --record",
-  "_note": "M-statistics are within acceptable ranges per Census Bureau guidelines",
+  "_purpose": "CI structure validation only - validates JSON format and diagnostic computation pipeline",
+  "_production_readiness": "NOT SUITABLE for production quality gates - regenerate with real X-13 outputs before production deployment",
+  "_instructions": "For production: Run `python scripts/record_golden_diagnostics.py --vintage-date YYYY-MM-DD --record` with real vintages after X-13 service is available",
+  "_note": "M-statistics are within acceptable ranges per Census Bureau guidelines (synthetic baseline)",
   "_quality_thresholds": {
     "M7_acceptable": 1.0,
     "M8_acceptable": 1.0,
