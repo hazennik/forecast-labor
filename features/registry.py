@@ -746,6 +746,11 @@ class FeatureRegistry:
         Returns:
             List of feature metadata dictionaries
         """
+        # Delegate to database backend if available
+        if self.backend == 'database' and self._db_backend:
+            return self._db_backend.list_features()
+        
+        # In-memory list all
         return [metadata.to_dict() for metadata in self._features.values()]
 
     def search(self, **filters) -> List[Dict[str, Any]]:
@@ -762,6 +767,13 @@ class FeatureRegistry:
             >>> ces_features = registry.search(source='ces')
             >>> daily_features = registry.search(frequency='daily')
         """
+        # Delegate to database backend if available
+        if self.backend == 'database' and self._db_backend:
+            results = self._db_backend.list_features(**filters)
+            logger.info("feature_search", backend="database", filters=filters, result_count=len(results))
+            return results
+        
+        # In-memory search
         results = []
 
         for feature_id, metadata in self._features.items():
@@ -777,7 +789,7 @@ class FeatureRegistry:
                 result["feature_id"] = feature_id
                 results.append(result)
 
-        logger.info("feature_search", filters=filters, result_count=len(results))
+        logger.info("feature_search", backend="memory", filters=filters, result_count=len(results))
 
         return results
 
@@ -791,6 +803,20 @@ class FeatureRegistry:
         Returns:
             List of feature versions (sorted by version)
         """
+        # Delegate to database backend if available
+        if self.backend == 'database' and self._db_backend:
+            # Search for all features with this name
+            features = self._db_backend.list_features(name=feature_name)
+            # Normalize version field: database has 'current_version' (int), in-memory has 'version' (str)
+            for feature in features:
+                if 'version' not in feature and 'current_version' in feature:
+                    feature['version'] = f"{feature['current_version']}.0.0"
+            # Sort by version
+            features.sort(key=lambda x: x.get("version", "1.0.0") if x.get("version") else "1.0.0")
+            logger.info("feature_versions_retrieved", backend="database", feature_name=feature_name, count=len(features))
+            return features
+        
+        # In-memory search
         versions = []
 
         for feature_id, metadata in self._features.items():
@@ -802,7 +828,7 @@ class FeatureRegistry:
         # Sort by version (simple string sort works for semantic versioning)
         versions.sort(key=lambda x: x["version"])
 
-        logger.info("feature_versions_retrieved", feature_name=feature_name, count=len(versions))
+        logger.info("feature_versions_retrieved", backend="memory", feature_name=feature_name, count=len(versions))
 
         return versions
 
@@ -836,6 +862,25 @@ class FeatureRegistry:
         Returns:
             List of feature IDs this feature depends on
         """
+        # Delegate to database backend if available
+        if self.backend == 'database' and self._db_backend:
+            try:
+                # Database backend returns List[Dict[str, Any]] with full lineage info
+                lineage_dicts = self._db_backend.get_lineage(feature_id)
+                # Extract just the feature IDs
+                lineage_ids = [item['feature_id'] for item in lineage_dicts]
+                logger.info(
+                    "feature_lineage_retrieved",
+                    backend="database",
+                    feature_id=feature_id,
+                    dependencies=len(lineage_ids),
+                )
+                return lineage_ids
+            except Exception as e:
+                logger.error("feature_lineage_failed", feature_id=feature_id, error=str(e))
+                raise KeyError(f"Feature ID not found: {feature_id}") from e
+        
+        # In-memory lookup
         if feature_id not in self._features:
             raise KeyError(f"Feature ID not found: {feature_id}")
 
@@ -843,6 +888,7 @@ class FeatureRegistry:
 
         logger.info(
             "feature_lineage_retrieved",
+            backend="memory",
             feature_id=feature_id,
             dependencies=len(metadata.depends_on),
         )
