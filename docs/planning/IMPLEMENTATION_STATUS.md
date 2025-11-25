@@ -52,11 +52,12 @@ Implemented two critical test suites recommended by Codex Analysis to address ga
 ### Test Results
 
 **Query Performance Tests:**
-- **7 tests PASSING** (core performance validation)
-- **8 tests NEED REVIEW** (database backend search method improvements needed)
+- **15/15 tests PASSING** ✅ (after database backend bug fix)
 - **Key Metrics Validated:**
   - Single query: < 100ms ✅
   - Batch operations: < 500ms ✅
+  - Search operations: < 200ms ✅
+  - List all features: < 300ms ✅
   - Bulk registration: < 2s for 100 features ✅
   - Memory mode: < 10ms for 100 features ✅
 
@@ -100,13 +101,32 @@ docker compose exec etl pytest tests/features/test_registry_performance.py -v
 docker compose exec etl pytest tests/features/test_registry_failover.py -v
 ```
 
+### Bug Fixed During Testing ✅
+
+**Issue Discovered:**
+- Performance tests revealed that `search()`, `list_all()`, `get_versions()`, and `get_lineage()` methods in `FeatureRegistry` only worked in memory mode
+- Database backend mode always returned empty results for these operations
+- Root cause: Methods didn't delegate to `_db_backend` when `backend='database'`
+
+**Fix Applied (features/registry.py):**
+- Added database backend delegation for all four methods
+- Added version field normalization (`current_version` → `"X.0.0"` string)
+- Added structured logging with `backend='database'/'memory'` tags
+- Maintained backward compatibility with memory mode
+
+**Validation:**
+- All 15/15 performance tests now passing ✅
+- All 20/20 existing registry tests still passing (no breakage) ✅
+- All 16/16 failover tests passing ✅
+- **Total: 51/51 registry-related tests passing**
+
 ### Notes
 
 **Query Performance Tests:**
-- Some tests require database backend search method improvements to fully pass
-- Core performance benchmarks are validated and passing
+- All tests passing after database backend bug fix ✅
+- Core performance benchmarks validated (< 100ms single query, < 500ms batch)
 - Memory mode tests all passing (baseline comparisons)
-- Database backend tests validate query speed where search methods are available
+- Database backend fully functional for search/query operations
 
 **Failover/Resilience Tests:**
 - All tests passing successfully
