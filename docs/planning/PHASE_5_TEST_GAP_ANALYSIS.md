@@ -370,7 +370,11 @@ predictions = model.predict(X_test_midas)  # ✅ Real predict
 
 ### Future Improvements
 
-#### **For Phase 5.6 (Training Pipeline):**
+#### **✅ ADDED TO PHASE 5.13.2: MLflow and Signing Integration Tests**
+
+These tests have been added to Phase 5.13.2 (Full Workflow Integration):
+
+**For Phase 5.6 (Training Pipeline):**
 ```python
 # Add 1-2 tests with real MLflow tracking (not mocked)
 def test_full_pipeline_with_real_mlflow():
@@ -379,7 +383,7 @@ def test_full_pipeline_with_real_mlflow():
     # Validate experiment, run, metrics, and artifacts are logged
 ```
 
-#### **For Phase 5.7 (Model I/O & Signing):**
+**For Phase 5.7 (Model I/O & Signing):**
 ```python
 # Add 1-2 tests with real file I/O and signing
 def test_sign_and_verify_model_bundle_end_to_end():
@@ -387,6 +391,8 @@ def test_sign_and_verify_model_bundle_end_to_end():
     # Use test keys (not mocked)
     # Validate signature creation, verification, and tampering detection
 ```
+
+**Status:** Planned for Phase 5.13.2 (see PHASE_5_IMPLEMENTATION_PLAN.md lines 1006-1024)
 
 ### Testing Principles for Future Phases
 

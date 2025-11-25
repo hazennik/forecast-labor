@@ -1012,7 +1012,15 @@ workflow validates golden baseline structure; full verification requires X-13 se
   - [ ] Test: Complete pipeline reproducibility (same seed → same final output)
   - [ ] Test: Prediction interval coverage on complete pipeline (80%, 90%, 95%)
   - [ ] Test: Coherence validation on reconciled forecasts
-  - [ ] 20+ comprehensive end-to-end tests
+  - [ ] **Test: MLflow end-to-end integration** (real MLflow, not mocked)
+    - [ ] Experiment creation and run logging
+    - [ ] Metrics and artifacts logging
+    - [ ] Model registration with feature metadata
+  - [ ] **Test: Model signing end-to-end** (real cryptographic operations)
+    - [ ] Sign model bundle with test keys
+    - [ ] Verify signature
+    - [ ] Detect tampering
+  - [ ] 25+ comprehensive end-to-end tests (including MLflow + signing)
 
 #### 5.13.3. Performance Validation
 - [ ] **Measure:** End-to-end latency (ETL → final forecast)
