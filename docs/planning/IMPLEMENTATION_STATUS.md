@@ -1880,58 +1880,140 @@ Refactored from **SN41-specific** to **subnet-agnostic adapter pattern**:
 ## 📋 TODO (Upcoming Phases)
 
 ### Backtesting (Phase 6)
-**Core Backtesting**
-- [ ] Vintage harness (reconstruct "what was known then")
-- [ ] Metrics (RMSE, sMAPE, CRPS, turning points)
-- [ ] Report generator (HTML/PDF summaries)
-- [ ] Accuracy gates (deployment blockers)
-- [ ] Scenario testing (what-if shocks for audits)
-  - [ ] Storm/hurricane scenarios
-  - [ ] Strike impact scenarios
-  - [ ] Policy change scenarios
 
-**Infrastructure & Quality Gates (Deferred from Phase 5)**
-- [ ] **X-13 CI Service Integration** (Codex Analysis 22 - Finding 1, Codex Analysis 20 - Issue 4)
-  - [ ] Publish X-13 Docker image to GitHub Container Registry
-  - [ ] Enable X-13 service in GitHub Actions workflow
-  - [ ] Update golden diagnostics tests to use real X-13 in CI
-  - [ ] Full M-statistics and Q-statistics validation in CI (not just structure)
-  - [ ] Documentation: `docs/CI_X13_SETUP.md` (already complete)
-  - **Reference:** Lines 1841-1844, Lines 150-156, Lines 237-247, Line 479
-- [ ] **CV Timeout Enforcement** (Codex Analysis 20 - Issue 2, Codex Analysis 22 - Finding 4)
+**Phase 6 Overview:**
+Comprehensive backtesting of all forecasting models on historical vintages to validate accuracy, calibration, and production readiness. This phase follows a structured execution order: foundation setup → core infrastructure → backtesting execution → analysis & reporting, with CI/CD infrastructure running in parallel.
+
+**Execution Order:** 6.1 (Foundation) → 6.2 (Infrastructure) → 6.3 (Execution) → 6.4 (Analysis) | 6.5 (Parallel)  
+**Estimated Total Time:** 2-3 weeks  
+**TDD Approach:** Write tests alongside each implementation (not after)
+
+---
+
+#### 6.1 Pre-Phase 6 Setup (Foundation)
+**Purpose:** Validate operational readiness with real data before starting expensive backtesting work.  
+**Estimated Time:** 1-2 days  
+**Blocking:** Must complete before 6.2
+
+- [ ] **6.1.1 Staging Validation with Real Data** (Codex Analysis 23 - Finding 2)
+  - [ ] Set up `.env` with real API keys (BLS, NOAA, Treasury, Census)
+  - [ ] Start all Docker services (`docker compose up -d`)
+  - [ ] Run real ETL (`scripts/seed_public_data.py` with production APIs)
+  - [ ] Validate data quality (`etl/validators/run_validation.py --source all --mode production`)
+  - [ ] Run seasonal adjustment on real data
+  - [ ] Build features on real data (`scripts/build_features.py`)
+  - [ ] Train sample model to verify end-to-end pipeline
+  - [ ] Document validation results and any issues discovered
+  - **Reference:** Lines 108-148 (Procedure 2: Staging Validation with Real Data)
+  - **Estimated Time:** 4-8 hours
+  - **Purpose:** Validate operational readiness before backtesting
+- [ ] **6.1.2 Record Real Seasonal Diagnostics Baseline** (Codex Analysis 23 - Finding 1)
+  - [ ] Ensure X-13 service running (`docker compose up x13 -d`)
+  - [ ] Run `scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --record`
+  - [ ] Verify M-statistics quality (< 1.0 for good quality)
+  - [ ] Verify Q-statistic quality (p-value > 0.05 for random residuals)
+  - [ ] Review diagnostics for any warnings or failures
+  - [ ] Commit updated baseline to repository
+  - **Reference:** Lines 80-106 (Procedure 1: Generate Real Seasonal Diagnostics Baseline)
+  - **Estimated Time:** 30-60 minutes
+  - **Purpose:** Replace synthetic baseline with real X-13 diagnostics for production quality gates
+
+---
+
+#### 6.2 Core Infrastructure (Before Backtesting)
+**Purpose:** Build essential infrastructure needed to run backtests.  
+**Estimated Time:** 4-6 days  
+**Blocking:** Must complete before 6.3  
+**TDD:** Write tests alongside each implementation
+
+- [ ] **6.2.1 Vintage Harness** (reconstruct "what was known then")
+  - [ ] Unit tests for vintage reconstruction
+  - [ ] Vintage-honesty validation tests
+  - [ ] Edge case tests (missing data, short series)
+  - **Estimated Time:** 2-3 days
+- [ ] **6.2.2 CV Timeout Enforcement** (Codex Analysis 20 - Issue 2, Codex Analysis 22 - Finding 4)
   - [ ] Implement per-fold timeout kill logic in `models_src/pipelines/cross_validation.py`
   - [ ] Implement total CV timeout kill logic
   - [ ] Test timeout enforcement with slow models
   - [ ] Validate timeout behavior doesn't break gracefully failing folds
   - **Reference:** Lines 193-211, Line 208, Line 68-73
-- [ ] **Performance Baselines Measurement** (Codex Analysis 20 - Issue 1, Codex Analysis 22 - Finding 4)
+  - **Note:** Must complete before running backtests to prevent hangs
+  - **Estimated Time:** 4-6 hours
+- [ ] **6.2.3 Metrics Implementation** (RMSE, sMAPE, CRPS, turning points)
+  - [ ] Unit tests for each metric calculation
+  - [ ] Metric calculation verification tests
+  - **Estimated Time:** 1-2 days
+
+---
+
+#### 6.3 Backtesting Execution
+**Purpose:** Run comprehensive backtests on historical vintages and measure performance baselines.  
+**Estimated Time:** 2-4 days (compute-intensive)  
+**Blocking:** Requires 6.2 completion  
+**Note:** Performance baselines measured naturally during this phase (not separate work)
+
+- [ ] **6.3.1 Run backtests on historical vintages** (measure **Performance Baselines** during this step)
+  - **Estimated Time:** 2-4 days (depending on compute and number of vintages)
+- [ ] **6.3.2 Performance Baselines Measurement** (Codex Analysis 20 - Issue 1, Codex Analysis 22 - Finding 4)
   - [ ] Measure real model training times on backtesting workload
   - [ ] Measure real model prediction latency
   - [ ] Measure real model memory usage
   - [ ] Update `tests/fixtures/performance_baselines.json` with real values
   - [ ] Enable performance regression detection tests
   - **Reference:** Lines 16-36, Lines 180-182, Line 287
+  - **Note:** Measured during backtesting runs, not separate infrastructure work
 
-**Testing (Phase 6)**
-- [ ] Unit tests for vintage reconstruction
-- [ ] Unit tests for each metric calculation
-- [ ] Unit tests for report generation
-- [ ] Vintage-honesty validation tests
-- [ ] Edge case tests (missing data, short series)
-- [ ] Metric calculation verification tests
-- [ ] Report output validation tests
-- [ ] Accuracy gate threshold tests
+---
 
-**Phase 6 Success Criteria (Hard Requirements):**
+#### 6.4 Analysis & Reporting
+**Purpose:** Analyze backtest results, generate reports, and validate against accuracy gates.  
+**Estimated Time:** 3-5 days  
+**Blocking:** Requires 6.3 completion  
+**TDD:** Write tests alongside each implementation
+
+- [ ] **6.4.1 Report Generator** (HTML/PDF summaries)
+  - [ ] Unit tests for report generation
+  - [ ] Report output validation tests
+  - **Estimated Time:** 1-2 days
+- [ ] **6.4.2 Accuracy Gates** (deployment blockers)
+  - [ ] Accuracy gate threshold tests
+  - **Estimated Time:** 1 day
+- [ ] **6.4.3 Scenario Testing** (what-if shocks for audits)
+  - [ ] Storm/hurricane scenarios
+  - [ ] Strike impact scenarios
+  - [ ] Policy change scenarios
+  - **Estimated Time:** 1-2 days
+
+---
+
+#### 6.5 Infrastructure & Quality Gates (Parallel with 6.2-6.4)
+**Purpose:** Enable full X-13 service integration in CI for production quality gates.  
+**Estimated Time:** 4-8 hours  
+**Blocking:** Can run in parallel with Core Backtesting (6.2-6.4)
+
+- [ ] **6.5.1 X-13 CI Service Integration** (Codex Analysis 22 - Finding 1, Codex Analysis 20 - Issue 4)
+  - [ ] Publish X-13 Docker image to GitHub Container Registry
+  - [ ] Enable X-13 service in GitHub Actions workflow
+  - [ ] Update golden diagnostics tests to use real X-13 in CI
+  - [ ] Full M-statistics and Q-statistics validation in CI (not just structure)
+  - [ ] Documentation: `docs/CI_X13_SETUP.md` (already complete)
+  - **Reference:** Lines 1841-1844, Lines 150-156, Lines 237-247, Line 479
+
+---
+
+#### Phase 6 Success Criteria (Hard Requirements)
+**Deployment Blockers - All must pass to proceed to Phase 7:**
 - [ ] sMAPE < 20% for at least one model (preferably < 15% for elite tier)
 - [ ] 90% PI coverage: 85-95% (calibration working)
 - [ ] No forecasts with |magnitude| > 2 million (stability check)
 - [ ] MinT reconciliation improves or maintains base forecast accuracy
 - [ ] All mathematical property tests still passing after backtesting tuning
 
-**Model Health Monitoring Criteria (Based on Phase 5 Validation)**
+---
 
-During Phase 6 backtesting, monitor for these specific issues identified during Phase 5 mathematical validation (see `docs/planning/PHASE_5_MATHEMATICAL_VALIDATION_COMPLETE.md`):
+#### Model Health Monitoring Criteria (Based on Phase 5 Validation)
+**Watch for these specific issues during Phase 6 backtesting.**  
+Identified during Phase 5 mathematical validation (see `docs/planning/PHASE_5_MATHEMATICAL_VALIDATION_COMPLETE.md`):
 
 **1. DFM Instability (Low Concern)**
 - **What to watch:** Forecasts > 1 million jobs or < -1 million jobs (unrealistic magnitudes)
