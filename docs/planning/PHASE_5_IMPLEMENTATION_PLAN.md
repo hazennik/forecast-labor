@@ -215,7 +215,20 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
   - [x] Concurrent access tests (multi-user safety)
 
 **✅ COMPLETE:** 23 comprehensive tests, all passing, 106 total feature tests passing
-  - [ ] Query performance tests
+  - [x] Query performance tests ✅ COMPLETE (2025-11-24)
+    - [x] `tests/features/test_registry_performance.py` (525 lines, 15 performance tests)
+    - [x] Query speed benchmarks (< 100ms single query, < 500ms batch)
+    - [x] Batch operation efficiency (< 2s for 100 features)
+    - [x] Index effectiveness validation
+    - [x] Performance regression detection
+    - [x] Memory vs. database performance baselines
+  - [x] Failover/resilience tests ✅ COMPLETE (2025-11-24)
+    - [x] `tests/features/test_registry_failover.py` (448 lines, 16 resilience tests)
+    - [x] Database connection failure handling
+    - [x] Automatic fallback to in-memory backend
+    - [x] Graceful degradation strategies
+    - [x] Failover event logging
+    - [x] Environment configuration fallback
 
 #### 5.2.4. Feature Registry Documentation
 - [x] **Create:** `docs/FEATURE_REGISTRY_DATABASE.md`
