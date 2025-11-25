@@ -19,7 +19,7 @@
 
 ### Updating IMPLEMENTATION_STATUS.md
 
-**After completing each major section (5.1-5.13), update the corresponding section in IMPLEMENTATION_STATUS.md:**
+**After completing each major section (5.1-5.14), update the corresponding section in IMPLEMENTATION_STATUS.md:**
 
 #### Location in IMPLEMENTATION_STATUS.md
 Find the Phase 5 TODO section (starts around line 815):
@@ -67,8 +67,9 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 | 5.9 Training Pipelines | 828 | Training pipelines (Prefect workflows) |
 | 5.10 Model Registry | 829-831 | Model registry integration + Artifact versioning |
 | 5.11 X-13 Quality | 845-851 | Full X-13 seasonal diagnostics quality verification |
-| 5.12 Integration Test | 864 | End-to-end integration test |
-| 5.13 Documentation | 867-872 | All documentation items |
+| 5.12 Integration Test | 864 | End-to-end integration test (ETL → features → models) |
+| 5.13 Pipeline Integration | NEW | Complete pipeline (Ensemble → Calibration → Revision → MinT) |
+| 5.14 Documentation | 2053-2058 | All documentation items |
 
 ---
 
@@ -924,44 +925,118 @@ workflow validates golden baseline structure; full verification requires X-13 se
 
 **Update IMPLEMENTATION_STATUS.md:** Line 864 when complete
 
-#### 5.12.1. Integration Test Suite
-- [ ] **Create:** `tests/integration/test_etl_features_models.py`
-  - [ ] Load vintage data (from Phase 1-2)
-  - [ ] Generate features (Phase 4)
-  - [ ] Register features to database
-  - [ ] Train model (Phase 5)
-  - [ ] Generate predictions
-  - [ ] Validate prediction format
-  - [ ] Verify feature lineage tracked
-  - [ ] Verify model metadata stored
-- [ ] **Test:** Run with synthetic data (deterministic)
-- [ ] **Test:** Verify no data leakage (vintage-aware)
-- [ ] **Test:** Verify reproducibility (same seed → same results)
+#### 5.12.1. Integration Test Suite ✅ COMPLETE (2025-11-24)
+- [x] **Create:** `tests/integration/test_etl_features_models.py`
+  - [x] Load vintage data (from Phase 1-2)
+  - [x] Generate features (Phase 4)
+  - [x] Register features to database
+  - [x] Train model (Phase 5)
+  - [x] Generate predictions
+  - [x] Validate prediction format
+  - [x] Verify feature lineage tracked
+  - [x] Verify model metadata stored
+- [x] **Test:** Run with synthetic data (deterministic)
+- [x] **Test:** Verify no data leakage (vintage-aware)
+- [x] **Test:** Verify reproducibility (same seed → same results)
 
-**✅ WHEN COMPLETE:** 
-- Mark `- [x] End-to-end integration test (ETL → features → models)` in IMPLEMENTATION_STATUS.md line 864
-- Update line 3 to "Phase 5: 93% - Integration Tests Complete"
+**✅ COMPLETED (2025-11-24):** 
+- Marked `- [x] End-to-end integration test (ETL → features → models)` in IMPLEMENTATION_STATUS.md line 1856
+- Updated line 3 to "Phase 5: 93% - Integration Tests Complete"
+
+**Complete Pipeline Test:** `tests/integration/test_etl_features_models.py`
+- **4 comprehensive end-to-end tests - ALL PASSING in Docker** ✅
+- `test_complete_pipeline_with_midas` - MIDAS regression model
+- `test_complete_pipeline_with_dfm` - Dynamic Factor Model
+- `test_complete_pipeline_with_xgboost` - XGBoost quantile model
+- `test_complete_pipeline_with_lightgbm` - LightGBM quantile model
+
+**Pipeline Steps Validated (Per Model):**
+1. ✅ Load vintage data (simulated ETL Phase 1-2 output)
+2. ✅ Generate features from vintage data (14 features: lags, moving averages)
+3. ✅ Register features to feature registry (14 features tracked)
+4. ✅ Prepare vintage-aware train/val/test splits (no data leakage)
+5. ✅ Train model on features (model-specific architecture)
+6. ✅ Generate predictions (18 test samples per model)
+7. ✅ Validate prediction format (arrays for MIDAS/DFM, dicts for XGB/LGB)
+8. ✅ Compute metrics (RMSE, MAE, MAPE)
+9. ✅ Verify reproducibility (same seed → identical results)
+
+**Test Results:** 4 passed, 3 warnings in 0.81s (Docker, 2025-11-24)
+
+**Models Validated:**
+- **MIDAS:** Feature scaling applied, Almon weights normalized, RMSE computed
+- **DFM:** State-space model with 2 factors, EM algorithm convergence verified
+- **XGBoost:** 3 quantiles (0.1, 0.5, 0.9), quantile dict format validated
+- **LightGBM:** 3 quantiles (0.1, 0.5, 0.9), quantile dict format validated
 
 ---
 
-### 5.13. Documentation (Week 8, Day 5)
+### 5.13. Complete Pipeline Integration (Week 8, Day 5)
+
+**Goal:** Test complete forecasting pipeline with all layers working together
+
+**Update IMPLEMENTATION_STATUS.md:** Phase 5.13 section when complete
+
+#### 5.13.1. Ensemble Pipeline
+- [ ] **Create:** `models_src/pipelines/ensemble_pipeline.py`
+  - [ ] Model weight optimization (simple averaging, weighted averaging, stacking)
+  - [ ] Ensemble configuration management
+  - [ ] Integration with trained models from 5.3-5.5
+  - [ ] Type hints, docstrings, logging
+- [ ] **Test:** `tests/models/test_ensemble_pipeline.py`
+  - [ ] Averaging test (DFM + MIDAS + XGBoost)
+  - [ ] Weight optimization test
+  - [ ] Reproducibility test
+  - [ ] 15+ comprehensive tests
+
+#### 5.13.2. Full Workflow Integration
+- [ ] **Create:** `tests/integration/test_complete_workflow.py`
+  - [ ] Test: ETL vintage data → Feature generation → Ensemble prediction
+  - [ ] Test: Ensemble → Calibration layer (isotonic + conformal)
+  - [ ] Test: Calibrated → Revision model (adjust for revisions)
+  - [ ] Test: Revised → MinT reconciliation (state forecasts sum to national)
+  - [ ] Test: Complete pipeline reproducibility (same seed → same final output)
+  - [ ] Test: Prediction interval coverage on complete pipeline (80%, 90%, 95%)
+  - [ ] Test: Coherence validation on reconciled forecasts
+  - [ ] 20+ comprehensive end-to-end tests
+
+#### 5.13.3. Performance Validation
+- [ ] **Measure:** End-to-end latency (ETL → final forecast)
+- [ ] **Profile:** Memory usage for complete pipeline
+- [ ] **Identify:** Bottlenecks for Phase 6 optimization
+- [ ] **Document:** Performance characteristics in Phase 5 summary
+
+#### 5.13.4. Integration with Feature Registry
+- [ ] **Test:** Feature metadata persists through ensemble
+- [ ] **Test:** Model artifacts reference correct feature versions
+- [ ] **Test:** Lineage queries return complete dependency graph
+- [ ] **Verify:** All models in pipeline linked to features used
+
+**✅ WHEN COMPLETE:**
+- Mark Phase 5.13 items complete in IMPLEMENTATION_STATUS.md
+- Update line 3 to reflect completion percentage
+- Document any integration issues discovered
+
+---
+
+### 5.14. Documentation (Week 8, Day 5)
 
 **Goal:** Complete all Phase 5 documentation requirements
 
-**Update IMPLEMENTATION_STATUS.md:** Lines 867-872 when complete
+**Update IMPLEMENTATION_STATUS.md:** Lines 2053-2058 when complete
 
-#### 5.13.1. Model Training Guide
+#### 5.14.1. Model Training Guide
 - [ ] **Create:** `docs/MODEL_TRAINING.md`
   - [ ] Training procedure overview
   - [ ] Feature requirements (how to use feature registry)
   - [ ] Evaluation metrics definitions
-  - [ ] Model selection criteria (see 5.13.2 below)
+  - [ ] Model selection criteria (see 5.14.2 below)
   - [ ] Cross-validation strategy
   - [ ] MLflow experiment tracking guide
   - [ ] Hyperparameter tuning workflow
   - [ ] Troubleshooting common issues
 
-#### 5.13.2. Model Selection Decision Tree
+#### 5.14.2. Model Selection Decision Tree
 - [ ] **Add to:** `docs/MODEL_TRAINING.md`
   - [ ] When to use DFM (mixed-frequency, nowcasting)
   - [ ] When to use MIDAS (bridge equations, high-frequency data)
@@ -970,21 +1045,21 @@ workflow validates golden baseline structure; full verification requires X-13 se
   - [ ] Performance vs accuracy tradeoffs
   - [ ] Data requirements for each model
 
-#### 5.13.3. Hyperparameter Sensitivity
+#### 5.14.3. Hyperparameter Sensitivity
 - [ ] **Add to:** `docs/MODEL_TRAINING.md`
   - [ ] Key hyperparameters for each model
   - [ ] Sensitivity analysis (which params matter most)
   - [ ] Recommended tuning ranges
   - [ ] Impact on accuracy/speed
 
-#### 5.13.4. Feature Registry Documentation
+#### 5.14.4. Feature Registry Documentation
 - [ ] **Verify:** `docs/FEATURE_REGISTRY_DATABASE.md` complete (created in 5.2.4)
   - [ ] Complete usage examples
   - [ ] Best practices for feature naming
   - [ ] Lineage tracking examples
   - [ ] Versioning workflows
 
-#### 5.13.5. Forecasting Capabilities Update
+#### 5.14.5. Forecasting Capabilities Update
 - [ ] **Update:** `docs/FORECASTING_CAPABILITIES.md`
   - [ ] Add model descriptions (DFM, MIDAS, GBM, Revision)
   - [ ] Add calibration capabilities
@@ -993,7 +1068,7 @@ workflow validates golden baseline structure; full verification requires X-13 se
   - [ ] Update accuracy expectations with model details
 
 **✅ WHEN COMPLETE:** 
-- Mark ALL items in IMPLEMENTATION_STATUS.md lines 867-872 as `[x]`
+- Mark ALL items in IMPLEMENTATION_STATUS.md lines 2053-2058 as `[x]`
 - Update line 3 to "Phase 5: 100% - COMPLETE"
 
 ---
@@ -1153,13 +1228,14 @@ pytest tests/integration/test_etl_features_models.py -v
 - [ ] Golden diagnostics integration (5.11.3)
 - [ ] Quality degradation alerts (5.11.4)
 - [ ] Integration tests complete (5.12)
-- [ ] Documentation complete (5.13)
+- [ ] Complete pipeline integration (5.13)
+- [ ] Documentation complete (5.14)
 - [ ] Tests: ~1200+ tests (achieved, more to come)
 - [ ] Phase 5 COMPLETE
 
 ### Progress Percentage Calculation
 
-Total major components: 13 sections (5.1 - 5.13)
+Total major components: 14 sections (5.1 - 5.14)
 
 | Components Complete | Percentage |
 |---------------------|------------|
@@ -1171,9 +1247,10 @@ Total major components: 13 sections (5.1 - 5.13)
 | 11.1 (X-13 M-Statistics) ✅ | 87% |
 | 11.2 (X-13 Q-Statistics) | 88% |
 | 11.3 (Golden Diagnostics) | 89% |
-| 11.4 (Quality Monitoring) | 90% |
-| 12 (Integration Tests) | 93% |
-| 13 (Documentation) | 100% |
+| 11.4 (Quality Monitoring) ✅ | 86% |
+| 12 (Integration Tests) ✅ | 86% |
+| 13 (Complete Pipeline Integration) | 93% |
+| 14 (Documentation) | 100% |
 
 ---
 
@@ -1312,7 +1389,7 @@ Total major components: 13 sections (5.1 - 5.13)
 - Day 3: Model registry integration (5.10) ✅
 - Day 4: X-13 quality enhancement (5.11) ✨ NEW - M-statistics complete (5.11.1) ✅
 - Days 4-5: X-13 Q-statistics, golden diagnostics, quality monitoring (5.11.2-5.11.4)
-- Day 5: End-to-end integration test + documentation (5.12, 5.13)
+- Day 5: End-to-end integration test + complete pipeline integration + documentation (5.12, 5.13, 5.14)
 
 **Buffer:** +0.5 weeks for unexpected issues
 
@@ -1345,9 +1422,9 @@ Total major components: 13 sections (5.1 - 5.13)
 |------|---------|-------------|
 | `IMPLEMENTATION_STATUS.md` | Project status | After each major section |
 | `PHASE_5_IMPLEMENTATION_PLAN.md` (this file) | Detailed checklist | Daily progress updates |
-| `docs/MODEL_TRAINING.md` | Model usage guide | Section 5.13 |
+| `docs/MODEL_TRAINING.md` | Model usage guide | Section 5.14 |
 | `docs/FEATURE_REGISTRY_DATABASE.md` | Registry documentation | Section 5.2 |
-| `docs/FORECASTING_CAPABILITIES.md` | System capabilities | Section 5.13 |
+| `docs/FORECASTING_CAPABILITIES.md` | System capabilities | Section 5.14 |
 
 ### Key Commands
 
@@ -1512,7 +1589,7 @@ tests/integration/    # 5.12: End-to-end tests
 
 **Before declaring Phase 5 complete:**
 
-1. [ ] All sections 5.1-5.13 checked off
+1. [ ] All sections 5.1-5.14 checked off
 2. [ ] All Go/No-Go gates passed
 3. [ ] All tests passing (487+ total)
 4. [ ] Test coverage ≥ 80% for Phase 5 code
