@@ -2452,6 +2452,8 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
 **Estimated Total Time:** 2-3 weeks  
 **TDD Approach:** Write tests alongside each implementation (not after)
 
+**⚠️ Model Health Monitoring:** During backtesting (6.3), watch for known issues from Phase 5 validation: DFM instability (forecasts > 1M), MIDAS convergence failures, calibration coverage outside 85-95%. See "Model Health Monitoring Criteria" at end of Phase 6 for troubleshooting guidance.
+
 ---
 
 #### 6.1 Pre-Phase 6 Setup (Foundation)
@@ -2471,6 +2473,9 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - **Reference:** Lines 108-148 (Procedure 2: Staging Validation with Real Data)
   - **Estimated Time:** 4-8 hours
   - **Purpose:** Validate operational readiness before backtesting
+
+  ---
+  
 - [ ] **6.1.2 Record Real Seasonal Diagnostics Baseline** (Codex Analysis 23 - Finding 1)
   - [ ] Ensure X-13 service running (`docker compose up x13 -d`)
   - [ ] Run `scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --record`
@@ -2495,6 +2500,9 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - [ ] Vintage-honesty validation tests
   - [ ] Edge case tests (missing data, short series)
   - **Estimated Time:** 2-3 days
+  
+  --
+
 - [ ] **6.2.2 CV Timeout Enforcement** (Codex Analysis 20 - Issue 2, Codex Analysis 22 - Finding 4)
   - [ ] Implement per-fold timeout kill logic in `models_src/pipelines/cross_validation.py`
   - [ ] Implement total CV timeout kill logic
@@ -2503,10 +2511,17 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - **Reference:** Lines 193-211, Line 208, Line 68-73
   - **Note:** Must complete before running backtests to prevent hangs
   - **Estimated Time:** 4-6 hours
-- [ ] **6.2.3 Metrics Implementation** (RMSE, sMAPE, CRPS, turning points)
-  - [ ] Unit tests for each metric calculation
-  - [ ] Metric calculation verification tests
-  - **Estimated Time:** 1-2 days
+
+  ---
+
+  
+- [ ] **6.2.3 Metrics Validation for Backtesting** (verify Phase 5.1.2 metrics are sufficient)
+  - **Reference:** Phase 5.1.2 already implemented RMSE, sMAPE, CRPS, MAE, MAPE, turning points, PI coverage, ECE (33 tests passing)
+  - [ ] Review existing metrics in `models_src/utils/metrics.py` for backtesting completeness
+  - [ ] Verify metrics support vintage-aware computation
+  - [ ] Add any backtest-specific metric aggregation if needed (cross-vintage averaging, time-series of errors)
+  - [ ] If existing metrics are sufficient, mark complete and proceed to 6.3
+  - **Estimated Time:** 2-4 hours (validation only) or 1 day (if additions needed)
 
 ---
 
@@ -2526,6 +2541,9 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
     - [ ] Determine if DFM should be included in production ensemble
     - **Reference:** Phase 5.13.2 completion notes, `docs/planning/codex_analysis_25.md`
     - **Success Criteria:** DFM sMAPE < 20%, stable predictions, adds value to ensemble
+
+---
+
 - [ ] **6.3.2 Performance Baselines Measurement** (Codex Analysis 20 - Issue 1, Codex Analysis 22 - Finding 4)
   - [ ] Measure real model training times on backtesting workload
   - [ ] Measure real model prediction latency
@@ -2535,11 +2553,22 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - **Reference:** Lines 16-36, Lines 180-182, Line 287
   - **Note:** Measured during backtesting runs, not separate infrastructure work
 
+  ---
+
+- [ ] **6.3.3 Comprehensive Performance Validation** (Phase 5.13.3 completion with real data)
+  - [ ] End-to-end latency measurement (ETL → final forecast) with complete pipeline
+  - [ ] Memory usage profiling for complete workflow (all models, all layers)
+  - [ ] Identify bottlenecks for optimization (calibration, reconciliation, ensemble)
+  - [ ] Profile with confirmed ensemble composition (DFM + MIDAS + XGBoost if DFM validates)
+  - [ ] Document performance characteristics in backtest report
+  - **Reference:** Phase 5.13.3 deferred tasks
+  - **Rationale:** Real data provides accurate performance picture for production deployment
+
 ---
 
 #### 6.4 Analysis & Reporting
 **Purpose:** Analyze backtest results, generate reports, and validate against accuracy gates.  
-**Estimated Time:** 3-5 days  
+**Estimated Time:** 4-6 days (includes comprehensive accuracy validation against ACCURACY_MAP.md targets)  
 **Blocking:** Requires 6.3 completion  
 **TDD:** Write tests alongside each implementation
 
@@ -2547,14 +2576,105 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - [ ] Unit tests for report generation
   - [ ] Report output validation tests
   - **Estimated Time:** 1-2 days
-- [ ] **6.4.2 Accuracy Gates** (deployment blockers)
-  - [ ] Accuracy gate threshold tests
-  - **Estimated Time:** 1 day
+
+  ---
+
+- [ ] **6.4.2 Model Selection & Accuracy Gates** (deployment blockers)
+  **Purpose:** Compare model performance, select production ensemble, and validate all accuracy targets from ACCURACY_MAP.md  
+  **Total Estimated Time:** 2-3 days  
+  **Reference:** `docs/ACCURACY_MAP.md`, `docs/ACCURACY_DESCRIPTION.md`
+
+  ---
+
+  - [ ] **6.4.2.1 Model Performance Comparison & Ensemble Selection**
+    - [ ] Compare all models on backtest results (DFM vs MIDAS vs XGBoost vs LightGBM)
+    - [ ] **Resolve DFM validation question:** Based on 6.3.1 results, make final decision:
+      - If DFM sMAPE < 20% and stable: Include in production ensemble
+      - If DFM unstable or sMAPE > 20%: Exclude from production ensemble (use MIDAS + XGBoost)
+    - [ ] Document final production ensemble composition and rationale
+    - [ ] Define ensemble weighting strategy (equal-weighted, performance-weighted, or stacking)
+    - **Estimated Time:** 4-6 hours
+
+  ---
+
+  - [ ] **6.4.2.2 Primary Accuracy Gates** (hard deployment blockers)
+    - [ ] NFP sMAPE < 20% (validate against 0.18-0.28 target for public data)
+    - [ ] 90% PI coverage: 85-95% (actual coverage within tolerance)
+    - [ ] Stability checks: No forecasts with |magnitude| > 2 million
+    - [ ] Hierarchical coherence: MinT reconciliation error < 100 jobs
+    - [ ] Generate gate validation report (pass/fail for each gate)
+    - **Reference:** `docs/ACCURACY_MAP.md` Section 1.1, Section 5.2
+    - **Success Criteria:** All gates PASS or work is blocked
+    - **Estimated Time:** 2-3 hours
+
+  ---
+
+  - [ ] **6.4.2.3 Revision Model Accuracy Validation**
+    - [ ] Test revision model on 10+ historical first→second print revisions
+    - [ ] Calculate MAE for revision predictions
+    - [ ] Validate MAE 40-75k target from ACCURACY_MAP.md (Section 6.1)
+    - [ ] Measure direction accuracy (% of revisions with correct sign)
+    - [ ] Document revision model performance and comparison to target
+    - **Reference:** `docs/ACCURACY_MAP.md` Section 6.1
+    - **Success Criteria:** MAE within 40-75k range, direction accuracy > 50%
+    - **Estimated Time:** 3-4 hours
+
+  ---
+
+  - [ ] **6.4.2.4 Turning Point Detection Validation**
+    - [ ] Identify known historical turning points (2008 financial crisis, 2020 pandemic, other slowdowns/surges)
+    - [ ] Test if model predicted direction correctly at these inflection points
+    - [ ] Calculate precision: (correct turning point predictions) / (total turning points)
+    - [ ] Validate precision 55-75% target from ACCURACY_MAP.md (Section 2)
+    - [ ] Document turning point detection performance and false positive rate
+    - **Reference:** `docs/ACCURACY_MAP.md` Sections 2.1, 2.2, 2.3
+    - **Success Criteria:** Precision within 55-75% range
+    - **Estimated Time:** 4-6 hours
+
+  ---
+
+  - [ ] **6.4.2.5 State-Level Accuracy Validation**
+    - [ ] Test state-level predictions on top 5 states (CA, TX, NY, FL, PA)
+    - [ ] Calculate MAE per state for MoM job changes
+    - [ ] Validate MAE 5k-12k per state target from ACCURACY_MAP.md (Section 3.1)
+    - [ ] Verify hierarchical coherence (states sum to national)
+    - [ ] Document state-level performance and identify worst-performing states
+    - **Reference:** `docs/ACCURACY_MAP.md` Section 3.1
+    - **Success Criteria:** MAE within 5k-12k range for at least 3 of 5 states
+    - **Estimated Time:** 3-4 hours
+    - **Note:** Sector-level validation (Section 4 of ACCURACY_MAP.md) deferred to post-Phase 6 (requires sector data integration)
+
+  ---
+
+  - [ ] **6.4.2.6 SN41 Probability Stability Validation**
+    - [ ] Calculate month-to-month probability vector changes across backtest vintages
+    - [ ] Measure smoothness: Average absolute change in bin probabilities between consecutive months
+    - [ ] Validate low-noise, stable predictions (no sudden jumps without data justification)
+    - [ ] Compare public vs public+private stability (if private data available)
+    - [ ] Document SN41 optimization characteristics (stability, calibration, coherence)
+    - **Reference:** `docs/ACCURACY_MAP.md` Section 5.3
+    - **Success Criteria:** Average bin probability change < 0.15 between consecutive forecasts
+    - **Estimated Time:** 2-3 hours
+
+  ---
+
 - [ ] **6.4.3 Scenario Testing** (what-if shocks for audits)
   - [ ] Storm/hurricane scenarios
   - [ ] Strike impact scenarios
   - [ ] Policy change scenarios
   - **Estimated Time:** 1-2 days
+
+  ---
+
+- [ ] **6.4.4 Feature Registry Lineage Integration** (Phase 5.13.4 completion with real workflows)
+  - [ ] Test: Feature metadata persists through complete ensemble pipeline
+  - [ ] Test: Model artifacts reference correct feature versions (DFM, MIDAS, XGBoost)
+  - [ ] Test: Lineage queries return complete dependency graph for production models
+  - [ ] Verify: All models in backtest linked to features used (with vintage dates)
+  - [ ] Test: Feature version rollback and impact analysis on model performance
+  - **Reference:** Phase 5.13.4 deferred tasks
+  - **Rationale:** Real model workflows provide comprehensive lineage validation
+  - **Estimated Time:** 1 day
 
 ---
 
@@ -2580,6 +2700,14 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
 - [ ] No forecasts with |magnitude| > 2 million (stability check)
 - [ ] MinT reconciliation improves or maintains base forecast accuracy
 - [ ] All mathematical property tests still passing after backtesting tuning
+
+#### Post-Phase 6: Return to Phase 5.14 Documentation
+**After Phase 6 backtesting completes, return to complete Phase 5.14:**
+- [ ] **Phase 5.14.1:** Model Training Guide (with real performance data)
+- [ ] **Phase 5.14.2:** Model Selection Decision Tree (based on backtest results)
+- [ ] **Phase 5.14.3:** Hyperparameter Sensitivity (empirical data from tuning)
+- [ ] **Phase 5.14.5:** Update FORECASTING_CAPABILITIES.md (with validated models)
+- **Rationale:** These docs require empirical results from Phase 6 backtesting to be accurate and useful
 
 ---
 
