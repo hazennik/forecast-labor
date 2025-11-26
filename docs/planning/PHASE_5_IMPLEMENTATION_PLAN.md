@@ -1035,7 +1035,7 @@ workflow validates golden baseline structure; full verification requires X-13 se
 
 **Key Insight:** Test data quality matters. DFM unit tests used carefully crafted data (passed). Integration test uses random synthetic data (exposed sensitivity). This is a test limitation, not a model bug. Real NFP data has proper structure DFM expects.
 
-**Documentation:** See `docs/planning/codex_analysis_25.md` for detailed analysis.
+**Documentation:** See `docs/planning/codex_analysis_25.md` and `docs/planning/PHASE_5_13_2_COMPLETION_SUMMARY.md` for detailed analysis.
 
 #### 5.13.3. Performance Validation (OPTIONAL - Defer to Phase 6)
 - [ ] **Measure:** End-to-end latency (ETL → final forecast)
