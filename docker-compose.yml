@@ -182,6 +182,7 @@ services:
       - ./seasonal:/app/seasonal
       - ./features:/app/features
       - ./models_src:/app/models_src
+      - ./recon:/app/recon
       - ./data:/app/data
       - ./scripts:/app/scripts
       - ./tests:/app/tests
