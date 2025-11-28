@@ -2534,28 +2534,33 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
 - [ ] **6.3.1 Run backtests on historical vintages** (measure **Performance Baselines** during this step)
   - **Estimated Time:** 2-4 days (depending on compute and number of vintages)
   - **Include:** Test all models (DFM, MIDAS, XGBoost, LightGBM) on real vintage data
-  - **DFM Validation:** Validate DFM with real NFP data (Phase 5.13.2 limitation resolution)
-    - [ ] Test DFM on 10+ actual vintage dates with real mixed-frequency data
-    - [ ] Compare DFM vs MIDAS vs XGBoost accuracy (sMAPE, RMSE, PI coverage)
-    - [ ] Verify DFM numerical stability with real data (no 10^17 explosions)
-    - [ ] Determine if DFM should be included in production ensemble
-    - **Reference:** Phase 5.13.2 completion notes, `docs/planning/codex_analysis_25.md`
-    - **Success Criteria:** DFM sMAPE < 20%, stable predictions, adds value to ensemble
-
----
-
-- [ ] **6.3.2 Performance Baselines Measurement** (Codex Analysis 20 - Issue 1, Codex Analysis 22 - Finding 4)
+  
+  **DFM Validation:** Validate DFM with real NFP data (Phase 5.13.2 limitation resolution)
+  - [ ] Test DFM on 10+ actual vintage dates with real mixed-frequency data
+  - [ ] Compare DFM vs MIDAS vs XGBoost accuracy (sMAPE, RMSE, PI coverage)
+  - [ ] Verify DFM numerical stability with real data (no 10^17 explosions)
+  - [ ] Determine if DFM should be included in production ensemble
+  - **Reference:** Phase 5.13.2 completion notes, `docs/planning/codex_analysis_25.md`
+  - **Success Criteria:** DFM sMAPE < 20%, stable predictions, adds value to ensemble
+  
+  **Performance Baselines Measurement:** (Codex Analysis 20 - Issue 1, Codex Analysis 22 - Finding 4)
   - [ ] Measure real model training times on backtesting workload
   - [ ] Measure real model prediction latency
   - [ ] Measure real model memory usage
   - [ ] Update `tests/fixtures/performance_baselines.json` with real values
   - [ ] Enable performance regression detection tests
   - **Reference:** Lines 16-36, Lines 180-182, Line 287
-  - **Note:** Measured during backtesting runs, not separate infrastructure work
+  
+  **Model Health Monitoring During Execution:**
+  - [ ] Watch for DFM instability (forecasts > 1M magnitude - see Model Health Monitoring #1)
+  - [ ] Watch for MIDAS convergence failures (optimization warnings - see Model Health Monitoring #2)
+  - [ ] Watch for calibration coverage outside 85-95% (see Model Health Monitoring #3)
+  - [ ] Consult "Model Health Monitoring Criteria" (end of Phase 6) if anomalies arise
+  - **Reference:** Model Health Monitoring Criteria (lines 2714-2758)
 
-  ---
+---
 
-- [ ] **6.3.3 Comprehensive Performance Validation** (Phase 5.13.3 completion with real data)
+- [ ] **6.3.2 Comprehensive Performance Validation** (Phase 5.13.3 completion with real data)
   - [ ] End-to-end latency measurement (ETL → final forecast) with complete pipeline
   - [ ] Memory usage profiling for complete workflow (all models, all layers)
   - [ ] Identify bottlenecks for optimization (calibration, reconciliation, ensemble)
@@ -2563,6 +2568,7 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - [ ] Document performance characteristics in backtest report
   - **Reference:** Phase 5.13.3 deferred tasks
   - **Rationale:** Real data provides accurate performance picture for production deployment
+  - **Estimated Time:** 4-6 hours
 
 ---
 
@@ -2757,7 +2763,10 @@ Identified during Phase 5 mathematical validation (see `docs/planning/PHASE_5_MA
 - Mathematical testing guide: `docs/TESTING_MATHEMATICAL_ALGORITHMS.md`
 - Property test suites: `tests/models/test_*_properties.py`
 
-### API & Two-Zone Architecture (Phase 6.5)
+### Phase 6A: API & Two-Zone Architecture
+**Purpose:** Production deployment infrastructure for serving forecasts and managing two-zone security model.  
+**Note:** Can be developed in parallel with Phase 6 backtesting or after Phase 6 success criteria are met.
+
 **FastAPI Application**
 - [ ] Main app setup (`app/main.py`)
 - [ ] Health/readiness endpoints
@@ -2789,7 +2798,7 @@ Identified during Phase 5 mathematical validation (see `docs/planning/PHASE_5_MA
 - [ ] `submit_sn41.py` - Submit to SN41 (server-only)
 - [ ] Additional operational scripts
 
-**Testing (Phase 6.5)**
+**Testing (Phase 6A)**
 - [ ] API endpoint tests (unit + integration)
 - [ ] Authentication/authorization tests
 - [ ] Request/response validation tests
@@ -3144,7 +3153,7 @@ Identified during Phase 5 mathematical validation (see `docs/planning/PHASE_5_MA
 **✅ Comprehensive Coverage Achieved:**
 - **Option 3 Implementation Complete** - Full audit of REPO_SCAFFOLDING.md performed
 - **95% Coverage** - All major components mapped to implementation phases
-- **New Phase 6.5 Added** - API & Two-Zone Architecture (previously missing)
+- **New Phase 6A Added** - API & Two-Zone Architecture (previously missing)
 - **Coverage Matrix Created** - Full traceability of every scaffolding component
 - **Phase 3.5 Added** - Testing foundation (per Codex feedback)
 - **Timeline Updated** - Now 17-18 weeks (accounts for testing gate)
@@ -3190,7 +3199,7 @@ Identified during Phase 5 mathematical validation (see `docs/planning/PHASE_5_MA
 - ✅ **Phase 4: Feature Engineering + Tests (Week 4) - COMPLETE** ✅
 - Phase 5: Core Models + Reconciliation + Feature Registry DB + X-13 Quality + Tests (Week 5-8.5) ⚠️ **UPDATED**
 - Phase 6: Backtesting + Scenarios + Tests (Week 8.5-10.5)
-- Phase 6.5: API + Two-Zone Architecture + Tests (Week 10.5-11.5)
+- Phase 6A: API + Two-Zone Architecture + Tests (Week 10.5-11.5)
 - Phase 7: Subnet Integration (Adapter Pattern) + Tests (Week 11.5-13.5)
 - Phase 8: Dashboards + Tests (Week 13.5-14.5)
 - Phase 9: AI Agents (11 agents) + Tests (Week 14.5-16.5)
@@ -3274,13 +3283,13 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 ### API & Two-Zone Architecture
 | Component | Phase | Status | Notes |
 |-----------|-------|--------|-------|
-| `app/main.py` | Phase 6.5 | 📋 Planned | FastAPI application |
-| `app/routers/` | Phase 6.5 | 📋 Planned | Forecast, reports, status |
-| `app/schemas/` | Phase 6.5 | 📋 Planned | Pydantic models |
-| `zone1/configs/` | Phase 6.5 | 📋 Planned | Training profiles |
-| `zone1/artifacts/` | Phase 6.5 | 📋 Planned | Versioned models |
-| `zone2/runner/` | Phase 6.5 | 📋 Planned | Inference app |
-| `zone2/logs/` | Phase 6.5 | 📋 Planned | Submission logs |
+| `app/main.py` | Phase 6A | 📋 Planned | FastAPI application |
+| `app/routers/` | Phase 6A | 📋 Planned | Forecast, reports, status |
+| `app/schemas/` | Phase 6A | 📋 Planned | Pydantic models |
+| `zone1/configs/` | Phase 6A | 📋 Planned | Training profiles |
+| `zone1/artifacts/` | Phase 6A | 📋 Planned | Versioned models |
+| `zone2/runner/` | Phase 6A | 📋 Planned | Inference app |
+| `zone2/logs/` | Phase 6A | 📋 Planned | Submission logs |
 
 ### Subnet Integration (Adapter Pattern)
 | Component | Phase | Status | Notes |
@@ -3329,7 +3338,7 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 | `scripts/verify_vintage_determinism.py` | Phase 3.5 | ✅ Complete | Vintage hash verification |
 | `scripts/check_infrastructure_health.py` | Phase 3.5 | ✅ Complete | Service health checks |
 | `scripts/build_features.py` | Phase 4 | ✅ Complete | Feature generation CLI runner |
-| `scripts/train_all.py` | Phase 6.5 | 📋 Planned | Model training |
+| `scripts/train_all.py` | Phase 6A | 📋 Planned | Model training |
 | `scripts/run_backtest.py` | Phase 6 | 📋 Planned | Vintage backtest |
 | `scripts/make_subnet_payload.py` | Phase 7 | 📋 Planned | Subnet payloads (any subnet) |
 | `scripts/submit_to_subnet.py` | Phase 7 | 📋 Planned | Subnet submission |
