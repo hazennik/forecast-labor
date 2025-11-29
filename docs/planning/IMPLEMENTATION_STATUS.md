@@ -2630,51 +2630,54 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
 
 ---
 
-#### 6.1 Pre-Phase 6 Setup (Foundation)
+#### 6.1 Pre-Phase 6 Setup (Foundation) ✅ **COMPLETE**
 **Purpose:** Validate operational readiness with real data before starting expensive backtesting work.  
-**Estimated Time:** 1-2 days  
-**Blocking:** Must complete before 6.2
+**Estimated Time:** 1-2 days (Actual: 2 days)  
+**Status:** ✅ All validation complete, ready for Phase 6.2
 
-- [x] **6.1.1 Staging Validation with Real Data** ✅ **COMPLETE (100% - ALL 7/7 sources)** (2025-11-29) (Codex Analysis 23 - Finding 2)
+- [x] **6.1.1 Staging Validation with Real Data** ✅ **COMPLETE (100% - ALL 8 STEPS)** (2025-11-29) (Codex Analysis 23 - Finding 2)
   
-  **Tooling (Complete ✅):**
-  - [x] Created validation orchestration script (`scripts/phase_6_1_1_staging_validation.py`)
-  - [x] Enhanced validation runner with `--source` and `--mode` flags
-  - [x] Comprehensive test suite (60+ tests, all scenarios covered)
-  - [x] Documentation and status reports
-  
-  **Execution (In Progress - 4/7 sources working ⏳):**
+  **All 8 Steps Complete ✅:**
   - [x] Set up `.env` with real API keys (BLS, NOAA, Treasury, Census)
-  - [x] All Docker services healthy (PostgreSQL, MinIO, MLflow, Prefect, X-13, ETL, Models)
-  - [ ] Real ETL execution with production APIs (4/7 working):
-    - ✅ UI Claims (updated for new CSV format: c3/c8 columns) - **WORKING**
-    - ✅ Treasury Withholdings (updated to v1 API endpoint) - **WORKING**
-    - ✅ Strikes (fixed: new BLS format + user-agent) - **WORKING**
-    - ✅ CNBFS (fixed: real Census API integration) - **WORKING**
-    - ✅ Weather (fixed: CSV bulk files with verified URLs) - **WORKING**
-    - ⏳ BLS CES - Rate limit exceeded (500/day), resets midnight EST
-    - ⏳ BLS LAUS - Rate limit exceeded (500/day), resets midnight EST
-  - [x] Data quality validation (schema, freshness, quality checks operational)
-  - [x] Vintage data creation for 4 sources (MinIO archival working)
-  - [ ] Seasonal adjustment on real data (pending complete ETL data)
-  - [ ] Feature building on real data (pending seasonal adjustment)
-  - [ ] Sample model training (deferred to Phase 6+ orchestration)
+  - [x] Start all Docker services (7/7 services healthy)
+  - [x] Run real ETL with production APIs (7/7 data sources operational):
+    - ✅ UI Claims (updated for new CSV format: c3/c8 columns)
+    - ✅ Treasury Withholdings (updated to v1 API endpoint)
+    - ✅ BLS CES (fixed: API key properly passed to constructor)
+    - ✅ BLS LAUS (fixed: API key properly passed to constructor)
+    - ✅ Strikes (fixed: new BLS format + user-agent)
+    - ✅ CNBFS (fixed: real Census API integration)
+    - ✅ Weather (fixed: CSV bulk files with verified creation dates)
+  - [x] Validate data quality (all sources passed schema/freshness/quality checks)
+  - [x] Run seasonal adjustment on real data (4/4 series completed **WITH USER REGRESSORS**: holiday, strike, weather)
+  - [x] Build features on real data (5 feature sets built)
+  - [x] Train sample model to verify end-to-end pipeline (✅ operational)
+  - [x] Document validation results (see `docs/planning/PHASE_6_1_1_COMPLETE.md`)
   
   **Key Achievements:**
   - ✅ X-13 seasonal adjustment service installed (ARM64/x86_64 compatible)
+  - ✅ X-13 user regressors fully integrated (holiday, strike, weather effects)
+  - ✅ Regressor data embedded in spec files (format issues resolved)
   - ✅ Strikes ETL completely rewritten for new BLS format (3,594 obs → 536 monthly)
   - ✅ CNBFS ETL using real Census API (12,936 obs → 68 monthly)
-  - ✅ End-to-end ETL→Validation→Vintage→Storage pipeline validated
+  - ✅ End-to-end ETL→Seasonal→Features→Model pipeline validated
   - ✅ All infrastructure components production-ready
-  - ✅ Weather data strategy documented (CSV is correct approach)
+  - ✅ Weather data strategy documented (CSV bulk files are correct approach)
   
-  **Blocking Issues:** NONE - All 7 sources operational
+  **Blocking Issues:** NONE - Full pipeline operational
   
-  **Root Cause Fix Applied (2025-11-29 10:50):**
-  - Bug: seed_public_data.py wasn't passing BLS_API_KEY to CES/LAUS ETLs
-  - Result: ETLs used unauthenticated API (much lower rate limit)
-  - Fix: Added api_key=os.getenv('BLS_API_KEY') to constructors
-  - ✅ All 7/7 sources now working with production data
+  **Critical Fixes Applied:**
+  1. **BLS API Key Fix (2025-11-29 10:50):**
+     - Bug: seed_public_data.py wasn't passing BLS_API_KEY to CES/LAUS ETLs
+     - Result: ETLs used unauthenticated API (much lower rate limit)
+     - Fix: Added api_key=os.getenv('BLS_API_KEY') to constructors
+     - ✅ All 7/7 sources now working with production data
+  
+  2. **X-13 Regressor Integration Fix (2025-11-29 11:45):**
+     - Bug: X-13 couldn't read external regressor files (format incompatibility)
+     - Result: "Regression variable name not found" errors
+     - Fix: Embedded regressor data directly in spec using 'data' argument
+     - ✅ All 4/4 series now adjust with user regressors
   
   **Deliverables:** 
     - ✅ `scripts/phase_6_1_1_staging_validation.py` (850+ lines)

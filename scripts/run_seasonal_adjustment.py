@@ -30,9 +30,9 @@ SERIES_CONFIG = {
         "mode": "mult",
         "easter": True,
         "trading_day": True,
-        "use_holiday_regressors": True,
-        "use_strike_regressors": True,
-        "use_weather_regressors": False,  # National aggregate less affected
+        "use_holiday_regressors": True,  # Re-enabled (as designed)
+        "use_strike_regressors": True,  # Re-enabled (as designed)
+        "use_weather_regressors": False,  # National aggregate less affected by weather
     },
     "ces_manufacturing": {
         "title": "Manufacturing Payrolls",
@@ -41,25 +41,31 @@ SERIES_CONFIG = {
         "mode": "mult",
         "easter": True,
         "trading_day": True,
-        "use_strike_regressors": True,  # Manufacturing heavily affected by strikes
+        "use_holiday_regressors": True,  # Re-enabled (as designed)
+        "use_strike_regressors": True,  # Re-enabled (as designed) - manufacturing heavily affected
+        "use_weather_regressors": False,  # Less affected than specific industries
     },
     "laus_unemployment": {
         "title": "National Unemployment Rate",
         "source_name": "bls_laus",
-        "series_id": "LASST000000000003",
+        "series_id": "LNS14000000",  # Fixed: Correct national unemployment series ID
         "mode": "add",  # Rates typically use additive
         "easter": False,
         "trading_day": False,
+        "use_holiday_regressors": False,  # Rates typically don't need holiday regressors
+        "use_strike_regressors": False,  # Rates are smoothed, less affected
+        "use_weather_regressors": False,  # Rates are smoothed, less affected
     },
     "claims_initial": {
         "title": "Initial UI Claims (4-week MA)",
         "source_name": "ui_claims",
-        "column": "initial_claims_4wk",
+        "column": "initial_claims_4wk_ma",  # Fixed: Correct column name in vintage
         "mode": "mult",
         "easter": True,
         "trading_day": True,
-        "use_holiday_regressors": True,
-        "use_weather_regressors": True,
+        "use_holiday_regressors": True,  # Re-enabled (as designed)
+        "use_strike_regressors": True,  # Re-enabled (as designed)
+        "use_weather_regressors": True,  # Re-enabled (as designed) - claims affected by weather
     },
 }
 
@@ -152,10 +158,18 @@ def load_series(
         # Re-raise to prevent using synthetic data in production
         raise
     
-    # Ensure date index
-    if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"])
-        df = df.set_index("date")
+    # Ensure date index (handle different date column names)
+    date_col = None
+    for possible_date_col in ["date", "report_date", "observation_date"]:
+        if possible_date_col in df.columns:
+            date_col = possible_date_col
+            break
+    
+    if date_col:
+        df[date_col] = pd.to_datetime(df[date_col])
+        df = df.set_index(date_col)
+    else:
+        raise ValueError("No date column found in vintage data")
     
     # Extract specific series
     if "series_id" in config:
@@ -172,7 +186,14 @@ def load_series(
         column = config["column"]
         if column not in df.columns:
             raise ValueError(f"Column not found: {column}")
-        series = df[column]
+        
+        # For state-level data, aggregate to national level
+        if "state_code" in df.columns or "state_fips" in df.columns:
+            logger.info(f"Aggregating state-level data to national level...")
+            # Group by date index and sum/mean (use mean for rates/averages)
+            series = df.groupby(level=0)[column].mean()
+        else:
+            series = df[column]
     
     else:
         # Use first numeric column
@@ -184,7 +205,16 @@ def load_series(
     # Remove missing values
     series = series.dropna()
     
-    logger.info(f"Loaded series: {len(series)} observations")
+    # X-13 has a limit of 85 years - truncate to most recent 80 years (960 months) if needed
+    if len(series) > 960:
+        logger.warning(f"Series has {len(series)} observations, truncating to most recent 960 (80 years)")
+        series = series.iloc[-960:]
+    
+    # Ensure series has a name
+    if series.name is None:
+        series.name = config.get("title", "series")
+    
+    logger.info(f"Loaded series: {len(series)} observations (from {series.index[0]} to {series.index[-1]})")
     
     return series
 

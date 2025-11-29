@@ -68,7 +68,7 @@ class FeatureBuilder:
         self.registry = FeatureRegistry(**registry_config)
         
         self.storage = StorageClient()
-        self.vintage_mgr = VintageManager(storage_client=self.storage)
+        self.vintage_mgr = VintageManager(base_path=Path("data/vintages"))
 
         logger.info(
             "feature_builder_initialized",
@@ -256,13 +256,25 @@ class FeatureBuilder:
         try:
             ces_df = self._load_vintage_data("bls_ces")  # Correct DataSource enum value
             if ces_df is not None and not ces_df.empty:
+                # Filter to Total Nonfarm (CES0000000001) or first series if not available
+                if 'series_id' in ces_df.columns:
+                    # Try to get Total Nonfarm series
+                    nfp_series_id = 'CES0000000001'
+                    if nfp_series_id in ces_df['series_id'].values:
+                        ces_df = ces_df[ces_df['series_id'] == nfp_series_id].copy()
+                    else:
+                        # Use first series as fallback
+                        first_series_id = ces_df['series_id'].iloc[0]
+                        ces_df = ces_df[ces_df['series_id'] == first_series_id].copy()
+                        logger.warning(f"Total Nonfarm series not found, using {first_series_id}")
+                
                 # Extract employment column
-                value_cols = [c for c in ces_df.columns if 'employ' in c.lower() or 'payroll' in c.lower()]
+                value_cols = [c for c in ces_df.columns if 'employ' in c.lower() or 'payroll' in c.lower() or c == 'value']
                 if not value_cols:
                     value_cols = ces_df.select_dtypes(include=['number']).columns.tolist()
                 
                 if value_cols:
-                    ces_series = ces_df[value_cols[0]]
+                    ces_series = ces_df[value_cols[0]].copy()
                     if 'date' in ces_df.columns:
                         ces_series.index = pd.to_datetime(ces_df['date'])
                     
@@ -280,7 +292,7 @@ class FeatureBuilder:
                     logger.info("calendar_adjustment_created", series="ces")
 
         except Exception as e:
-            logger.error("calendar_adjustment_failed", series="ces", error=str(e))
+            logger.error("calendar_adjustment_failed", series="ces", error=str(e), exc_info=True)
 
         return features
 
@@ -500,8 +512,23 @@ class FeatureBuilder:
         """Save features to disk."""
         for feature_name, feature_df in features.items():
             output_path = self.output_dir / f"{feature_name}.parquet"
-            feature_df.to_parquet(output_path)
-            logger.info("feature_saved", name=feature_name, path=str(output_path))
+            try:
+                # Validate DataFrame structure before saving
+                logger.debug(f"Saving {feature_name}: shape={feature_df.shape}, columns={list(feature_df.columns)}, dtypes={feature_df.dtypes.to_dict()}")
+                
+                # Check for nested Series in columns
+                for col in feature_df.columns:
+                    if len(feature_df) > 0:
+                        first_val = feature_df[col].iloc[0]
+                        if isinstance(first_val, pd.Series):
+                            logger.error(f"❌ Column '{col}' in feature '{feature_name}' contains Series objects instead of scalars!")
+                            raise ValueError(f"Column '{col}' contains nested Series")
+                
+                feature_df.to_parquet(output_path)
+                logger.info("feature_saved", name=feature_name, path=str(output_path))
+            except Exception as e:
+                logger.error(f"Failed to save feature {feature_name}: {e}", exc_info=True)
+                raise
 
 
 def main():

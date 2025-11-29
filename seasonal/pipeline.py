@@ -234,7 +234,8 @@ class SeasonalAdjustmentPipeline:
             arima_model=config.get("arima_model"),
             easter=config.get("easter", True),
             trading_day=config.get("trading_day", True),
-            user_regressors=list(regressors.columns) if len(regressors) > 0 else []
+            user_regressors=list(regressors.columns) if len(regressors) > 0 else [],
+            regressor_data=regressors if len(regressors) > 0 else None  # Pass regressor data for embedding
         )
         
         # Generate spec

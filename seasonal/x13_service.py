@@ -104,15 +104,13 @@ class X13Service:
             data_file = run_dir / f"{series_name}.dat"
             self._write_data_file(series, data_file)
             
-            # Write regressor data files if provided
+            # Write regressor matrix file if provided (all regressors in one file)
+            # Per X-13 manual: user regressors go in a single regression matrix file
             if regressors is not None and len(regressors) > 0:
-                logger.info(f"Writing {len(regressors.columns)} regressor data files...")
-                for col in regressors.columns:
-                    regressor_file = run_dir / f"{col}.dat"
-                    regressor_series = regressors[col].copy()
-                    regressor_series.name = col
-                    self._write_data_file(regressor_series, regressor_file)
-                    logger.debug(f"  Wrote regressor: {col}")
+                logger.info(f"Writing regressor matrix file with {len(regressors.columns)} regressors...")
+                regressor_file = run_dir / f"{series_name}_regressors.dat"
+                self._write_regressor_matrix(regressors, regressor_file)
+                logger.debug(f"  Wrote regressor matrix: {list(regressors.columns)}")
             
             # Write spec file
             spec_file = run_dir / f"{series_name}.spc"
@@ -152,29 +150,51 @@ class X13Service:
         """
         Write time series to X-13 data file format
         
-        Format: datebegin{YYYY.MM} data(value1 value2 ...)
+        When the spec file has a series block with file reference,
+        the .dat file should contain just the data values, not a series block.
+        
+        Format: value1 value2 value3 ... (one per line or space-separated)
         """
         if not isinstance(series.index, pd.DatetimeIndex):
             raise ValueError("Series must have DatetimeIndex")
         
-        # Get start date
-        start_date = series.index[0]
-        start_year = start_date.year
-        start_month = start_date.month
+        # Format data values (one per line for readability)
+        values = "\n".join(str(v) for v in series.values)
         
-        # Format data values
-        values = " ".join(str(v) for v in series.values)
+        output_path.write_text(values + "\n")
+        logger.debug(f"Wrote data file: {output_path} ({len(series)} values)")
+    
+    def _write_regressor_matrix(self, regressors: pd.DataFrame, output_path: Path):
+        """
+        Write regressor matrix in X-13 regression matrix format.
         
-        # Create data file content
-        content = f"""series {{
-    title = "{series.name or 'series'}"
-    start = {start_year}.{start_month}
-    data = ({values})
-}}
-"""
+        Per X-13ARIMA-SEATS Reference Manual (docx13as.pdf, Section 7.13):
+        - All user regressors in ONE file (regression matrix format)
+        - Format: space-separated values, one row per observation
+        - No column headers
+        - Order of columns matches order in spec's "user" argument
         
-        output_path.write_text(content)
-        logger.debug(f"Wrote data file: {output_path}")
+        Reference: https://www2.census.gov/software/x-13arima-seats/x-13-data/download/x13datadoc.pdf
+        (X-13-Data tool documentation, "Regression Matrix" format)
+        
+        Args:
+            regressors: DataFrame with regressor values (DatetimeIndex, one column per regressor)
+            output_path: Path to output .dat file
+        """
+        if not isinstance(regressors.index, pd.DatetimeIndex):
+            raise ValueError("Regressors must have DatetimeIndex")
+        
+        # Write as space-separated values (no column headers)
+        with open(output_path, 'w') as f:
+            for date_idx, row in regressors.iterrows():
+                # Format: one row per observation, space-separated values
+                values = "  ".join(f"{v:.6f}" for v in row.values)
+                f.write(f"{values}\n")
+        
+        logger.debug(
+            f"Wrote regressor matrix: {output_path} "
+            f"({len(regressors)} rows, {len(regressors.columns)} cols)"
+        )
     
     def _execute_x13(self, series_name: str, run_dir: Path):
         """Execute X-13 binary"""

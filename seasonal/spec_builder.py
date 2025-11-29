@@ -27,6 +27,7 @@ class X13Spec:
     
     # Regression variables
     user_regressors: List[str] = None
+    regressor_data: Optional[Any] = None  # DataFrame with regressor values for embedding
     easter: bool = True
     trading_day: bool = True
     
@@ -97,11 +98,14 @@ class SpecBuilder:
     
     def _build_series_section(self, config: X13Spec) -> str:
         """Build series section"""
+        # NOTE: The series data is provided in a separate .dat file
+        # The spec references it via the file directive
         return f"""series {{
     title = "{config.title}"
     start = {config.start_year}.{config.start_month}
     period = 12
     decimals = 1
+    file = "{config.series_name}.dat"
 }}"""
     
     def _build_transform_section(self) -> str:
@@ -111,7 +115,46 @@ class SpecBuilder:
 }"""
     
     def _build_regression_section(self, config: X13Spec) -> str:
-        """Build regression section"""
+        """
+        Build regression section following X-13ARIMA-SEATS Reference Manual syntax.
+        
+        Reference: docx13as.pdf, Section 7.13 (pages 145-169)
+        https://www2.census.gov/software/x-13arima-seats/x13as/unix-linux/documentation/docx13as.pdf
+        
+        Approach: Embed regressor data directly in spec using 'data' argument
+        (more reliable than external file reference)
+        """
+        regression_block = "regression {\n"
+        
+        # Define user regressors with EMBEDDED data
+        if config.user_regressors and config.regressor_data is not None:
+            import pandas as pd
+            
+            user_names = " ".join(config.user_regressors)
+            regression_block += f"    user = ({user_names})\n"
+            
+            # Embed regressor data directly in spec (more reliable than file reference)
+            # Format: data = (val1_1 val1_2 ... val2_1 val2_2 ... valN_1 valN_2 ...)
+            # All regressors concatenated row-by-row
+            regressor_df = config.regressor_data
+            if isinstance(regressor_df, pd.DataFrame) and len(regressor_df) > 0:
+                # Flatten regressors row by row
+                all_values = []
+                for _, row in regressor_df[config.user_regressors].iterrows():
+                    all_values.extend(row.values)
+                
+                # Format as space-separated string
+                data_str = " ".join(f"{v:.6f}" for v in all_values)
+                regression_block += f"    data = ({data_str})\n"
+            
+            # Specify start date
+            regression_block += f"    start = {config.start_year}.{config.start_month}\n"
+            
+            # Specify type for each regressor
+            types = " ".join(["ao"] * len(config.user_regressors))
+            regression_block += f"    usertype = ({types})\n"
+        
+        # Build variables list
         variables = []
         
         if config.easter:
@@ -120,18 +163,27 @@ class SpecBuilder:
         if config.trading_day:
             variables.append("td")
         
-        # Add user-defined regressors
+        # Add user-defined regressor NAMES
         if config.user_regressors:
-            for regressor in config.user_regressors:
-                variables.append(f"user=({regressor})")
+            variables.extend(config.user_regressors)
         
         variables_str = " ".join(variables)
+        regression_block += f"    variables = ({variables_str})\n"
         
-        return f"""regression {{
-    variables = ({variables_str})
-    aictest = (td easter)
-    savelog = aictest
-}}"""
+        # Add AIC test and savelog
+        if config.easter or config.trading_day:
+            aictest_vars = []
+            if config.trading_day:
+                aictest_vars.append("td")
+            if config.easter:
+                aictest_vars.append("easter")
+            aictest_str = " ".join(aictest_vars)
+            regression_block += f"    aictest = ({aictest_str})\n"
+            regression_block += "    savelog = aictest\n"
+        
+        regression_block += "}"
+        
+        return regression_block
     
     def _build_automodel_section(self) -> str:
         """Build automodel section (automatic ARIMA selection)"""
@@ -146,17 +198,8 @@ class SpecBuilder:
 }}"""
     
     def _build_x11_section(self, config: X13Spec) -> str:
-        """Build X11 seasonal adjustment section"""
-        mode_full = "multiplicative" if config.mode == "mult" else "additive"
-        
-        return f"""x11 {{
-    mode = {mode_full}
-    seasonalma = s3x5
-    savelog = (m7 m8 m9 m10 m11 q qs)
-}}"""
-    
-    def _build_output_section(self, config: X13Spec) -> str:
-        """Build output section"""
+        """Build X11 seasonal adjustment section (includes save directive)"""
+        # X-13 expects "mult" or "add", not "multiplicative" or "additive"
         # Map table codes to save directives
         save_map = {
             "d11": "d11",  # Seasonally adjusted
@@ -173,8 +216,16 @@ class SpecBuilder:
         saves_str = " ".join(saves)
         
         return f"""x11 {{
+    mode = {config.mode}
+    seasonalma = s3x5
     save = ({saves_str})
 }}"""
+    
+    def _build_output_section(self, config: X13Spec) -> str:
+        """Build output section (empty now - output is handled in x11 section)"""
+        # Output tables are now specified in the x11 section's save directive
+        # This method is kept for backward compatibility but returns empty string
+        return ""
     
     def build_spec_for_series(
         self,
