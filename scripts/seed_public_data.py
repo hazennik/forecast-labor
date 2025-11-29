@@ -62,7 +62,9 @@ def seed_ces():
     logger.info("SEEDING BLS CES (NONFARM PAYROLLS)")
     logger.info("=" * 60)
     
-    etl = CESETL()
+    import os
+    api_key = os.getenv('BLS_API_KEY')
+    etl = CESETL(api_key=api_key)
     success = etl.run()
     
     if success:
@@ -79,7 +81,9 @@ def seed_laus():
     logger.info("SEEDING BLS LAUS (STATE EMPLOYMENT)")
     logger.info("=" * 60)
     
-    etl = LAUSETL()
+    import os
+    api_key = os.getenv('BLS_API_KEY')
+    etl = LAUSETL(api_key=api_key)
     success = etl.run()
     
     if success:
