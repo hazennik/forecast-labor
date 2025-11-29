@@ -203,42 +203,88 @@ def validate_ces(ces_path: Path) -> bool:
 def main():
     """
     Run validation on all data sources
+    
+    Supports command-line arguments:
+        --source: Specify data source to validate (all, ui_claims, treasury, ces, etc.)
+        --mode: Validation mode (development, production)
     """
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Run data validation checks")
+    parser.add_argument(
+        "--source",
+        type=str,
+        default="all",
+        choices=["all", "ui_claims", "treasury", "ces"],
+        help="Data source to validate (default: all)"
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="development",
+        choices=["development", "production"],
+        help="Validation mode (default: development)"
+    )
+    
+    args = parser.parse_args()
+    
     logger.info("=" * 60)
     logger.info("DATA VALIDATION SUITE")
     logger.info(f"Started: {datetime.now()}")
+    logger.info(f"Source: {args.source}")
+    logger.info(f"Mode: {args.mode}")
     logger.info("=" * 60)
+    
+    # In production mode, enforce stricter validation
+    if args.mode == "production":
+        logger.info("🔒 Production mode: Strict validation enabled")
+        # Check for ALLOW_FALLBACK_DATA setting
+        import os
+        fallback_setting = os.environ.get("ALLOW_FALLBACK_DATA", "true")
+        if fallback_setting.lower() == "true":
+            logger.warning("⚠️  ALLOW_FALLBACK_DATA=true in production mode")
+            logger.warning("   Consider setting to 'false' for production validation")
     
     data_dir = Path("data/raw")
     
     results = {}
     
-    # Validate UI Claims
-    claims_files = list((data_dir / "claims").glob("*.parquet"))
-    if claims_files:
-        latest_claims = max(claims_files, key=lambda p: p.stat().st_mtime)
-        results["ui_claims"] = validate_ui_claims(latest_claims)
+    # Determine which sources to validate
+    sources_to_validate = []
+    if args.source == "all":
+        sources_to_validate = ["ui_claims", "treasury", "ces"]
     else:
-        logger.warning("No UI Claims data found")
-        results["ui_claims"] = None
+        sources_to_validate = [args.source]
+    
+    # Validate UI Claims
+    if "ui_claims" in sources_to_validate:
+        claims_files = list((data_dir / "claims").glob("*.parquet"))
+        if claims_files:
+            latest_claims = max(claims_files, key=lambda p: p.stat().st_mtime)
+            results["ui_claims"] = validate_ui_claims(latest_claims)
+        else:
+            logger.warning("No UI Claims data found")
+            results["ui_claims"] = None
     
     # Validate Treasury
-    treasury_files = list((data_dir / "treasury").glob("*.parquet"))
-    if treasury_files:
-        latest_treasury = max(treasury_files, key=lambda p: p.stat().st_mtime)
-        results["treasury"] = validate_treasury(latest_treasury)
-    else:
-        logger.warning("No Treasury data found")
-        results["treasury"] = None
+    if "treasury" in sources_to_validate:
+        treasury_files = list((data_dir / "treasury").glob("*.parquet"))
+        if treasury_files:
+            latest_treasury = max(treasury_files, key=lambda p: p.stat().st_mtime)
+            results["treasury"] = validate_treasury(latest_treasury)
+        else:
+            logger.warning("No Treasury data found")
+            results["treasury"] = None
     
     # Validate CES
-    ces_files = list((data_dir / "bls_ces").glob("*.parquet"))
-    if ces_files:
-        latest_ces = max(ces_files, key=lambda p: p.stat().st_mtime)
-        results["ces"] = validate_ces(latest_ces)
-    else:
-        logger.warning("No CES data found")
-        results["ces"] = None
+    if "ces" in sources_to_validate:
+        ces_files = list((data_dir / "bls_ces").glob("*.parquet"))
+        if ces_files:
+            latest_ces = max(ces_files, key=lambda p: p.stat().st_mtime)
+            results["ces"] = validate_ces(latest_ces)
+        else:
+            logger.warning("No CES data found")
+            results["ces"] = None
     
     # Summary
     logger.info("=" * 60)

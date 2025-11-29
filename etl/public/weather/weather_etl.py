@@ -103,10 +103,14 @@ class WeatherETL(BaseETL):
     
     def _fetch_from_api(self, start_date: date, end_date: date) -> Optional[pd.DataFrame]:
         """
-        Fetch from NOAA Storm Events API
+        Fetch from NOAA Storm Events CSV bulk files
         
         NOAA Storm Events Database: https://www.ncdc.noaa.gov/stormevents/
-        API Documentation: https://www.ncei.noaa.gov/support/access-data-service-api-user-documentation
+        CSV Files: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
+        
+        Note: NOAA Storm Events Database has NO JSON API. Only CSV bulk files available.
+        Files updated monthly by NOAA. This is the official and most complete source.
+        See: docs/planning/WEATHER_DATA_PRODUCTION_STRATEGY.md for rationale.
         
         Args:
             start_date: Start date
@@ -115,83 +119,160 @@ class WeatherETL(BaseETL):
         Returns:
             pd.DataFrame: Weather data or None
         """
-        if not self.api_key:
-            if not ALLOW_FALLBACK_DATA:
-                raise Exception("No NOAA API key provided and ALLOW_FALLBACK_DATA=false")
-            logger.info("No NOAA API key provided, using fallback")
-            return None
-        
-        logger.info(f"Fetching from NOAA Storm Events API: {start_date} to {end_date}")
+        logger.info(f"Fetching from NOAA Storm Events CSV files: {start_date} to {end_date}")
         
         try:
-            # NOAA NCEI Storm Events API
-            # Dataset: Storm Events Database
-            # Endpoint: https://www.ncei.noaa.gov/access/services/data/v1
-            base_url = "https://www.ncei.noaa.gov/access/services/data/v1"
+            import gzip
+            import io
             
-            # Parameters for Storm Events dataset
-            params = {
-                "dataset": "storm-events",
-                "dataTypes": "EVENT_TYPE,BEGIN_DATE,END_DATE,STATE,DEATHS_DIRECT,DEATHS_INDIRECT,INJURIES_DIRECT,INJURIES_INDIRECT,DAMAGE_PROPERTY",
-                "startDate": start_date.strftime("%Y-%m-%d"),
-                "endDate": end_date.strftime("%Y-%m-%d"),
-                "format": "json",
-                "units": "standard"
-            }
+            # NOAA Storm Events CSV bulk files
+            # Format: StormEvents_details-ftp_v1.0_d{YEAR}_c{YYYYMMDD}.csv.gz
+            # URL: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
+            base_url = "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/"
             
-            # Add API token
-            headers = {
-                "token": self.api_key
-            }
+            # Determine which years to fetch
+            start_year = start_date.year
+            end_year = end_date.year
             
-            logger.info(f"Requesting storm events from {start_date} to {end_date}")
+            all_data = []
             
-            response = self.downloader.download_json(
-                base_url,
-                params=params,
-                headers=headers
-            )
+            for year in range(start_year, end_year + 1):
+                # Download details file for this year
+                # Creation dates from NOAA directory (verified 2025-11-28)
+                # 2023: c20250731, 2024: c20251118, 2025: c20251118
+                # Older years typically use c20250520
+                year_specific_dates = {
+                    2023: ["20250731", "20250520"],
+                    2024: ["20251118", "20250520"],
+                    2025: ["20251118", "20250520"]
+                }
+                possible_dates = year_specific_dates.get(year, ["20251118", "20250731", "20250520"])
+                df_year = None
+                
+                for creation_date in possible_dates:
+                    filename = f"StormEvents_details-ftp_v1.0_d{year}_c{creation_date}.csv.gz"
+                    file_url = base_url + filename
+                    
+                    logger.info(f"Attempting {filename}...")
+                    
+                    try:
+                        # Download gzipped CSV
+                        response = self.downloader.session.get(file_url, timeout=120)
+                        response.raise_for_status()
+                        break  # Success, exit creation date loop
+                    except Exception as e:
+                        logger.debug(f"  {filename} not found, trying next date...")
+                        continue
+                else:
+                    # None of the creation dates worked
+                    logger.warning(f"Could not find Storm Events file for {year}")
+                    continue
+                
+                try:
+                    
+                    # Decompress and read CSV
+                    with gzip.open(io.BytesIO(response.content), 'rt') as f:
+                        df_year = pd.read_csv(f, low_memory=False)
+                    
+                    # Construct date from BEGIN_YEARMONTH and BEGIN_DAY
+                    if 'BEGIN_YEARMONTH' in df_year.columns and 'BEGIN_DAY' in df_year.columns:
+                        df_year['date'] = pd.to_datetime(
+                            df_year['BEGIN_YEARMONTH'].astype(str) + df_year['BEGIN_DAY'].astype(str).str.zfill(2),
+                            format='%Y%m%d',
+                            errors='coerce'
+                        )
+                    elif 'BEGIN_DATE_TIME' in df_year.columns:
+                        df_year['date'] = pd.to_datetime(df_year['BEGIN_DATE_TIME'], errors='coerce')
+                    
+                    # Rename columns to match expected format
+                    df_year = df_year.rename(columns={
+                        'EVENT_TYPE': 'event_type',
+                        'STATE': 'state',
+                        'DEATHS_DIRECT': 'deaths_direct',
+                        'DEATHS_INDIRECT': 'deaths_indirect',
+                        'INJURIES_DIRECT': 'injuries_direct',
+                        'INJURIES_INDIRECT': 'injuries_indirect',
+                        'DAMAGE_PROPERTY': 'damage_property_str'
+                    })
+                    
+                    # Calculate total deaths and injuries
+                    df_year['deaths'] = (
+                        pd.to_numeric(df_year.get('deaths_direct', 0), errors='coerce').fillna(0) +
+                        pd.to_numeric(df_year.get('deaths_indirect', 0), errors='coerce').fillna(0)
+                    )
+                    df_year['injuries'] = (
+                        pd.to_numeric(df_year.get('injuries_direct', 0), errors='coerce').fillna(0) +
+                        pd.to_numeric(df_year.get('injuries_indirect', 0), errors='coerce').fillna(0)
+                    )
+                    
+                    # Parse damage from string format (e.g., "10.00K", "1.50M")
+                    if 'damage_property_str' in df_year.columns:
+                        df_year['damage_millions'] = df_year['damage_property_str'].apply(self._parse_damage)
+                    else:
+                        df_year['damage_millions'] = 0
+                    
+                    # Filter to date range
+                    if 'date' in df_year.columns:
+                        df_year = df_year[(df_year['date'] >= pd.Timestamp(start_date)) & 
+                                          (df_year['date'] <= pd.Timestamp(end_date))]
+                    
+                    logger.info(f"Downloaded {len(df_year)} events for {year}")
+                    all_data.append(df_year)
+                    
+                except Exception as e:
+                    logger.warning(f"Could not download {filename}: {e}")
+                    # Continue to next year
+                    continue
             
-            if not response:
-                logger.warning("Empty response from NOAA API")
+            if not all_data:
+                logger.warning("No Storm Events data downloaded")
                 return None
             
-            # Parse response
-            if isinstance(response, list):
-                df = pd.DataFrame(response)
-            elif isinstance(response, dict) and "results" in response:
-                df = pd.DataFrame(response["results"])
-            else:
-                logger.warning(f"Unexpected NOAA API response format: {type(response)}")
-                return None
-            
-            if df.empty:
-                logger.warning("No storm events found in date range")
-                return None
-            
-            # Standardize column names (NOAA uses uppercase)
-            column_mapping = {
-                "EVENT_TYPE": "event_type",
-                "BEGIN_DATE": "begin_date",
-                "END_DATE": "end_date",
-                "STATE": "state",
-                "DEATHS_DIRECT": "deaths_direct",
-                "DEATHS_INDIRECT": "deaths_indirect",
-                "INJURIES_DIRECT": "injuries_direct",
-                "INJURIES_INDIRECT": "injuries_indirect",
-                "DAMAGE_PROPERTY": "damage_property"
-            }
-            
-            df = df.rename(columns=column_mapping)
-            
-            logger.info(f"Fetched {len(df)} storm events from NOAA API")
+            # Combine all years
+            df = pd.concat(all_data, ignore_index=True)
+            logger.info(f"Downloaded {len(df)} total storm events from NOAA CSV files")
             
             return df
             
         except Exception as e:
-            logger.error(f"Failed to fetch from NOAA API: {e}")
+            logger.error(f"Error fetching from NOAA CSV files: {e}")
             logger.exception(e)
             return None
+    
+    def _parse_damage(self, damage_str) -> float:
+        """
+        Parse damage string to millions (e.g., '10.00K' -> 0.01, '1.50M' -> 1.5)
+        
+        Args:
+            damage_str: Damage string from NOAA CSV
+            
+        Returns:
+            float: Damage in millions
+        """
+        if pd.isna(damage_str) or damage_str == '':
+            return 0.0
+        
+        try:
+            damage_str = str(damage_str).upper().strip()
+            
+            if 'K' in damage_str:
+                # Thousands
+                value = float(damage_str.replace('K', ''))
+                return value / 1000  # Convert to millions
+            elif 'M' in damage_str:
+                # Millions
+                value = float(damage_str.replace('M', ''))
+                return value
+            elif 'B' in damage_str:
+                # Billions
+                value = float(damage_str.replace('B', ''))
+                return value * 1000  # Convert to millions
+            else:
+                # Assume raw dollar value
+                value = float(damage_str)
+                return value / 1_000_000  # Convert to millions
+        except:
+            return 0.0
     
     def _create_fallback_data(self) -> pd.DataFrame:
         """

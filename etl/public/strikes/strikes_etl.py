@@ -77,26 +77,30 @@ class StrikesETL(BaseETL):
         logger.info("Fetching BLS Work Stoppages data...")
         
         # BLS publishes work stoppages data in text format
-        # Series files: ws.data.0.Current through various series
+        # Series files: ws.data.1.AllData contains all work stoppage records
         
         try:
             # Try to fetch main data file
             base_url = "https://download.bls.gov/pub/time.series/ws/"
             
             # Fetch data series file (all work stoppages)
-            data_url = f"{base_url}ws.data.0.Current"
+            # Note: File updated to ws.data.1.AllData (as of 9/9/2025)
+            data_url = f"{base_url}ws.data.1.AllData"
             
             logger.info(f"Downloading from {data_url}")
             
             content = self.downloader.download(data_url)
             
-            # Parse tab-delimited BLS format
+            # Parse tab-delimited BLS time series format
             from io import StringIO
             df = pd.read_csv(
                 StringIO(content.decode('utf-8')),
                 sep='\t',
                 skipinitialspace=True
             )
+            
+            # Clean column names (BLS adds trailing spaces)
+            df.columns = df.columns.str.strip()
             
             # Also fetch series metadata
             series_url = f"{base_url}ws.series"
@@ -106,15 +110,35 @@ class StrikesETL(BaseETL):
                 sep='\t',
                 skipinitialspace=True
             )
+            series_df.columns = series_df.columns.str.strip()
             
-            logger.info(f"Downloaded {len(df)} work stoppage records")
+            # Load measure metadata for descriptions
+            measure_url = f"{base_url}ws.measure"
+            measure_content = self.downloader.download(measure_url)
+            measure_df = pd.read_csv(
+                StringIO(measure_content.decode('utf-8')),
+                sep='\t',
+                skipinitialspace=True
+            )
+            measure_df.columns = measure_df.columns.str.strip()
             
-            # Merge with series metadata
+            logger.info(f"Downloaded {len(df)} work stoppage time series observations")
+            
+            # Merge with series metadata (series_id, series_title, measure_code)
             df = df.merge(
-                series_df[['series_id', 'series_title', 'industry_name']],
+                series_df[['series_id', 'series_title', 'measure_code']],
                 on='series_id',
                 how='left'
             )
+            
+            # Merge with measure descriptions
+            df = df.merge(
+                measure_df[['measure_code', 'measure_text']],
+                on='measure_code',
+                how='left'
+            )
+            
+            logger.info(f"Loaded metadata for {df['series_id'].nunique()} work stoppage series")
             
             return df
             
@@ -257,12 +281,50 @@ class StrikesETL(BaseETL):
             df["workers_involved"] = pd.to_numeric(df["workers_involved"], errors="coerce")
         
         # Calculate monthly aggregates
-        monthly_agg = df.groupby([pd.Grouper(key="date", freq="M")]).agg({
-            "workers_involved": "sum",
-            "industry": lambda x: ", ".join(x.dropna().unique()) if len(x.dropna()) > 0 else "None"
-        }).reset_index()
-        
-        monthly_agg["num_stoppages"] = df.groupby([pd.Grouper(key="date", freq="M")]).size().values
+        # Handle different data formats (new BLS time series vs old format)
+        if "measure_code" in df.columns:
+            # New BLS time series format - pivot by series
+            # WSU010 = workers involved (thousands), WSU100 = number of stoppages
+            
+            monthly_agg = df.groupby([pd.Grouper(key="date", freq="M"), "series_id"]).agg({
+                "workers_involved": "sum"
+            }).reset_index()
+            
+            # Pivot to get workers and stoppages as separate columns
+            monthly_pivot = monthly_agg.pivot_table(
+                index="date",
+                columns="series_id",
+                values="workers_involved",
+                aggfunc="sum"
+            ).reset_index()
+            
+            # Rename series columns to meaningful names
+            column_rename = {
+                'WSU001': 'days_idleness_thousands',
+                'WSU010': 'workers_involved_thousands',
+                'WSU020': 'workers_in_effect_thousands',
+                'WSU100': 'num_stoppages_beginning',
+                'WSU200': 'num_stoppages_in_effect'
+            }
+            
+            monthly_pivot = monthly_pivot.rename(columns={col: column_rename.get(col, col) for col in monthly_pivot.columns if col != 'date'})
+            
+            monthly_agg = monthly_pivot
+            monthly_agg["industry"] = "All Industries (National)"
+            monthly_agg["num_stoppages"] = monthly_agg.get('num_stoppages_beginning', 0)
+            monthly_agg["workers_involved"] = monthly_agg.get('workers_involved_thousands', 0) * 1000  # Convert to actual count
+            
+        else:
+            # Fallback format with direct columns
+            agg_dict = {"workers_involved": "sum"}
+            if "industry" in df.columns:
+                agg_dict["industry"] = lambda x: ", ".join(x.dropna().unique()) if len(x.dropna()) > 0 else "All Industries"
+            
+            monthly_agg = df.groupby([pd.Grouper(key="date", freq="M")]).agg(agg_dict).reset_index()
+            monthly_agg["num_stoppages"] = df.groupby([pd.Grouper(key="date", freq="M")]).size().values
+            
+            if "industry" not in monthly_agg.columns:
+                monthly_agg["industry"] = "All Industries"
         
         # Calculate strike impact score (workers × duration proxy)
         monthly_agg["strike_impact_score"] = monthly_agg["workers_involved"] * monthly_agg["num_stoppages"]

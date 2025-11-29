@@ -15,9 +15,9 @@ from etl.common.base import BaseETL, ETLConfig, DataSource
 from etl.common.downloader import Downloader
 
 
-# Treasury Daily Statement URLs
-TREASURY_BASE_URL = "https://fiscaldata.treasury.gov/services/api/fiscal_service"
-TREASURY_ENDPOINT = "/v2/accounting/od/daily_treasury_statement"
+# Treasury Daily Statement URLs (Updated 2025-11-28: v2 endpoint deprecated, now using v1)
+TREASURY_BASE_URL = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
+TREASURY_ENDPOINT = "/v1/accounting/dts/deposits_withdrawals_operating_cash"
 
 
 class TreasuryWithholdingsETL(BaseETL):

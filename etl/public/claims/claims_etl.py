@@ -97,8 +97,9 @@ class UIClaimsETL(BaseETL):
         """
         logger.info("Validating UI Claims data...")
         
-        # Required columns
-        required_cols = ["rptdate", "st", "ic", "cc"]
+        # Required columns (updated 2025-11-28: DOL changed to c# schema)
+        # c3 = Initial Claims (IC), c8 = Continued Claims (CW)
+        required_cols = ["rptdate", "st", "c3", "c8"]
         
         missing_cols = [col for col in required_cols if col not in df.columns]
         if missing_cols:
@@ -106,7 +107,7 @@ class UIClaimsETL(BaseETL):
             return False
         
         # Check for null values in critical columns
-        if df[["rptdate", "st", "ic", "cc"]].isnull().any().any():
+        if df[["rptdate", "st", "c3", "c8"]].isnull().any().any():
             logger.warning("Found null values in critical columns")
         
         # Check data types
@@ -117,7 +118,7 @@ class UIClaimsETL(BaseETL):
             return False
         
         # Check for reasonable values (claims should be positive)
-        if (df["ic"] < 0).any() or (df["cc"] < 0).any():
+        if (df["c3"] < 0).any() or (df["c8"] < 0).any():
             logger.error("Found negative claims values")
             return False
         
@@ -154,13 +155,20 @@ class UIClaimsETL(BaseETL):
         df["filed_week_ended"] = pd.to_datetime(df.get("filed_week_ended", df["rptdate"]))
         
         # Rename columns for clarity
+        # NOTE: As of 2025, DOL changed schema to generic c# columns
+        # c3 = IC (Initial Claims), c8 = CW (Continued Claims)
         df.rename(columns={
             "rptdate": "report_date",
             "st": "state_code",
-            "ic": "initial_claims",
-            "cc": "continued_claims",
+            "c3": "initial_claims",      # IC in DOL spec
+            "c8": "continued_claims",    # CW in DOL spec
             "c13": "continued_claims_13week",  # if exists
         }, inplace=True)
+        
+        # Keep only essential columns to avoid mixed-type issues with c14-c23
+        essential_cols = [col for col in ["report_date", "state_code", "initial_claims", "continued_claims", 
+                                          "continued_claims_13week", "filed_week_ended"] if col in df.columns]
+        df = df[essential_cols]
         
         # Filter states if needed
         if not self.include_territories:
@@ -179,6 +187,10 @@ class UIClaimsETL(BaseETL):
         # Convert claims to numeric (handle any string issues)
         df["initial_claims"] = pd.to_numeric(df["initial_claims"], errors="coerce")
         df["continued_claims"] = pd.to_numeric(df["continued_claims"], errors="coerce")
+        
+        # Convert c13 if it exists (handle mixed types)
+        if "continued_claims_13week" in df.columns:
+            df["continued_claims_13week"] = pd.to_numeric(df["continued_claims_13week"], errors="coerce")
         
         # Sort by date and state
         df = df.sort_values(["report_date", "state_code"])

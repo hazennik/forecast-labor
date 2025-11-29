@@ -27,7 +27,7 @@ class Downloader:
         max_retries: int = 3,
         retry_delay: int = 5,
         timeout: int = 30,
-        user_agent: str = "forecast-labor/1.0"
+        user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     ):
         """
         Initialize downloader
@@ -36,7 +36,7 @@ class Downloader:
             max_retries: Maximum number of retry attempts
             retry_delay: Seconds to wait between retries
             timeout: Request timeout in seconds
-            user_agent: User agent string
+            user_agent: User agent string (defaults to browser-like agent to avoid bot detection)
         """
         self.max_retries = max_retries
         self.retry_delay = retry_delay

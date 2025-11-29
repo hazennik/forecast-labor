@@ -4,7 +4,9 @@
 # Production-ready X-13 seasonal adjustment service
 # Includes regressors for holidays, strikes, weather
 
-FROM ubuntu:22.04
+# Force x86_64 platform for X-13 binary compatibility (Census Bureau only provides x86_64 Linux binary)
+# ARM64 systems will run with emulation (slower but compatible)
+FROM --platform=linux/amd64 ubuntu:22.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
