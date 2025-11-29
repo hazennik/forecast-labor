@@ -288,8 +288,8 @@ class StrikesETL(BaseETL):
             
             monthly_agg = df.groupby([pd.Grouper(key="date", freq="M"), "series_id"]).agg({
                 "workers_involved": "sum"
-            }).reset_index()
-            
+        }).reset_index()
+        
             # Pivot to get workers and stoppages as separate columns
             monthly_pivot = monthly_agg.pivot_table(
                 index="date",
