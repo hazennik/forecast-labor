@@ -2807,12 +2807,37 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
 - [ ] **6.2.0 Seasonal Adjustment Quality Improvements** (Phase 6.1.2 Technical Debt)
   - [ ] **Investigate Q-Statistics Quality Issue**
     - All 3 series show poor Q-statistics (p < 0.05, residuals not random)
-    - Debug root cause: Missing regressors? Insufficient holiday effects? Model specification?
+    - Root cause hypothesis: User-defined regressors not actually being applied to X-13
     - Expected improvement: 20-35% better seasonal adjustment (per ACCURACY_MAP.md line 144)
+  
+  - [ ] **Debug User Regressor Pipeline** (CRITICAL - Root Cause Investigation)
+    - [ ] Verify `HolidayRegressors.build()` returns non-zero variance data
+      - Easter timing should vary year-to-year (not all zeros)
+      - Thanksgiving/Labor Day timing should have variation
+      - Add unit test: Assert regressor variance > 0
+    - [ ] Trace regressor flow: `builder → pipeline → spec → X-13 file`
+      - Add debug logging at each handoff point
+      - Verify DataFrame not being zeroed out during transformations
+      - Check for accidental filtering or replacement with zeros
+    - [ ] Confirm generated spec files contain `user = (easter_timing ...)` line
+      - Inspect `.spc` files in X-13 temp directories
+      - Validate spec syntax matches X-13 documentation
+      - Ensure user regressors not being dropped during spec generation
+    - [ ] Validate regressor `.dat` files are written with correct format
+      - Check file exists and has correct number of rows/columns
+      - Verify values are non-zero (not all 0.000000)
+      - Validate free-format (space-delimited) structure
+    - [ ] Run single series with debug logging to confirm regressors applied
+      - Test CES0000000001 with verbose logging
+      - Verify X-13 reads regressor file without errors
+      - Confirm regressors appear in X-13 output diagnostics
+    - **Note:** `spec_builder.py` fix is already in place (duplicate declaration removed). Issue is upstream - regressors not making it through pipeline.
+    - **Estimated Time:** 4-6 hours
+  
   - [ ] **Add Strike/Weather Vintage Data**
     - Seed strike vintage data for 2025-11-29 (currently zero-variance)
     - Seed weather vintage data for 2025-11-29 (currently zero-variance)
-    - Validate non-zero variance in regressors
+    - Validate non-zero variance in regressors after seeding
   - [ ] **Re-Record Golden Diagnostics Baseline**
     - Run `scripts/record_golden_diagnostics.py --vintage-date 2025-11-29 --record` after improvements
     - Compare old vs new baseline (before/after Q-statistics)
