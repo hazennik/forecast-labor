@@ -21,7 +21,9 @@ BLS_WORK_STOPPAGES_URL = "https://www.bls.gov/web/wkstp.supp.toc.htm"
 BLS_ANNUAL_DATA_URL = "https://download.bls.gov/pub/time.series/ws/"
 
 # Production safety: Set to 'false' in production to fail instead of using fallback data
-ALLOW_FALLBACK_DATA = os.getenv("ALLOW_FALLBACK_DATA", "true").lower() == "true"
+# Default changed to 'false' for production safety (consistent with Weather ETL)
+# Reference: CODEX_VALIDATION_FIX_REQUIRED.md (2025-11-29)
+ALLOW_FALLBACK_DATA = os.getenv("ALLOW_FALLBACK_DATA", "false").lower() == "true"
 
 
 class StrikesETL(BaseETL):
