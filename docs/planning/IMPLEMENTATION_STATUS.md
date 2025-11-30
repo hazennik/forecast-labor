@@ -2731,17 +2731,27 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - [x] Review diagnostics for any warnings or failures
   - [x] Commit updated baseline to repository
   - **Reference:** Lines 80-106 (Procedure 1: Generate Real Seasonal Diagnostics Baseline)
-  - **Completed:** 2025-11-29
-  - **Duration:** 2 hours (including X-13 debugging)
-  - **Outcome:** Successfully recorded real golden diagnostics baseline from X-13 for 3 monitored series
-  - **Notes:**
-    - X-13 runs successfully and generates output files (.d11, .d12, .d13, .d16)
-    - Fixed date parsing format (YYYYMM vs YYYY.MM)
-    - Temporarily disabled user-defined regressors (using built-in easter/td only)
-    - M-statistics/Q-statistics are empty (quality="unknown") - requires follow-up to enable X-13 M-stats output
-    - Baseline structure is valid and suitable for CI/CD structure validation
-    - **Follow-up (Phase 6.2+):** Enable M-statistics computation in X-13 and extract from output
-    - **Follow-up (Phase 6.2+):** Fix user-defined regressor syntax for X-13
+  - **Completed:** 2025-11-30
+  - **Duration:** 6 hours (including extensive X-13 user regressor debugging)
+  - **Outcome:** Successfully recorded real golden diagnostics baseline from X-13 for 3/3 monitored series
+  - **What Works:**
+    - ✅ X-13 runs successfully with built-in easter[8] and td regressors
+    - ✅ All output files generated (.d11, .d12, .d13, .d16, .out)
+    - ✅ Real golden diagnostics baseline recorded from actual X-13 runs
+    - ✅ Fixed date parsing format (YYYYMM vs YYYY.MM)
+    - ✅ Added datetime import to record_golden_diagnostics.py
+    - ✅ Baseline structure valid for CI/CD
+  - **⚠️ CRITICAL BLOCKING TECHNICAL DEBT:**
+    - ❌ User-defined regressors DISABLED (holiday timing, strikes, weather)
+    - ❌ All documented approaches fail: datevalue format, free-format, fixed-width, various usertypes
+    - ❌ Tested 9+ different methods over 4+ hours - all produce "Regression variable name not found" error
+    - ❌ Same blocker Phase 6.1.1 encountered and documented
+    - ❌ Census Bureau, BLS, and R seasonal package approaches all fail in our implementation
+    - **IMPACT:** Missing Thanksgiving/Labor Day timing effects, strike impacts, weather disruptions
+    - **RESOLUTION NEEDED:** Expert X-13 consultation or evaluate alternative seasonal adjustment tools
+  - **Follow-up Tasks (Phase 6.2+):**
+    - Enable M-statistics computation in X-13 and extract from .out file (data exists, needs parsing)
+    - **CRITICAL:** Resolve user-defined regressor blocker (may require X-13 expert or tool change)
 
 ---
 
