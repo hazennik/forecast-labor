@@ -29,7 +29,7 @@
         "ljung_box_p_min": 0.05
       },
       "quality_grade": "unknown",
-      "recorded_at": "2025-11-29T22:09:40.834535",
+      "recorded_at": "2025-11-29T23:08:07.495170",
       "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
     },
     "CES0500000003": {
@@ -59,7 +59,7 @@
         "ljung_box_p_min": 0.05
       },
       "quality_grade": "unknown",
-      "recorded_at": "2025-11-29T22:09:47.676282",
+      "recorded_at": "2025-11-29T23:08:14.838061",
       "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
     },
     "LASST060000000000003": {
@@ -89,7 +89,7 @@
         "ljung_box_p_min": 0.05
       },
       "quality_grade": "unknown",
-      "recorded_at": "2025-11-29T22:09:52.876279",
+      "recorded_at": "2025-11-29T23:08:19.608069",
       "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
     }
   }

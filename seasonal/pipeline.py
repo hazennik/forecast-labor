@@ -98,11 +98,27 @@ class SeasonalAdjustmentPipeline:
         self._validate_series(series_data)
         
         # Step 2: Build regressors
+        # Extend end_date by 24 months to cover X-13 forecast period
+        # X-13's automdl generates forecasts beyond series end, and user regressors must cover forecast horizon
+        from dateutil.relativedelta import relativedelta
+        extended_end_date = series_data.index[-1].date() + relativedelta(months=24)
+        
         regressors = self._build_regressors(
             series_data.index[0].date(),
-            series_data.index[-1].date(),
+            extended_end_date,
             config
         )
+        
+        # Filter out zero-variance regressors to avoid singular regression matrix
+        # This happens when strike/weather data is not available
+        if len(regressors) > 0:
+            variance = regressors.var()
+            non_zero_variance = variance[variance > 0].index.tolist()
+            if len(non_zero_variance) < len(regressors.columns):
+                dropped = [col for col in regressors.columns if col not in non_zero_variance]
+                logger.warning(f"Dropping {len(dropped)} zero-variance regressors: {dropped}")
+                regressors = regressors[non_zero_variance]
+            logger.info(f"Using {len(regressors.columns)} non-zero-variance regressors")
         
         # Step 3: Generate X-13 spec
         spec_content = self._generate_spec(
@@ -223,20 +239,9 @@ class SeasonalAdjustmentPipeline:
         # Extract series metadata
         start_date = series_data.index[0]
         
-        # Build spec config
-        # CRITICAL BLOCKER (Phase 6.1.2): User-defined regressors disabled
-        # After 4+ hours debugging with every documented approach (datevalue format,
-        # free-format, fixed-width, various usertype values), X-13 consistently fails
-        # with "Regression variable name not found" error.
-        # 
-        # This is the SAME blocker Phase 6.1.1 encountered and documented.
-        # Issue persists across all Census Bureau, BLS, and R seasonal package approaches.
-        #
-        # IMPACT: Using only built-in easter[8] and td regressors (which work).
-        # Missing: Thanksgiving/Labor Day timing, strike impacts, weather disruptions.
-        #
-        # RESOLUTION NEEDED: Expert X-13 consultation or alternative seasonal adjustment tool.
-        # This is documented as CRITICAL BLOCKING TECHNICAL DEBT for Phase 6.2+.
+        # Build spec config with user-defined regressors
+        # Fixed: User regressors should ONLY be in user=(), NOT in variables=()
+        # Root cause was duplicate declaration in both user= and variables=
         spec_config = X13Spec(
             series_name=series_name,
             title=config.get("title", series_name),
@@ -247,8 +252,8 @@ class SeasonalAdjustmentPipeline:
             arima_model=config.get("arima_model"),
             easter=config.get("easter", True),
             trading_day=config.get("trading_day", True),
-            user_regressors=[],  # DISABLED - see blocker note above
-            regressor_data=None  # DISABLED - see blocker note above
+            user_regressors=list(regressors.columns) if len(regressors) > 0 else [],
+            regressor_data=regressors if len(regressors) > 0 else None
         )
         
         # Generate spec

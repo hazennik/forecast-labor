@@ -136,37 +136,31 @@ class SpecBuilder:
             # Reference external regressor matrix file (written by x13_service)
             regression_block += f"    file = \"{config.series_name}_regressors.dat\"\n"
             
-            # BLS approach: OMIT format argument for free-format data
-            # Let X-13 auto-detect the format from the file
+            # BLS approach: omit format argument for auto-detection
+            # With user regressors now correctly declared (not duplicated in variables),
+            # let X-13 auto-detect the format from the file
             
             regression_block += f"    start = {config.start_year}.{config.start_month}\n"
-            
-            # CRITICAL: usertype must match the SEMANTIC PURPOSE of regressors
-            # Per Census documentation: use 'holiday', 'td', or 'ao' AS APPROPRIATE
-            # BLS uses "USERTYPE = TD" for trading day dummies (singular, not array)
-            # For holiday timing regressors, use 'holiday' not 'ao'
-            regression_block += f"    usertype = holiday\n"
         
         # Build variables list
+        # CRITICAL: User regressors should ONLY be in user=(), NOT in variables=()
+        # They are automatically included once declared in user argument
+        # The variables argument should ONLY list built-in regressors
         variables = []
         
-        # When using user regressors with external files, don't mix with built-in regressors
-        # This appears to be an X-13 limitation
-        if config.user_regressors:
-            # Only use user regressors (our holiday regressors replace easter[8])
-            variables.extend(config.user_regressors)
-        else:
-            # No user regressors, so use built-ins
-            if config.easter:
-                variables.append("easter[8]")
-            if config.trading_day:
-                variables.append("td")
+        # Add built-in regressors (easter, trading day)
+        if config.easter:
+            variables.append("easter[8]")
+        if config.trading_day:
+            variables.append("td")
         
-        variables_str = " ".join(variables)
-        regression_block += f"    variables = ({variables_str})\n"
-        
-        # Add AIC test and savelog (only for built-in regressors)
-        if not config.user_regressors and (config.easter or config.trading_day):
+        # ONLY include variables if there are built-in regressors to list
+        # If only user regressors, variables argument can be omitted
+        if variables:
+            variables_str = " ".join(variables)
+            regression_block += f"    variables = ({variables_str})\n"
+            
+            # Add AIC test and savelog for built-in regressors
             aictest_vars = []
             if config.trading_day:
                 aictest_vars.append("td")

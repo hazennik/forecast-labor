@@ -166,14 +166,15 @@ class X13Service:
     
     def _write_regressor_matrix(self, regressors: pd.DataFrame, output_path: Path):
         """
-        Write regressor matrix in BLS free-format style.
+        Write regressor matrix in free-format (BLS style).
         
-        Per BLS CES implementation, use simple space-delimited values with NO date prefix.
-        Combined with omitting the format= argument in the spec, X-13 auto-detects the format.
+        Space-delimited values with NO date prefix, letting X-13 auto-detect format.
+        With the critical fix (user regressors not duplicated in variables=), 
+        this simple format should work.
         
-        Format: value1 value2 value3 ... (one row per observation, no headers, no dates)
+        Format: value1  value2  value3 ... (one row per observation, no headers)
         
-        Reference: BLS CES seasonal adjustment specs (use FILE with no FORMAT argument)
+        Reference: BLS CES implementation
         
         Args:
             regressors: DataFrame with regressor values (DatetimeIndex, one column per regressor)
@@ -182,8 +183,8 @@ class X13Service:
         if not isinstance(regressors.index, pd.DatetimeIndex):
             raise ValueError("Regressors must have DatetimeIndex")
         
-        # Write in BLS free-format: space-separated values, no dates, no headers
-        # Format: val1 val2 val3 ... (one row per observation)
+        # Write in BLS free-format: space-separated values, no dates
+        # Format: val1  val2  val3 ... (one row per observation)
         with open(output_path, 'w') as f:
             for date_idx, row in regressors.iterrows():
                 # Format values as space-separated
@@ -193,7 +194,7 @@ class X13Service:
                 f.write(f"{values_str}\n")
         
         logger.debug(
-            f"Wrote regressor matrix (BLS free-format): {output_path} "
+            f"Wrote regressor matrix (free-format): {output_path} "
             f"({len(regressors)} rows, {len(regressors.columns)} cols)"
         )
     
