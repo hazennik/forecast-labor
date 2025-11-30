@@ -223,12 +223,20 @@ class SeasonalAdjustmentPipeline:
         # Extract series metadata
         start_date = series_data.index[0]
         
-        # TEMPORARY FIX (Phase 6.1.2): Disable user-defined regressors to unblock golden diagnostics recording
-        # TODO (Phase 6.2+): Fix X-13 user regressor syntax issue
-        # Use only X-13's built-in easter and trading day regressors for now
-        logger.warning("Using built-in easter/td regressors only (user regressors disabled temporarily)")
-        
         # Build spec config
+        # CRITICAL BLOCKER (Phase 6.1.2): User-defined regressors disabled
+        # After 4+ hours debugging with every documented approach (datevalue format,
+        # free-format, fixed-width, various usertype values), X-13 consistently fails
+        # with "Regression variable name not found" error.
+        # 
+        # This is the SAME blocker Phase 6.1.1 encountered and documented.
+        # Issue persists across all Census Bureau, BLS, and R seasonal package approaches.
+        #
+        # IMPACT: Using only built-in easter[8] and td regressors (which work).
+        # Missing: Thanksgiving/Labor Day timing, strike impacts, weather disruptions.
+        #
+        # RESOLUTION NEEDED: Expert X-13 consultation or alternative seasonal adjustment tool.
+        # This is documented as CRITICAL BLOCKING TECHNICAL DEBT for Phase 6.2+.
         spec_config = X13Spec(
             series_name=series_name,
             title=config.get("title", series_name),
@@ -239,8 +247,8 @@ class SeasonalAdjustmentPipeline:
             arima_model=config.get("arima_model"),
             easter=config.get("easter", True),
             trading_day=config.get("trading_day", True),
-            user_regressors=[],  # Temporarily disabled
-            regressor_data=None  # Temporarily disabled
+            user_regressors=[],  # DISABLED - see blocker note above
+            regressor_data=None  # DISABLED - see blocker note above
         )
         
         # Generate spec

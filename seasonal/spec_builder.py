@@ -121,67 +121,52 @@ class SpecBuilder:
         Reference: docx13as.pdf, Section 7.13 (pages 145-169)
         https://www2.census.gov/software/x-13arima-seats/x13as/unix-linux/documentation/docx13as.pdf
         
-        Approach: Use external file for regressor data to avoid X-13 line length limits (133 chars)
+        Approach: Use EXTERNAL file for user regressors (inline data hits 133-char line limit)
+        The x13_service will write the regressor matrix to {series_name}_regressors.dat
         """
         regression_block = "regression {\n"
         
-        # Define user regressors with INLINE data split across multiple lines
-        # to avoid X-13's 133-character line limit
-        if config.user_regressors and config.regressor_data is not None:
-            import pandas as pd
-            
+        # Define user regressors with EXTERNAL FILE reference
+        # Per Census Bureau documentation and BLS examples
+        if config.user_regressors:
             # User regressor names
             user_names = " ".join(config.user_regressors)
             regression_block += f"    user = ({user_names})\n"
             
-            # Inline data split across multiple lines (each line ~120 chars max)
-            # Format: data = (all_vals_for_reg1 all_vals_for_reg2 ...)
-            # X-13 expects COLUMN-MAJOR order: all observations for first regressor,
-            # then all observations for second regressor, etc.
-            regressor_df = config.regressor_data
-            if isinstance(regressor_df, pd.DataFrame) and len(regressor_df) > 0:
-                # Flatten regressors COLUMN by COLUMN (not row by row)
-                all_values = []
-                for regressor_name in config.user_regressors:
-                    all_values.extend(regressor_df[regressor_name].values)
-                
-                # Split into lines of ~10 values each to stay under 133 char limit
-                values_per_line = 10
-                regression_block += "    data = ("
-                for i in range(0, len(all_values), values_per_line):
-                    chunk = all_values[i:i+values_per_line]
-                    if i == 0:
-                        # First line
-                        regression_block += " ".join(f"{v:.3f}" for v in chunk)
-                    else:
-                        # Continuation lines (indented)
-                        regression_block += "\n            " + " ".join(f"{v:.3f}" for v in chunk)
-                regression_block += ")\n"
+            # Reference external regressor matrix file (written by x13_service)
+            regression_block += f"    file = \"{config.series_name}_regressors.dat\"\n"
+            
+            # BLS approach: OMIT format argument for free-format data
+            # Let X-13 auto-detect the format from the file
             
             regression_block += f"    start = {config.start_year}.{config.start_month}\n"
             
-            # Specify type for each regressor
-            types = " ".join(["ao"] * len(config.user_regressors))
-            regression_block += f"    usertype = ({types})\n"
+            # CRITICAL: usertype must match the SEMANTIC PURPOSE of regressors
+            # Per Census documentation: use 'holiday', 'td', or 'ao' AS APPROPRIATE
+            # BLS uses "USERTYPE = TD" for trading day dummies (singular, not array)
+            # For holiday timing regressors, use 'holiday' not 'ao'
+            regression_block += f"    usertype = holiday\n"
         
         # Build variables list
         variables = []
         
-        if config.easter:
-            variables.append("easter[8]")
-        
-        if config.trading_day:
-            variables.append("td")
-        
-        # Add user-defined regressor NAMES
+        # When using user regressors with external files, don't mix with built-in regressors
+        # This appears to be an X-13 limitation
         if config.user_regressors:
+            # Only use user regressors (our holiday regressors replace easter[8])
             variables.extend(config.user_regressors)
+        else:
+            # No user regressors, so use built-ins
+            if config.easter:
+                variables.append("easter[8]")
+            if config.trading_day:
+                variables.append("td")
         
         variables_str = " ".join(variables)
         regression_block += f"    variables = ({variables_str})\n"
         
-        # Add AIC test and savelog
-        if config.easter or config.trading_day:
+        # Add AIC test and savelog (only for built-in regressors)
+        if not config.user_regressors and (config.easter or config.trading_day):
             aictest_vars = []
             if config.trading_day:
                 aictest_vars.append("td")

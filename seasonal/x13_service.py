@@ -166,16 +166,14 @@ class X13Service:
     
     def _write_regressor_matrix(self, regressors: pd.DataFrame, output_path: Path):
         """
-        Write regressor matrix in X-13 regression matrix format.
+        Write regressor matrix in BLS free-format style.
         
-        Per X-13ARIMA-SEATS Reference Manual (docx13as.pdf, Section 7.13):
-        - All user regressors in ONE file (regression matrix format)
-        - Format: space-separated values, one row per observation
-        - No column headers
-        - Order of columns matches order in spec's "user" argument
+        Per BLS CES implementation, use simple space-delimited values with NO date prefix.
+        Combined with omitting the format= argument in the spec, X-13 auto-detects the format.
         
-        Reference: https://www2.census.gov/software/x-13arima-seats/x-13-data/download/x13datadoc.pdf
-        (X-13-Data tool documentation, "Regression Matrix" format)
+        Format: value1 value2 value3 ... (one row per observation, no headers, no dates)
+        
+        Reference: BLS CES seasonal adjustment specs (use FILE with no FORMAT argument)
         
         Args:
             regressors: DataFrame with regressor values (DatetimeIndex, one column per regressor)
@@ -184,16 +182,18 @@ class X13Service:
         if not isinstance(regressors.index, pd.DatetimeIndex):
             raise ValueError("Regressors must have DatetimeIndex")
         
-        # Write as fixed-width format to match X-13 format spec: (Nf12.6)
-        # Each value is 12 characters wide with 6 decimal places
+        # Write in BLS free-format: space-separated values, no dates, no headers
+        # Format: val1 val2 val3 ... (one row per observation)
         with open(output_path, 'w') as f:
             for date_idx, row in regressors.iterrows():
-                # Format: one row per observation, fixed-width values
-                values = "".join(f"{v:12.6f}" for v in row.values)
-                f.write(f"{values}\n")
+                # Format values as space-separated
+                values_str = "  ".join(f"{v:.6f}" for v in row.values)
+                
+                # Write: val1  val2  val3 ...
+                f.write(f"{values_str}\n")
         
         logger.debug(
-            f"Wrote regressor matrix: {output_path} "
+            f"Wrote regressor matrix (BLS free-format): {output_path} "
             f"({len(regressors)} rows, {len(regressors.columns)} cols)"
         )
     
