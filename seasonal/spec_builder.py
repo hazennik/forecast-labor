@@ -187,7 +187,7 @@ class SpecBuilder:
 }}"""
     
     def _build_x11_section(self, config: X13Spec) -> str:
-        """Build X11 seasonal adjustment section (includes save directive)"""
+        """Build X11 seasonal adjustment section (includes save and print directives)"""
         # X-13 expects "mult" or "add", not "multiplicative" or "additive"
         # Map table codes to save directives
         save_map = {
@@ -204,6 +204,8 @@ class SpecBuilder:
         
         saves_str = " ".join(saves)
         
+        # M-statistics are automatically computed and output to .out file
+        # when using x11 mode - no special print directive needed
         return f"""x11 {{
     mode = {config.mode}
     seasonalma = s3x5

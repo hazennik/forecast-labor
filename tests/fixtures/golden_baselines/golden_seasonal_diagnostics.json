@@ -5,13 +5,30 @@
     "CES0000000001": {
       "name": "Total Nonfarm Payrolls",
       "source": "bls_ces",
-      "m_statistics": {},
-      "q_statistics": {},
+      "m_statistics": {
+        "m1": 5.453052023721158e-06,
+        "m2": 3.3664241175439127e-06,
+        "m3": 1.4817509736447156e-05,
+        "m4": 0.5746716006537921,
+        "m5": 0.001457208407860443,
+        "m6": 0.15,
+        "m7": 1.4234984957692316,
+        "m8": 3.429501744670885e-05,
+        "m9": 0.2554630802887561,
+        "m10": 0.4621686152245902,
+        "m11": 0.01275473956991056,
+        "q_statistic": 0.2618246974470423
+      },
+      "q_statistics": {
+        "q_statistic": 39.240231224765296,
+        "p_value": 9.60592951180228e-05,
+        "lags_tested": 12
+      },
       "quality_assessment": {
-        "m_quality": "unknown",
-        "q_quality": "unknown",
-        "q_is_random": null,
-        "overall": "unknown"
+        "m_quality": "good",
+        "q_quality": "poor",
+        "q_is_random": false,
+        "overall": "poor"
       },
       "thresholds": {
         "m1_max": 1.0,
@@ -28,20 +45,37 @@
         "q_statistic_max": 1.0,
         "ljung_box_p_min": 0.05
       },
-      "quality_grade": "unknown",
-      "recorded_at": "2025-11-29T23:08:07.495170",
+      "quality_grade": "poor",
+      "recorded_at": "2025-11-29T23:16:54.384011",
       "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
     },
     "CES0500000003": {
       "name": "Total Private Employment",
       "source": "bls_ces",
-      "m_statistics": {},
-      "q_statistics": {},
+      "m_statistics": {
+        "m1": 5.245917356920295e-06,
+        "m2": 2.2288646497392005e-06,
+        "m3": 6.370410288455484e-05,
+        "m4": 0.6749930303062804,
+        "m5": 0.4648930622809672,
+        "m6": 0.13333333333333333,
+        "m7": 0.29547373095568846,
+        "m8": 0.00035947147682437544,
+        "m9": 0.0075974315481489064,
+        "m10": 0.011872908382503154,
+        "m11": 0.02671725315913222,
+        "q_statistic": 0.14684649093888813
+      },
+      "q_statistics": {
+        "q_statistic": 25.848063695856414,
+        "p_value": 0.011277787850300425,
+        "lags_tested": 12
+      },
       "quality_assessment": {
-        "m_quality": "unknown",
-        "q_quality": "unknown",
-        "q_is_random": null,
-        "overall": "unknown"
+        "m_quality": "good",
+        "q_quality": "poor",
+        "q_is_random": false,
+        "overall": "poor"
       },
       "thresholds": {
         "m1_max": 1.0,
@@ -58,20 +92,37 @@
         "q_statistic_max": 1.0,
         "ljung_box_p_min": 0.05
       },
-      "quality_grade": "unknown",
-      "recorded_at": "2025-11-29T23:08:14.838061",
+      "quality_grade": "poor",
+      "recorded_at": "2025-11-29T23:17:03.009135",
       "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
     },
     "LASST060000000000003": {
       "name": "California Unemployment Rate",
       "source": "bls_laus",
-      "m_statistics": {},
-      "q_statistics": {},
+      "m_statistics": {
+        "m1": 6.162015735801906e-06,
+        "m2": 2.2123943988018573e-06,
+        "m3": 6.465546810971069e-05,
+        "m4": 0.725067443549625,
+        "m5": 0.7663680091106163,
+        "m6": 0.25,
+        "m7": 0.30864905504656753,
+        "m8": 0.0001906757724640528,
+        "m9": 0.01110959682612115,
+        "m10": 0.1756188789115441,
+        "m11": 0.026723907878288204,
+        "q_statistic": 0.2058000542703155
+      },
+      "q_statistics": {
+        "q_statistic": 14.437715167262143,
+        "p_value": 0.27363388276071143,
+        "lags_tested": 12
+      },
       "quality_assessment": {
-        "m_quality": "unknown",
-        "q_quality": "unknown",
-        "q_is_random": null,
-        "overall": "unknown"
+        "m_quality": "good",
+        "q_quality": "good",
+        "q_is_random": true,
+        "overall": "good"
       },
       "thresholds": {
         "m1_max": 1.0,
@@ -88,8 +139,8 @@
         "q_statistic_max": 1.0,
         "ljung_box_p_min": 0.05
       },
-      "quality_grade": "unknown",
-      "recorded_at": "2025-11-29T23:08:19.608069",
+      "quality_grade": "good",
+      "recorded_at": "2025-11-29T23:17:10.055592",
       "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
     }
   }

@@ -229,7 +229,8 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
                 m_statistics = result.get("m_statistics", {})
                 q_statistics = result.get("q_statistics", {})
                 
-                if diagnostics or m_statistics:
+                # Check for valid diagnostics (avoid ambiguous truth value error with pandas Series)
+                if (diagnostics is not None and len(diagnostics) > 0) or (m_statistics is not None and len(m_statistics) > 0):
                     logger.info(f"  ✅ Extracted diagnostics from seasonal adjustment")
                     
                     # Get M-statistics quality assessment
@@ -274,26 +275,45 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
                     }
                     
                     # Store in golden diagnostics with enhanced structure
+                    # Convert any pandas Series to scalar values and numpy types to Python types
+                    def to_scalar(value):
+                        """Convert pandas Series and numpy types to JSON-serializable Python types"""
+                        import pandas as pd
+                        import numpy as np
+                        
+                        if isinstance(value, pd.Series):
+                            value = value.iloc[0] if len(value) > 0 else None
+                        
+                        # Convert numpy types to Python types for JSON serialization
+                        if isinstance(value, (np.integer, np.floating)):
+                            return float(value)
+                        elif isinstance(value, np.bool_):
+                            return bool(value)
+                        elif isinstance(value, np.ndarray):
+                            return value.tolist()
+                        
+                        return value
+                    
                     golden_diagnostics["series"][series_id] = {
                         "name": series_info["name"],
                         "source": series_info["source"],
                         "m_statistics": {
-                            k: v for k, v in m_statistics.items() 
-                            if k.startswith('m') or k == 'q_statistic'
+                            k: to_scalar(v) for k, v in m_statistics.items() 
+                            if (k.startswith('m') or k == 'q_statistic') and not isinstance(v, dict)
                         },
                         "q_statistics": {
-                            "q_statistic": q_statistics.get('q_statistic'),
-                            "p_value": q_statistics.get('p_value'),
-                            "lags_tested": q_statistics.get('lags_tested'),
-                        } if q_statistics else {},
-                        "quality_assessment": {
-                            "m_quality": m_quality_grade,
-                            "q_quality": q_quality_grade,
-                            "q_is_random": q_is_random,
-                            "overall": overall_quality
+                            "q_statistic": to_scalar(q_statistics.get('q_statistic')) if q_statistics else None,
+                            "p_value": to_scalar(q_statistics.get('p_value')) if q_statistics else None,
+                            "lags_tested": to_scalar(q_statistics.get('lags_tested')) if q_statistics else None,
                         },
-                        "thresholds": thresholds,
-                        "quality_grade": overall_quality,
+                        "quality_assessment": {
+                            "m_quality": to_scalar(m_quality_grade),
+                            "q_quality": to_scalar(q_quality_grade),
+                            "q_is_random": to_scalar(q_is_random),
+                            "overall": to_scalar(overall_quality)
+                        },
+                        "thresholds": {k: to_scalar(v) for k, v in thresholds.items()},
+                        "quality_grade": to_scalar(overall_quality),
                         "recorded_at": datetime.now().isoformat(),
                         "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
                     }
@@ -302,7 +322,9 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
                     logger.warning(f"  ⚠️ No diagnostics extracted for {series_id}")
                     
             except Exception as e:
+                import traceback
                 logger.error(f"  ❌ Failed to process {series_id}: {e}")
+                logger.error(f"  Traceback: {traceback.format_exc()}")
                 # Continue with other series
         
         # Save golden diagnostics

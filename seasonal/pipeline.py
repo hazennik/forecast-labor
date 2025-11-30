@@ -293,11 +293,12 @@ class SeasonalAdjustmentPipeline:
             )
             
             # Extract key outputs
+            # x13_service._parse_results() returns keys: seasonally_adjusted, trend, irregular, seasonal_factors
             output_results = {
-                "seasonally_adjusted": results.get("d11"),
-                "trend": results.get("d12"),
-                "irregular": results.get("d13"),
-                "seasonal_factors": results.get("d16"),
+                "seasonally_adjusted": results.get("seasonally_adjusted"),
+                "trend": results.get("trend"),
+                "irregular": results.get("irregular"),
+                "seasonal_factors": results.get("seasonal_factors"),
                 "diagnostics": results.get("diagnostics", {}),
                 "metadata": {
                     "series_name": series_name,
@@ -333,11 +334,12 @@ class SeasonalAdjustmentPipeline:
             
             # Monitor quality over time (Phase 5.11.4)
             try:
-                # Combine M and Q statistics for monitoring
-                combined_diagnostics = {
-                    **output_results.get("m_statistics", {}),
-                    **output_results.get("q_statistics", {})
-                }
+                # Combine M and Q statistics for monitoring (exclude nested assessment dicts)
+                m_stats_flat = {k: v for k, v in output_results.get("m_statistics", {}).items() 
+                                if not isinstance(v, dict)}
+                q_stats_flat = {k: v for k, v in output_results.get("q_statistics", {}).items() 
+                                if not isinstance(v, dict)}
+                combined_diagnostics = {**m_stats_flat, **q_stats_flat}
                 
                 # Record diagnostics
                 self.quality_monitor.record_diagnostics(
@@ -488,14 +490,17 @@ class SeasonalAdjustmentPipeline:
         logger.info("Storing results...")
         
         # Store seasonally adjusted series
-        if results.get("seasonally_adjusted"):
-            sa_df = pd.DataFrame(results["seasonally_adjusted"])
+        # Use 'is not None' to avoid ambiguous truth value error with pandas Series
+        sa = results.get("seasonally_adjusted")
+        if sa is not None:
+            sa_df = pd.DataFrame(sa)
             output_path = f"seasonal/adjusted/{series_name}_sa.parquet"
             self.storage.write_parquet(sa_df, output_path)
         
         # Store diagnostics (including M-statistics)
-        if results.get("diagnostics"):
-            diag_df = pd.DataFrame([results["diagnostics"]])
+        diag = results.get("diagnostics")
+        if diag is not None and len(diag) > 0:
+            diag_df = pd.DataFrame([diag])
             output_path = f"seasonal/diagnostics/{series_name}_diagnostics.parquet"
             self.storage.write_parquet(diag_df, output_path)
         

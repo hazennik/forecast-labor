@@ -465,8 +465,10 @@ class MStatisticsComputer:
             logger.warning("M8: Series does not have DatetimeIndex, using simple method")
             return 0.5
         
-        original_annual = original.resample('YE').sum()
-        sa_annual = sa.resample('YE').sum()
+        # Use 'A' for annual frequency (compatible across pandas versions)
+        # Note: Pandas 2.2+ uses 'YE' but older versions use 'A'
+        original_annual = original.resample('A').sum()
+        sa_annual = sa.resample('A').sum()
         
         # Relative differences
         rel_diffs = abs(original_annual - sa_annual) / (abs(original_annual) + 1e-10)
