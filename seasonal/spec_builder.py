@@ -121,33 +121,43 @@ class SpecBuilder:
         Reference: docx13as.pdf, Section 7.13 (pages 145-169)
         https://www2.census.gov/software/x-13arima-seats/x13as/unix-linux/documentation/docx13as.pdf
         
-        Approach: Embed regressor data directly in spec using 'data' argument
-        (more reliable than external file reference)
+        Approach: Use external file for regressor data to avoid X-13 line length limits (133 chars)
         """
         regression_block = "regression {\n"
         
-        # Define user regressors with EMBEDDED data
+        # Define user regressors with INLINE data split across multiple lines
+        # to avoid X-13's 133-character line limit
         if config.user_regressors and config.regressor_data is not None:
             import pandas as pd
             
+            # User regressor names
             user_names = " ".join(config.user_regressors)
             regression_block += f"    user = ({user_names})\n"
             
-            # Embed regressor data directly in spec (more reliable than file reference)
-            # Format: data = (val1_1 val1_2 ... val2_1 val2_2 ... valN_1 valN_2 ...)
-            # All regressors concatenated row-by-row
+            # Inline data split across multiple lines (each line ~120 chars max)
+            # Format: data = (all_vals_for_reg1 all_vals_for_reg2 ...)
+            # X-13 expects COLUMN-MAJOR order: all observations for first regressor,
+            # then all observations for second regressor, etc.
             regressor_df = config.regressor_data
             if isinstance(regressor_df, pd.DataFrame) and len(regressor_df) > 0:
-                # Flatten regressors row by row
+                # Flatten regressors COLUMN by COLUMN (not row by row)
                 all_values = []
-                for _, row in regressor_df[config.user_regressors].iterrows():
-                    all_values.extend(row.values)
+                for regressor_name in config.user_regressors:
+                    all_values.extend(regressor_df[regressor_name].values)
                 
-                # Format as space-separated string
-                data_str = " ".join(f"{v:.6f}" for v in all_values)
-                regression_block += f"    data = ({data_str})\n"
+                # Split into lines of ~10 values each to stay under 133 char limit
+                values_per_line = 10
+                regression_block += "    data = ("
+                for i in range(0, len(all_values), values_per_line):
+                    chunk = all_values[i:i+values_per_line]
+                    if i == 0:
+                        # First line
+                        regression_block += " ".join(f"{v:.3f}" for v in chunk)
+                    else:
+                        # Continuation lines (indented)
+                        regression_block += "\n            " + " ".join(f"{v:.3f}" for v in chunk)
+                regression_block += ")\n"
             
-            # Specify start date
             regression_block += f"    start = {config.start_year}.{config.start_month}\n"
             
             # Specify type for each regressor

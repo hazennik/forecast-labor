@@ -184,11 +184,12 @@ class X13Service:
         if not isinstance(regressors.index, pd.DatetimeIndex):
             raise ValueError("Regressors must have DatetimeIndex")
         
-        # Write as space-separated values (no column headers)
+        # Write as fixed-width format to match X-13 format spec: (Nf12.6)
+        # Each value is 12 characters wide with 6 decimal places
         with open(output_path, 'w') as f:
             for date_idx, row in regressors.iterrows():
-                # Format: one row per observation, space-separated values
-                values = "  ".join(f"{v:.6f}" for v in row.values)
+                # Format: one row per observation, fixed-width values
+                values = "".join(f"{v:12.6f}" for v in row.values)
                 f.write(f"{values}\n")
         
         logger.debug(
@@ -282,7 +283,8 @@ class X13Service:
             )
             
             # Convert date strings to datetime
-            df["date"] = pd.to_datetime(df["date"], format="%Y.%m")
+            # X-13 outputs dates in format "YYYYMM" (e.g., "201401")
+            df["date"] = pd.to_datetime(df["date"], format="%Y%m")
             
             # Create series
             series = pd.Series(

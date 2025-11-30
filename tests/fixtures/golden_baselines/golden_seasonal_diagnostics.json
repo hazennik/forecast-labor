@@ -1,111 +1,96 @@
 {
-  "_comment": "Golden seasonal diagnostics baseline for CI structure validation",
-  "_generated_by": "scripts/create_test_diagnostics.py (SYNTHETIC DATA BASELINE)",
-  "_pinned_vintage_date": "2024-01-15",
-  "_purpose": "CI structure validation only - validates JSON format and diagnostic computation pipeline",
-  "_production_readiness": "NOT SUITABLE for production quality gates - regenerate with real X-13 outputs before production deployment",
-  "_instructions": "For production: Run `python scripts/record_golden_diagnostics.py --vintage-date YYYY-MM-DD --record` with real vintages after X-13 service is available",
-  "_note": "M-statistics are within acceptable ranges per Census Bureau guidelines (synthetic baseline)",
-  "_quality_thresholds": {
-    "M7_acceptable": 1.0,
-    "M8_acceptable": 1.0,
-    "M9_acceptable": 1.0,
-    "M10_acceptable": 1.0,
-    "M11_acceptable": 1.0,
-    "Q_stat_acceptable": 1.0
-  },
+  "vintage_date": "2024-01-15",
+  "recorded_at": "2025-11-29",
   "series": {
     "CES0000000001": {
       "name": "Total Nonfarm Payrolls",
       "source": "bls_ces",
-      "m_statistics": {
-        "M1": 0.25,
-        "M2": 0.28,
-        "M3": 0.65,
-        "M4": 0.55,
-        "M5": 0.35,
-        "M6": 0.32,
-        "M7": 0.48,
-        "M8": 0.52,
-        "M9": 0.28,
-        "M10": 0.68,
-        "M11": 0.72
+      "m_statistics": {},
+      "q_statistics": {},
+      "quality_assessment": {
+        "m_quality": "unknown",
+        "q_quality": "unknown",
+        "q_is_random": null,
+        "overall": "unknown"
       },
-      "q_statistics": {
-        "Q": 0.85,
-        "p_value": 0.42
+      "thresholds": {
+        "m1_max": 1.0,
+        "m2_max": 1.0,
+        "m3_max": 1.0,
+        "m4_max": 1.0,
+        "m5_max": 1.0,
+        "m6_max": 1.0,
+        "m7_max": 1.0,
+        "m8_max": 1.0,
+        "m9_max": 1.0,
+        "m10_max": 1.0,
+        "m11_max": 1.0,
+        "q_statistic_max": 1.0,
+        "ljung_box_p_min": 0.05
       },
-      "quality_grade": "acceptable (test data)",
-      "recorded_at": "2025-11-15T09:11:41.947637"
+      "quality_grade": "unknown",
+      "recorded_at": "2025-11-29T21:41:21.865733",
+      "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
     },
     "CES0500000003": {
       "name": "Total Private Employment",
       "source": "bls_ces",
-      "m_statistics": {
-        "M1": 0.25,
-        "M2": 0.28,
-        "M3": 0.65,
-        "M4": 0.55,
-        "M5": 0.35,
-        "M6": 0.32,
-        "M7": 0.48,
-        "M8": 0.52,
-        "M9": 0.28,
-        "M10": 0.68,
-        "M11": 0.72
+      "m_statistics": {},
+      "q_statistics": {},
+      "quality_assessment": {
+        "m_quality": "unknown",
+        "q_quality": "unknown",
+        "q_is_random": null,
+        "overall": "unknown"
       },
-      "q_statistics": {
-        "Q": 0.85,
-        "p_value": 0.42
+      "thresholds": {
+        "m1_max": 1.0,
+        "m2_max": 1.0,
+        "m3_max": 1.0,
+        "m4_max": 1.0,
+        "m5_max": 1.0,
+        "m6_max": 1.0,
+        "m7_max": 1.0,
+        "m8_max": 1.0,
+        "m9_max": 1.0,
+        "m10_max": 1.0,
+        "m11_max": 1.0,
+        "q_statistic_max": 1.0,
+        "ljung_box_p_min": 0.05
       },
-      "quality_grade": "acceptable (test data)",
-      "recorded_at": "2025-11-15T09:11:41.947720"
+      "quality_grade": "unknown",
+      "recorded_at": "2025-11-29T21:41:27.971149",
+      "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
     },
-    "CES4200000001": {
-      "name": "Retail Trade Employment",
-      "source": "bls_ces",
-      "m_statistics": {
-        "M1": 0.25,
-        "M2": 0.28,
-        "M3": 0.65,
-        "M4": 0.55,
-        "M5": 0.35,
-        "M6": 0.32,
-        "M7": 0.48,
-        "M8": 0.52,
-        "M9": 0.28,
-        "M10": 0.68,
-        "M11": 0.72
+    "LASST060000000000003": {
+      "name": "California Unemployment Rate",
+      "source": "bls_laus",
+      "m_statistics": {},
+      "q_statistics": {},
+      "quality_assessment": {
+        "m_quality": "unknown",
+        "q_quality": "unknown",
+        "q_is_random": null,
+        "overall": "unknown"
       },
-      "q_statistics": {
-        "Q": 0.85,
-        "p_value": 0.42
+      "thresholds": {
+        "m1_max": 1.0,
+        "m2_max": 1.0,
+        "m3_max": 1.0,
+        "m4_max": 1.0,
+        "m5_max": 1.0,
+        "m6_max": 1.0,
+        "m7_max": 1.0,
+        "m8_max": 1.0,
+        "m9_max": 1.0,
+        "m10_max": 1.0,
+        "m11_max": 1.0,
+        "q_statistic_max": 1.0,
+        "ljung_box_p_min": 0.05
       },
-      "quality_grade": "acceptable (test data)",
-      "recorded_at": "2025-11-15T09:11:41.947754"
-    },
-    "CES7000000001": {
-      "name": "Leisure and Hospitality Employment",
-      "source": "bls_ces",
-      "m_statistics": {
-        "M1": 0.25,
-        "M2": 0.28,
-        "M3": 0.65,
-        "M4": 0.55,
-        "M5": 0.35,
-        "M6": 0.32,
-        "M7": 0.48,
-        "M8": 0.52,
-        "M9": 0.28,
-        "M10": 0.68,
-        "M11": 0.72
-      },
-      "q_statistics": {
-        "Q": 0.85,
-        "p_value": 0.42
-      },
-      "quality_grade": "acceptable (test data)",
-      "recorded_at": "2025-11-15T09:11:41.947783"
+      "quality_grade": "unknown",
+      "recorded_at": "2025-11-29T21:41:35.442404",
+      "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
     }
   }
 }
