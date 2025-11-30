@@ -2800,9 +2800,33 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
 
 #### 6.2 Core Infrastructure (Before Backtesting)
 **Purpose:** Build essential infrastructure needed to run backtests.  
-**Estimated Time:** 4-6 days  
+**Estimated Time:** 5-7 days (includes Phase 6.1.2 technical debt resolution)  
 **Blocking:** Must complete before 6.3  
 **TDD:** Write tests alongside each implementation
+
+- [ ] **6.2.0 Seasonal Adjustment Quality Improvements** (Phase 6.1.2 Technical Debt)
+  - [ ] **Investigate Q-Statistics Quality Issue**
+    - All 3 series show poor Q-statistics (p < 0.05, residuals not random)
+    - Debug root cause: Missing regressors? Insufficient holiday effects? Model specification?
+    - Expected improvement: 20-35% better seasonal adjustment (per ACCURACY_MAP.md line 144)
+  - [ ] **Add Strike/Weather Vintage Data**
+    - Seed strike vintage data for 2025-11-29 (currently zero-variance)
+    - Seed weather vintage data for 2025-11-29 (currently zero-variance)
+    - Validate non-zero variance in regressors
+  - [ ] **Re-Record Golden Diagnostics Baseline**
+    - Run `scripts/record_golden_diagnostics.py --vintage-date 2025-11-29 --record` after improvements
+    - Compare old vs new baseline (before/after Q-statistics)
+    - Quantify accuracy improvement from enhanced regressors
+    - Update CI/CD quality gates with new thresholds if needed
+  - [ ] **Multi-Vintage Baseline (Optional)**
+    - Add historical baseline from 2024-01-15 (once real data available)
+    - Compare seasonal patterns across vintages (2024 vs 2025)
+    - Detect seasonal pattern drift over time
+    - Implement ensemble quality gate logic (check against multiple baselines)
+  - **Rationale:** Phase 6.1.2 identified clear improvement opportunities. Fixing Q-statistics before backtesting ensures accurate seasonal adjustment for model training.
+  - **Estimated Time:** 1-2 days
+  
+  ---
 
 - [ ] **6.2.1 Vintage Harness** (reconstruct "what was known then")
   - [ ] Unit tests for vintage reconstruction
