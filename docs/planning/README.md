@@ -99,23 +99,22 @@ Comprehensive model implementation tracking with 11 files covering:
 ---
 
 ### `/general/`
-**Project-Wide Planning & Architecture**
+**Audits, Session Tracking & Planning Helpers**
 
-**Core Planning:**
-- `IMPLEMENTATION_STATUS.md` - **MASTER STATUS:** Overall project progress (3,630 lines)
-- `REPO_SCAFFOLDING.md` - Directory structure and component organization
-- `SUBNET_ADAPTER_REFACTOR.md` - Subnet adapter architecture decision
-- `QUICK_PLAN.md` - Quick reference plan
-- `IDE_AGENT_OUTLINE.md` - AI agent automation planning
-
-**Quality & Testing:**
+**Quality & Testing Audits:**
 - `COMPREHENSIVE_COVERAGE_AUDIT.md` - Test coverage audit
 - `PRODUCTION_VS_TESTING_SEPARATION_AUDIT.md` - Environment separation audit
 - `TEST_VERIFICATION_RESULTS.md` - Test verification results
 - `TESTING_PLAN_ADDED.md` - Testing plan documentation
 
+**Planning Helpers:**
+- `QUICK_PLAN.md` - Quick reference plan
+- `IDE_AGENT_OUTLINE.md` - AI agent automation planning
+
 **Session Tracking:**
 - `SESSION_SUMMARY.md` - Session summaries
+
+**Note:** Core architecture docs (`IMPLEMENTATION_STATUS.md`, `REPO_SCAFFOLDING.md`, `SUBNET_ADAPTER_REFACTOR.md`) are in the root `docs/planning/` directory, not in `general/`.
 
 ---
 
@@ -136,14 +135,14 @@ Documents that are outdated or superseded by newer implementations:
 
 ### Finding Information By Topic
 
-| Topic | Primary File | Category |
+| Topic | Primary File | Location |
 |-------|-------------|----------|
-| **Current Project Status** | `general/IMPLEMENTATION_STATUS.md` | General |
+| **Current Project Status** | `IMPLEMENTATION_STATUS.md` | **Root** |
+| **Repository Structure** | `REPO_SCAFFOLDING.md` | **Root** |
+| **Subnet Architecture** | `SUBNET_ADAPTER_REFACTOR.md` | **Root** |
 | **Phase 6.1.1 Completion** | `phase_6/PHASE_6_1_1_COMPLETE.md` | Phase 6 |
 | **X-13 Regressor Fix** | `phase_6/PHASE_6_1_1_REGRESSOR_FIX.md` | Phase 6 |
 | **Model Implementation** | `phase_5/PHASE_5_IMPLEMENTATION_PLAN.md` | Phase 5 |
-| **Repository Structure** | `general/REPO_SCAFFOLDING.md` | General |
-| **Subnet Architecture** | `general/SUBNET_ADAPTER_REFACTOR.md` | General |
 | **ETL Completion** | `phase_2/PHASE_2_COMPLETE.md` | Phase 2 |
 | **Validation Framework** | `phase_3/PHASE_3_COMPLETE.md` | Phase 3 |
 | **Test Coverage** | `general/COMPREHENSIVE_COVERAGE_AUDIT.md` | General |
@@ -153,13 +152,13 @@ Documents that are outdated or superseded by newer implementations:
 
 | Phase | Status | Primary Files |
 |-------|--------|---------------|
-| **Phase 1** | ✅ Complete | `general/IMPLEMENTATION_STATUS.md` |
+| **Phase 1** | ✅ Complete | `IMPLEMENTATION_STATUS.md` (root) |
 | **Phase 2** | ✅ Complete | `phase_2/PHASE_2_COMPLETE.md` |
 | **Phase 3** | ✅ Complete | `phase_3/PHASE_3_COMPLETE.md` |
-| **Phase 4** | ✅ Complete | `general/IMPLEMENTATION_STATUS.md` |
+| **Phase 4** | ✅ Complete | `IMPLEMENTATION_STATUS.md` (root) |
 | **Phase 5** | 🔨 90% (5.14 docs pending) | `phase_5/PHASE_5_IMPLEMENTATION_PLAN.md` |
 | **Phase 6.1** | ✅ Complete (2025-11-29) | `phase_6/PHASE_6_1_1_COMPLETE.md` |
-| **Phase 6.2+** | 🔜 Next | `general/IMPLEMENTATION_STATUS.md` |
+| **Phase 6.2+** | 🔜 Next | `IMPLEMENTATION_STATUS.md` (root) |
 
 ---
 
@@ -167,14 +166,15 @@ Documents that are outdated or superseded by newer implementations:
 
 | Category | File Count | Status |
 |----------|------------|--------|
-| Codex Analyses | 21 files | Historical + Current |
+| **Root (Core Docs)** | 4 files | Essential architecture |
+| Codex Analyses | 25 files | Historical + Current |
 | Phase 2 | 1 file | Complete |
 | Phase 3 | 2 files | Complete |
 | Phase 5 | 11 files | 90% Complete |
 | Phase 6 | 14 files | Phase 6.1.1 Complete |
-| General | 10 files | Active |
-| Archived | 5 files | Historical |
-| **Total** | **64 files** | **Organized** |
+| General (Audits) | 7 files | Testing & session tracking |
+| Archived | 4 files | Historical |
+| **Total** | **68 files** | **Organized** |
 
 ---
 
@@ -197,9 +197,11 @@ docs/planning/
 └── [other subdirectories...]
 ```
 
-**Only 2 files in root:**
+**Core files in root (4 essential docs):**
 - `README.md` - This documentation index
-- `IMPLEMENTATION_STATUS.md` - Master project status (too important to bury)
+- `IMPLEMENTATION_STATUS.md` - Master project status
+- `REPO_SCAFFOLDING.md` - Complete directory structure & component organization
+- `SUBNET_ADAPTER_REFACTOR.md` - Key architectural decision document
 
 ---
 
@@ -228,14 +230,15 @@ docs/planning/
 ## 📖 Reading Recommendations
 
 ### New Team Members:
-1. Start with `general/REPO_SCAFFOLDING.md` - Understand project structure
-2. Read `general/IMPLEMENTATION_STATUS.md` - Get current status
-3. Review `phase_6/PHASE_6_1_1_COMPLETE.md` - See latest validation results
+1. Start with `REPO_SCAFFOLDING.md` - Understand project structure
+2. Read `IMPLEMENTATION_STATUS.md` - Get current status  
+3. Review `SUBNET_ADAPTER_REFACTOR.md` - Key architectural decision
+4. See `phase_6/PHASE_6_1_1_COMPLETE.md` - Latest validation results
 
 ### Understanding Model Architecture:
 1. `phase_5/PHASE_5_IMPLEMENTATION_PLAN.md` - Overall model strategy
 2. `phase_5/PHASE_5_MATHEMATICAL_VALIDATION_COMPLETE.md` - Correctness validation
-3. `general/SUBNET_ADAPTER_REFACTOR.md` - Subnet integration architecture
+3. `SUBNET_ADAPTER_REFACTOR.md` - Subnet integration architecture (root)
 
 ### Troubleshooting Production Issues:
 1. `phase_6/PHASE_6_1_1_BLS_BUG_FIX.md` - BLS API key issues
