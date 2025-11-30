@@ -180,19 +180,26 @@ Documents that are outdated or superseded by newer implementations:
 
 ## 🔄 File Organization Notes
 
-1. **Original files remain in `/docs/planning/` root** - All `.md` files are still in the planning directory
-2. **Subdirectories contain symlinks** - For easier navigation and categorization
-3. **Symlinks point to originals** - Use `../<filename>.md` relative paths
-4. **Git tracks both** - Originals and symlinks are version controlled
+1. **Files organized in subdirectories** - All documentation moved to appropriate categories
+2. **Clean root directory** - Only essential files remain in `/docs/planning/` root
+3. **Direct file access** - No symlinks, all files in their proper locations
+4. **Git tracks all files** - Complete directory structure version controlled
 
-### Example Structure:
+### Structure:
 ```
 docs/planning/
-├── PHASE_6_1_1_COMPLETE.md          # Original file
+├── README.md                         # This navigation file
+├── IMPLEMENTATION_STATUS.md          # Master project status
 ├── phase_6/
-│   └── PHASE_6_1_1_COMPLETE.md      # Symlink → ../PHASE_6_1_1_COMPLETE.md
-└── README.md                         # This file
+│   └── PHASE_6_1_1_COMPLETE.md      # Actual file location
+├── codex_analyses/
+│   └── CODEX_VALIDATION_REPORT.md   # Actual file location
+└── [other subdirectories...]
 ```
+
+**Only 2 files in root:**
+- `README.md` - This documentation index
+- `IMPLEMENTATION_STATUS.md` - Master project status (too important to bury)
 
 ---
 
@@ -241,24 +248,24 @@ docs/planning/
 
 **How to Add New Documentation:**
 
-1. Create the file in `/docs/planning/` root
-2. Add a symlink in the appropriate subdirectory:
+1. Create the file in the appropriate subdirectory:
    ```bash
    cd docs/planning/<category>/
-   ln -s ../<NEW_FILE>.md <NEW_FILE>.md
+   # Create file directly in subdirectory
+   touch NEW_FILE.md
    ```
-3. Update this README with the new file in the appropriate section
-4. Commit both the original and symlink to git
+2. Update this README with the new file in the appropriate section
+3. Commit the file to git
 
 **How to Archive Old Documentation:**
 
-1. Create symlink in `/archived/`:
+1. Move file to `/archived/`:
    ```bash
-   cd docs/planning/archived/
-   ln -s ../<OLD_FILE>.md <OLD_FILE>.md
+   cd docs/planning/
+   mv <category>/<OLD_FILE>.md archived/<OLD_FILE>.md
    ```
 2. Add note in this README explaining why it was archived
-3. Do NOT delete the original file (maintain history)
+3. Do NOT delete the file (maintain history in archived/)
 
 ---
 
