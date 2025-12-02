@@ -220,6 +220,7 @@ services:
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      X13_SERVICE_URL: http://x13:5000
     volumes:
       - ./models_src:/app/models_src
       - ./features:/app/features
@@ -227,6 +228,9 @@ services:
       - ./recon:/app/recon
       - ./data:/app/data
       - ./scripts:/app/scripts
+      - ./seasonal:/app/seasonal
+      - ./etl:/app/etl
+      - ./tests:/app/tests
     working_dir: /app
     networks:
       - forecast-net

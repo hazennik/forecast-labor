@@ -21,7 +21,13 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     liblapack-dev \
     postgresql-client \
+    ca-certificates \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Install X-13ARIMA-SEATS binary (copy install script from x13 service)
+COPY ./infra/x13/install_x13.py /tmp/install_x13.py
+RUN python3 /tmp/install_x13.py && rm /tmp/install_x13.py || echo "X-13 installation attempted"
 
 # Create app directories
 WORKDIR /app

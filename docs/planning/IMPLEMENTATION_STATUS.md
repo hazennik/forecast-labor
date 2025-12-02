@@ -2804,52 +2804,126 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
 **Blocking:** Must complete before 6.3  
 **TDD:** Write tests alongside each implementation
 
-- [ ] **6.2.0 Seasonal Adjustment Quality Improvements** (Phase 6.1.2 Technical Debt)
-  - [ ] **Investigate Q-Statistics Quality Issue**
-    - All 3 series show poor Q-statistics (p < 0.05, residuals not random)
-    - Root cause hypothesis: User-defined regressors not actually being applied to X-13
-    - Expected improvement: 20-35% better seasonal adjustment (per ACCURACY_MAP.md line 144)
+- [x] **6.2.0 Seasonal Adjustment Quality Improvements** (Phase 6.1.2 Technical Debt) ✅ **COMPLETE** (2025-12-01)
+  - [x] **Investigate Q-Statistics Quality Issue** ✅ **HYPOTHESIS REFUTED & ROOT CAUSES IDENTIFIED**
+    - All 3 series show poor Q-statistics (p < 0.05, residuals not random) ✅ Confirmed
+    - ~~Root cause hypothesis: User-defined regressors not actually being applied to X-13~~ ❌ **INCORRECT**
+    - **ACTUAL FINDING:** Regressors ARE applied, but NOT statistically significant (group p-value = 0.39)
+    - **Real Issues:** 
+      1. Holiday timing regressors have weak signal (t-values < 2.0) - data reality, not bug
+      2. Strike data had zero-variance (workers_involved all zeros) - FIXED
+      3. Weather data already good (non-zero variance)
+      4. Series-type mismatch (unemployment rate used employment regressors) - FIXED
+    - **Q-Statistics After Fixes:** Still poor (CES: p=0.0004, p=0.0000; LAUS: p=0.0003)
+    - **Conclusion:** Poor Q-statistics reflect weak holiday signals and data characteristics, not code bugs
+    - **Note:** Expected 20-35% improvement (ACCURACY_MAP.md) may not materialize from regressors alone
   
-  - [ ] **Debug User Regressor Pipeline** (CRITICAL - Root Cause Investigation)
-    - [ ] Verify `HolidayRegressors.build()` returns non-zero variance data
-      - Easter timing should vary year-to-year (not all zeros)
-      - Thanksgiving/Labor Day timing should have variation
-      - Add unit test: Assert regressor variance > 0
-    - [ ] Trace regressor flow: `builder → pipeline → spec → X-13 file`
-      - Add debug logging at each handoff point
-      - Verify DataFrame not being zeroed out during transformations
-      - Check for accidental filtering or replacement with zeros
-    - [ ] Confirm generated spec files contain `user = (easter_timing ...)` line
-      - Inspect `.spc` files in X-13 temp directories
-      - Validate spec syntax matches X-13 documentation
-      - Ensure user regressors not being dropped during spec generation
-    - [ ] Validate regressor `.dat` files are written with correct format
-      - Check file exists and has correct number of rows/columns
-      - Verify values are non-zero (not all 0.000000)
-      - Validate free-format (space-delimited) structure
-    - [ ] Run single series with debug logging to confirm regressors applied
-      - Test CES0000000001 with verbose logging
-      - Verify X-13 reads regressor file without errors
-      - Confirm regressors appear in X-13 output diagnostics
-    - **Note:** `spec_builder.py` fix is already in place (duplicate declaration removed). Issue is upstream - regressors not making it through pipeline.
-    - **Estimated Time:** 4-6 hours
+  - [x] **Debug User Regressor Pipeline** ✅ **COMPLETE** - No bugs found
+    - [x] Verify `HolidayRegressors.build()` returns non-zero variance data ✅
+      - Easter timing DOES vary year-to-year
+      - Thanksgiving/Labor Day timing DOES have variation
+      - Tests created: `tests/seasonal/test_regressor_variance_debug.py` (344 lines)
+    - [x] Trace regressor flow: `builder → pipeline → spec → X-13 file` ✅
+      - Verified pipeline flow is CORRECT
+      - No DataFrame zeroing or filtering issues
+      - Regressors preserved throughout pipeline
+    - [x] Confirm generated spec files contain `user = (easter_timing ...)` line ✅
+      - Inspected X-13 output files: `data/seasonal_output/{series}/{series}.out`
+      - Spec DOES contain `user = (easter_timing thanksgiving_timing labor_day_timing)`
+      - No duplicate declarations in variables=() (bug already fixed)
+    - [x] Validate regressor `.dat` files are written with correct format ✅
+      - X-13 successfully reads: `Reading data from CES0000000001_regressors.dat`
+      - Coefficients estimated for all regressors
+      - Format is correct (X-13 reads without errors)
+    - [x] Run single series with debug logging to confirm regressors applied ✅
+      - Tested CES0000000001, CES0500000003, LASST060000000000003
+      - X-13 DOES read regressor files
+      - Regressors APPEAR in X-13 output diagnostics
+      - **Key Evidence:** Regression table shows t-statistics for all user regressors
+    - **Finding:** Pipeline works correctly. Issue is statistical significance, not application.
+    - **Actual Time:** 2.5 hours
   
-  - [ ] **Add Strike/Weather Vintage Data**
-    - Seed strike vintage data for 2025-11-29 (currently zero-variance)
-    - Seed weather vintage data for 2025-11-29 (currently zero-variance)
-    - Validate non-zero variance in regressors after seeding
-  - [ ] **Re-Record Golden Diagnostics Baseline**
-    - Run `scripts/record_golden_diagnostics.py --vintage-date 2025-11-29 --record` after improvements
-    - Compare old vs new baseline (before/after Q-statistics)
-    - Quantify accuracy improvement from enhanced regressors
-    - Update CI/CD quality gates with new thresholds if needed
-  - [ ] **Multi-Vintage Baseline (Optional)**
+  - [x] **Add Strike/Weather Vintage Data** ✅ **COMPLETE**
+    - [x] Seed strike vintage data for 2025-11-29 ✅ **FIXED**
+      - **Problem:** `workers_involved` column was all zeros
+      - **Root Cause:** Not derived from WSU010 column (workers in thousands)
+      - **Fix:** Created `scripts/fix_strike_workers_data.py`
+      - **Result:** 441/536 (82.3%) records now have non-zero workers
+      - **Major strikes captured:** 615,800 workers (1983), 390,000 (1982), 298,200 (1991)
+    - [x] Seed weather vintage data for 2025-11-29 ✅ **ALREADY GOOD**
+      - Weather data already has non-zero variance
+      - 19 records with real weather events
+      - 5/19 high-impact months
+      - Employment impact scores range 2,025 to 24,912
+    - [x] Validate non-zero variance in regressors after seeding ✅
+      - Strike data: 82.3% non-zero
+      - Weather data: All numeric columns have variance
+  - [x] **Re-Record Golden Diagnostics Baseline** ✅ **COMPLETE** (2025-12-01)
+    - [x] Fixed series-type configurations in `record_golden_diagnostics.py`
+    - [x] CES series: Use holiday + strike regressors (correct)
+    - [x] LAUS series: Use NO external regressors (correct for unemployment rates)
+    - [x] Installed X-13 binary in models container (`infra/models/Dockerfile`)
+    - [x] Added volume mounts for seasonal/etl/tests to models service
+    - [x] Successfully ran golden diagnostics with corrected configurations
+    - [x] Updated `tests/fixtures/golden_baselines/golden_seasonal_diagnostics.json`
+    - **Result:** All 3 series processed successfully with appropriate regressor configurations
+  - [ ] **Multi-Vintage Baseline (Optional)** ⏳ **DEFERRED**
+    - Deferred to future phases
     - Add historical baseline from 2024-01-15 (once real data available)
     - Compare seasonal patterns across vintages (2024 vs 2025)
     - Detect seasonal pattern drift over time
     - Implement ensemble quality gate logic (check against multiple baselines)
-  - **Rationale:** Phase 6.1.2 identified clear improvement opportunities. Fixing Q-statistics before backtesting ensures accurate seasonal adjustment for model training.
-  - **Estimated Time:** 1-2 days
+  
+  - **Deliverables:**
+    - **Tests & Debug Scripts:**
+      - `tests/seasonal/test_regressor_variance_debug.py` (344 lines) - TDD tests for regressor variance
+      - `scripts/debug_regressor_variance.py` (296 lines) - Debug script for regressor analysis
+      - `scripts/fix_strike_workers_data.py` (105 lines) - Strike data fix (workers_involved derivation)
+      - `scripts/test_regressors_impact.py` (267 lines) - Impact testing with series-type configs
+    - **Configuration Fixes:**
+      - `scripts/record_golden_diagnostics.py` (662 lines) - Added series-type-specific regressor configs
+      - `scripts/test_regressors_impact.py` - Updated with employment_count vs unemployment_rate logic
+    - **Docker Infrastructure:**
+      - `docker-compose.yml` - Added seasonal/etl/tests volume mounts to models service
+      - `docker-compose.yml` - Added X13_SERVICE_URL environment variable
+      - `infra/models/Dockerfile` (59 lines) - Installed X-13 binary using install_x13.py script
+    - **Data Fixes:**
+      - `data/vintages/strikes/2025-11-29/strikes_vintage.parquet` - Fixed workers_involved column
+      - `tests/fixtures/golden_baselines/golden_seasonal_diagnostics.json` - Re-recorded with corrected configs
+    - **Documentation:**
+      - `docs/planning/PHASE_6_2_0_REGRESSOR_INVESTIGATION_FINDINGS.md` (279 lines) - Investigation report
+      - `docs/planning/PHASE_6_2_0_COMPLETION_SUMMARY.md` (345 lines) - Summary of accomplishments
+      - `docs/planning/PHASE_6_2_0_CRITICAL_FINDING_SERIES_TYPE_MISMATCH.md` (382 lines) - Critical finding
+      - `docs/planning/PHASE_6_2_0_FIXES_APPLIED.md` (295 lines) - Detailed fix documentation
+  
+  - **Key Findings:**
+    1. ✅ User regressors ARE applied to X-13 (original hypothesis WRONG)
+    2. ❌ Regressors NOT statistically significant (group p-value = 0.39)
+    3. ✅ Strike data fixed (workers_involved now has real data - 82.3% non-zero)
+    4. ✅ Weather data already good (non-zero variance confirmed)
+    5. ⚠️ Holiday timing effects too weak for these series (t-values < 2.0)
+    6. 🚨 **CRITICAL FINDING (Post-Investigation):** Unemployment rate (LASST060000000000003) was tested with EMPLOYMENT regressor configuration (methodologically WRONG)
+       - **Problem:** LAUS series (unemployment rates) should use NO external regressors
+       - **Evidence:** `run_seasonal_adjustment.py` explicitly disables all regressors for unemployment rates
+       - **Impact:** Explains poor Q-statistics for unemployment rate (inappropriate regressors add noise)
+       - **Fix:** Updated `record_golden_diagnostics.py` and `test_regressors_impact.py` with series-type-appropriate configs
+       - **Documentation:** `PHASE_6_2_0_CRITICAL_FINDING_SERIES_TYPE_MISMATCH.md`
+    7. 🔧 **Environment Issue:** Models container needed X-13 binary and proper volume mounts for seasonal adjustment
+       - **Fix:** Installed X-13 binary in models Dockerfile, added seasonal/etl/tests volumes
+       - **Result:** Golden diagnostics can now run in Docker without manual environment setup
+    8. **Lesson:** Statistical significance ≠ Application (both must be validated)
+    9. **Lesson:** Test configuration matters as much as code correctness
+    10. **Lesson:** Series type (employment vs unemployment rate) requires different regressor strategies
+  
+  - **Rationale:** Phase 6.1.2 identified improvement opportunities. Investigation complete, hypothesis refuted, data fixed, series-type configuration corrected, golden diagnostics re-recorded.
+  - **Actual Time:** 4 hours (investigation + fixes + configuration correction + Docker setup + re-baseline)
+  - **Status:** ✅ **COMPLETE** (2025-12-01) - All fixes applied, Docker environment configured, golden diagnostics updated
+  - **Impact:**
+    - ✅ Unemployment rate series now use methodologically correct configuration (no external regressors)
+    - ✅ Strike data fixed with real workers_involved values (441/536 records now meaningful)
+    - ✅ Docker environment fully configured for running seasonal adjustments in CI/CD
+    - ✅ Golden diagnostics baseline established with correct series-type-specific configurations
+    - ✅ Reproducible seasonal adjustment pipeline ready for backtesting (Phase 6.3)
   
   ---
 

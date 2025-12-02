@@ -36,18 +36,48 @@ PINNED_VINTAGE_DATE = date(2024, 1, 15)
 
 # Key series to monitor with sample data
 # In production, these would be loaded from vintages
+# CRITICAL: Each series type requires different regressor configurations
+# - CES (employment counts): Use holiday + strike regressors
+# - LAUS (unemployment rates): Use NO external regressors (rates are smoothed)
 MONITORED_SERIES = {
     "CES0000000001": {  # Total Nonfarm (primary NFP series)
         "name": "Total Nonfarm Payrolls",
         "source": "bls_ces",
+        "series_type": "employment_count",
+        "config": {
+            "mode": "mult",
+            "easter": True,
+            "trading_day": True,
+            "use_holiday_regressors": True,
+            "use_strike_regressors": True,
+            "use_weather_regressors": False,  # National aggregate less affected
+        },
     },
     "CES0500000003": {  # Total Private
         "name": "Total Private Employment",
         "source": "bls_ces",
+        "series_type": "employment_count",
+        "config": {
+            "mode": "mult",
+            "easter": True,
+            "trading_day": True,
+            "use_holiday_regressors": True,
+            "use_strike_regressors": True,
+            "use_weather_regressors": False,
+        },
     },
     "LASST060000000000003": {  # CA Unemployment Rate
         "name": "California Unemployment Rate",
         "source": "bls_laus",
+        "series_type": "unemployment_rate",
+        "config": {
+            "mode": "add",  # Rates use additive seasonal adjustment
+            "easter": False,  # Rates don't need built-in Easter regressor
+            "trading_day": False,  # Rates don't need trading day
+            "use_holiday_regressors": False,  # Rates don't need holiday timing
+            "use_strike_regressors": False,  # Rates are smoothed, less affected
+            "use_weather_regressors": False,  # Rates are smoothed, less affected
+        },
     },
 }
 
@@ -216,12 +246,16 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
                 logger.info(f"  Series length: {len(series_data)} months")
                 logger.info(f"  Date range: {series_data.index[0]} to {series_data.index[-1]}")
                 
-                # Run seasonal adjustment
+                # Run seasonal adjustment with series-type-appropriate configuration
+                # Get series-specific config (with defaults for backward compatibility)
+                series_config = series_info.get("config", {})
+                series_config["frequency"] = "monthly"  # Ensure frequency is set
+                
                 result = pipeline.run(
                     series_name=series_id,
                     series_data=series_data,
                     start_date=series_data.index[0].date(),
-                    config={"frequency": "monthly"}
+                    config=series_config  # Use series-type-appropriate config
                 )
                 
                 # Extract diagnostics (now includes M-statistics and Q-statistics from pipeline)
