@@ -2927,13 +2927,37 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   
   ---
 
-- [ ] **6.2.1 Vintage Harness** (reconstruct "what was known then")
-  - [ ] Unit tests for vintage reconstruction
-  - [ ] Vintage-honesty validation tests
-  - [ ] Edge case tests (missing data, short series)
-  - **Estimated Time:** 2-3 days
+- [x] **6.2.1 Vintage Harness** (reconstruct "what was known then") ✅ **COMPLETE** (2025-12-02)
+  - [x] Unit tests for vintage reconstruction (8 tests)
+  - [x] Vintage-honesty validation tests (4 tests)
+  - [x] Edge case tests (missing data, short series) (6 tests)
+  - [x] Integration tests (2 tests)
+  - [x] Performance tests (2 tests)
+  - **Docker Testing:** ✅ **22/22 tests PASSING** in 0.28s (Python 3.9.25, pytest 7.4.0)
+  - **Status:** ✅ **COMPLETE** (2025-12-02) - Verified in Docker environment
+  - **Impact:**
+    - ✅ `VintageHarness` class implemented in `backtests/vintage_harness/harness.py`
+    - ✅ `ReconstructedState` dataclass for representing historical states
+    - ✅ `reconstruct_state()` method loads data as it existed at specific dates
+    - ✅ `validate_vintage_honesty()` ensures no future data leakage
+    - ✅ `get_available_backtest_dates()` finds dates with complete data
+    - ✅ Comprehensive test suite (22 tests) in `tests/backtests/test_vintage_harness.py`
+    - ✅ Edge cases handled: missing sources, partial data, short series, empty sources
+    - ✅ Performance validated: < 1s for 4 sources, < 0.1s for validation
+    - ✅ Standalone verification script confirms all functionality
+    - ✅ Ready for Phase 6.3 backtesting execution
+  - **Files Created:**
+    - `backtests/vintage_harness/harness.py` (388 lines)
+    - `backtests/vintage_harness/__init__.py` (19 lines)
+    - `backtests/vintage_harness/README.md` (333 lines)
+    - `backtests/__init__.py` (7 lines)
+    - `tests/backtests/test_vintage_harness.py` (572 lines)
+    - `tests/backtests/__init__.py` (5 lines)
+    - `scripts/verify_vintage_harness.py` (140 lines)
+    - `docs/planning/PHASE_6_2_1_COMPLETION_SUMMARY.md` (457 lines)
+  - **Total Code:** 1,921 lines of production-quality code and documentation
   
-  --
+  ---
 
 - [ ] **6.2.2 CV Timeout Enforcement** (Codex Analysis 20 - Issue 2, Codex Analysis 22 - Finding 4)
   - [ ] Implement per-fold timeout kill logic in `models_src/pipelines/cross_validation.py`
