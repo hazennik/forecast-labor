@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last Updated: 2025-11-28 (Phase 5: 100% COMPLETE ✅ | Phase 6.1.1: IN PROGRESS ⏳ | Next: Complete 6.1.1 → 6.1.2)
+Last Updated: 2025-12-03 (Phase 5: 100% COMPLETE ✅ | Phase 6.3.1a: COMPLETE ⚠️ PENDING DFM RE-VALIDATION | Next: DFM Refactor → Phase 6.3.1b/6.3.1c)
 
 ## ⏳ PHASE 6.1.1 IN PROGRESS: Staging Validation with Real Data (2025-11-28)
 
@@ -3024,15 +3024,39 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - **Estimated Time:** 2-4 days (depending on compute and number of vintages)
   - **Include:** Test all models (DFM, MIDAS, XGBoost, LightGBM) on real vintage data
   
-  **DFM Validation:** Validate DFM with real NFP data (Phase 5.13.2 limitation resolution)
-  - [ ] Test DFM on 10+ actual vintage dates with real mixed-frequency data
-  - [ ] Compare DFM vs MIDAS vs XGBoost accuracy (sMAPE, RMSE, PI coverage)
-  - [ ] Verify DFM numerical stability with real data (no 10^17 explosions)
-  - [ ] Determine if DFM should be included in production ensemble
-  - **Reference:** Phase 5.13.2 completion notes, `docs/planning/codex_analysis_25.md`
-  - **Success Criteria:** DFM sMAPE < 20%, stable predictions, adds value to ensemble
+  **6.3.1a DFM Validation:** ⚠️ **COMPLETE - PENDING RE-VALIDATION** (2025-12-02)
+  - [x] Test DFM on 17 actual vintage dates with **REAL BLS CES data**
+  - [x] Compare DFM vs MIDAS vs XGBoost accuracy (DFM produces NaN - cannot compare)
+  - [x] Verify DFM numerical stability with real data (0/17 stable - **FAILED**)
+  - [x] Determine if DFM should be included in production ensemble → **NO** (based on from-scratch implementation)
+  - **Reference:** `docs/planning/PHASE_6_3_1a_COMPLETION_SUMMARY.md`
+  - **Data Source:** BLS CES API (real employment data, 2010-2025)
   
-  **Performance Baselines Measurement:** (Codex Analysis 20 - Issue 1, Codex Analysis 22 - Finding 4)
+  **⚠️ RE-VALIDATION REQUIRED:**
+  - Results below are based on the **"from scratch" custom DFM implementation** which has fundamental numerical stability issues
+  - The DFM *methodology* is sound; the *implementation* was flawed (acknowledged in code: "In production, would use statsmodels")
+  - **Next Step:** Re-run Phase 6.3.1a after completing `docs/planning/DFM_REFACTOR_PLAN.md` (Phase R6)
+  - DFM may be included in production ensemble if statsmodels implementation passes validation
+  
+  **📊 Results (FROM-SCRATCH DFM - SUPERSEDED AFTER REFACTOR):**
+  | Model   | Stability | Avg sMAPE | Recommendation |
+  |---------|-----------|-----------|----------------|
+  | DFM     | **0/17 (0%)** | N/A (NaN) | ⚠️ Re-validate after refactor |
+  | MIDAS   | 100%      | TBD       | ✅ Include |
+  | XGBoost | 100%      | TBD       | ✅ Include |
+  
+  **🟡 Current Decision: EXCLUDE DFM (pending re-validation)**
+  - DFM stability: **0%** (0/17 vintages produce valid predictions) - *from-scratch implementation*
+  - DFM errors: `overflow in matmul`, `invalid value in add`
+  - Root cause: **Custom Kalman filter implementation** numerically unstable (not DFM methodology)
+  - **Action:** Implement battle-tested statsmodels DFM per `DFM_REFACTOR_PLAN.md`, then re-validate
+  - See `PHASE_6_3_1a_COMPLETION_SUMMARY.md` for full analysis of from-scratch results
+  
+  **Test File:** `tests/backtests/test_dfm_validation.py` (5/5 tests passing)
+  **Vintage Script:** `scripts/create_historical_vintages.py`
+  **Refactor Plan:** `docs/planning/DFM_REFACTOR_PLAN.md`
+  
+  **6.3.1b Performance Baselines Measurement:** (Codex Analysis 20 - Issue 1, Codex Analysis 22 - Finding 4)
   - [ ] Measure real model training times on backtesting workload
   - [ ] Measure real model prediction latency
   - [ ] Measure real model memory usage
@@ -3040,7 +3064,7 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - [ ] Enable performance regression detection tests
   - **Reference:** Lines 16-36, Lines 180-182, Line 287
   
-  **Model Health Monitoring During Execution:**
+  **6.3.1c Model Health Monitoring During Execution:**
   - [ ] Watch for DFM instability (forecasts > 1M magnitude - see Model Health Monitoring #1)
   - [ ] Watch for MIDAS convergence failures (optimization warnings - see Model Health Monitoring #2)
   - [ ] Watch for calibration coverage outside 85-95% (see Model Health Monitoring #3)
@@ -3053,7 +3077,7 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - [ ] End-to-end latency measurement (ETL → final forecast) with complete pipeline
   - [ ] Memory usage profiling for complete workflow (all models, all layers)
   - [ ] Identify bottlenecks for optimization (calibration, reconciliation, ensemble)
-  - [ ] Profile with confirmed ensemble composition (DFM + MIDAS + XGBoost if DFM validates)
+  - [ ] Profile with confirmed ensemble composition (**MIDAS + XGBoost** - DFM pending re-validation after refactor)
   - [ ] Document performance characteristics in backtest report
   - **Reference:** Phase 5.13.3 deferred tasks
   - **Rationale:** Real data provides accurate performance picture for production deployment
@@ -3082,12 +3106,14 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   ---
 
   - [ ] **6.4.2.1 Model Performance Comparison & Ensemble Selection**
-    - [ ] Compare all models on backtest results (DFM vs MIDAS vs XGBoost vs LightGBM)
-    - [ ] **Resolve DFM validation question:** Based on 6.3.1 results, make final decision:
-      - If DFM sMAPE < 20% and stable: Include in production ensemble
-      - If DFM unstable or sMAPE > 20%: Exclude from production ensemble (use MIDAS + XGBoost)
+    - [ ] Compare all models on backtest results (MIDAS vs XGBoost vs LightGBM vs DFM)
+    - [x] **DFM validation completed in 6.3.1a** (with from-scratch implementation) → ⚠️ **PENDING RE-VALIDATION**
+      - From-scratch DFM: 0% stability, excluded from ensemble
+      - **After DFM refactor:** Re-run validation with statsmodels implementation (see `DFM_REFACTOR_PLAN.md`)
+      - DFM may be included in ensemble if statsmodels version passes validation
     - [ ] Document final production ensemble composition and rationale
     - [ ] Define ensemble weighting strategy (equal-weighted, performance-weighted, or stacking)
+    - **Note:** Current ensemble: **MIDAS + XGBoost** (+ potentially LightGBM + DFM after refactor)
     - **Estimated Time:** 4-6 hours
 
   ---
