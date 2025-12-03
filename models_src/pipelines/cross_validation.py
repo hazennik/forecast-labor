@@ -7,6 +7,7 @@ model evaluation. Key features:
 - No data leakage (strict chronological order)
 - Vintage date constraint enforcement
 - Comprehensive metric aggregation
+- Timeout enforcement (Phase 6.2.2)
 
 The expanding window approach is appropriate for time series because:
 1. More recent data is typically more relevant
@@ -14,6 +15,7 @@ The expanding window approach is appropriate for time series because:
 3. Real-world forecasting scenarios use all available historical data
 """
 
+import time
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -24,6 +26,21 @@ from loguru import logger
 
 from models_src.utils.base_model import BaseForecaster
 from models_src.utils.metrics import compute_metrics
+
+
+# ============================================================================
+# Exceptions
+# ============================================================================
+
+
+class CVTimeoutError(Exception):
+    """Raised when cross-validation exceeds timeout limits."""
+    pass
+
+
+class FoldTimeoutError(Exception):
+    """Raised when a single fold exceeds its timeout limit."""
+    pass
 
 
 # ============================================================================
@@ -310,21 +327,27 @@ def cross_validate_model(
     config: CrossValidationConfig,
 ) -> List[Dict[str, Any]]:
     """
-    Perform cross-validation on a forecasting model.
+    Perform cross-validation on a forecasting model with timeout enforcement.
     
     This function:
     1. Generates expanding window folds
     2. Trains model on each fold's training data
     3. Evaluates on both training and test data
     4. Returns comprehensive results per fold
+    5. Enforces per-fold and total timeout limits (Phase 6.2.2)
+    
+    Timeout Behavior:
+    - If a fold exceeds max_time_per_fold_seconds, it is skipped with a warning
+    - If total CV time exceeds total_max_time_seconds, CV stops and returns partial results
+    - When timeouts are None (default), no limits are enforced (backward compatible)
     
     Args:
         data: Time series data with DatetimeIndex
         model: Forecasting model instance
-        config: Cross-validation configuration
+        config: Cross-validation configuration with optional timeout settings
     
     Returns:
-        List of dictionaries, one per fold, containing:
+        List of dictionaries, one per completed fold, containing:
         - fold_index: Fold number
         - train_metrics: Dictionary of training metrics
         - test_metrics: Dictionary of test metrics
@@ -332,11 +355,20 @@ def cross_validate_model(
         - test_size: Number of test samples
         - train_date_range: Training date range
         - test_date_range: Test date range
+        - elapsed_seconds: Time taken for this fold (if timing enabled)
+        
+        May return partial results if timeouts occur.
     
     Raises:
-        Exception: If training or evaluation fails
+        Exception: If training or evaluation fails (non-timeout errors)
     
     Example:
+        >>> config = CrossValidationConfig(
+        ...     n_folds=5,
+        ...     max_time_per_fold_seconds=300,  # 5 minutes per fold
+        ...     total_max_time_seconds=1800,    # 30 minutes total
+        ...     ...
+        ... )
         >>> results = cross_validate_model(data, model, config)
         >>> for result in results:
         ...     print(f"Fold {result['fold_index']}: "
@@ -346,21 +378,43 @@ def cross_validate_model(
         "Starting cross-validation",
         model_type=type(model).__name__,
         n_folds=config.n_folds,
+        max_time_per_fold_seconds=config.max_time_per_fold_seconds,
+        total_max_time_seconds=config.total_max_time_seconds,
     )
     
     # Generate folds
     folds = generate_expanding_window_folds(data, config)
     
+    # Track timing for timeout enforcement
+    cv_start_time = time.time()
+    
     # Train and evaluate on each fold
     results = []
+    folds_skipped = 0
+    folds_timed_out = 0
     
     for fold in folds:
+        # Check total timeout before starting fold
+        if config.total_max_time_seconds is not None:
+            total_elapsed = time.time() - cv_start_time
+            if total_elapsed >= config.total_max_time_seconds:
+                logger.warning(
+                    "Total CV timeout reached, stopping early",
+                    total_elapsed_seconds=round(total_elapsed, 2),
+                    total_max_time_seconds=config.total_max_time_seconds,
+                    folds_completed=len(results),
+                    folds_remaining=len(folds) - len(results) - folds_skipped,
+                )
+                break
+        
         logger.info(
             "Processing fold",
             fold_index=fold.fold_index,
             train_size=len(fold.X_train),
             test_size=len(fold.X_test),
         )
+        
+        fold_start_time = time.time()
         
         try:
             # Train model on this fold
@@ -369,6 +423,20 @@ def cross_validate_model(
                 y=fold.y_train,
                 vintage_date=config.vintage_date,
             )
+            
+            # Check per-fold timeout after training
+            if config.max_time_per_fold_seconds is not None:
+                fold_elapsed = time.time() - fold_start_time
+                if fold_elapsed >= config.max_time_per_fold_seconds:
+                    logger.warning(
+                        "Per-fold timeout exceeded during training, skipping fold",
+                        fold_index=fold.fold_index,
+                        fold_elapsed_seconds=round(fold_elapsed, 2),
+                        max_time_per_fold_seconds=config.max_time_per_fold_seconds,
+                    )
+                    folds_timed_out += 1
+                    folds_skipped += 1
+                    continue
             
             # Evaluate on training set
             train_predictions = model.predict(fold.X_train)
@@ -383,6 +451,20 @@ def cross_validate_model(
                 y_true=fold.y_test.values,
                 y_pred=test_predictions,
             )
+            
+            fold_elapsed = time.time() - fold_start_time
+            
+            # Final per-fold timeout check (including evaluation time)
+            if config.max_time_per_fold_seconds is not None:
+                if fold_elapsed >= config.max_time_per_fold_seconds:
+                    logger.warning(
+                        "Per-fold timeout exceeded after evaluation, results may be partial",
+                        fold_index=fold.fold_index,
+                        fold_elapsed_seconds=round(fold_elapsed, 2),
+                        max_time_per_fold_seconds=config.max_time_per_fold_seconds,
+                    )
+                    folds_timed_out += 1
+                    # Still save results since evaluation completed
             
             # Store results
             fold_result = {
@@ -399,6 +481,7 @@ def cross_validate_model(
                     fold.X_test.index.min().isoformat(),
                     fold.X_test.index.max().isoformat(),
                 ),
+                "elapsed_seconds": round(fold_elapsed, 3),
             }
             
             results.append(fold_result)
@@ -408,6 +491,7 @@ def cross_validate_model(
                 fold_index=fold.fold_index,
                 train_rmse=train_metrics["rmse"],
                 test_rmse=test_metrics["rmse"],
+                elapsed_seconds=round(fold_elapsed, 2),
             )
         
         except Exception as e:
@@ -419,9 +503,14 @@ def cross_validate_model(
             )
             raise
     
+    total_elapsed = time.time() - cv_start_time
+    
     logger.info(
         "Cross-validation completed",
         n_folds_completed=len(results),
+        n_folds_skipped=folds_skipped,
+        n_folds_timed_out=folds_timed_out,
+        total_elapsed_seconds=round(total_elapsed, 2),
     )
     
     return results

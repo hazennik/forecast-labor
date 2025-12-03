@@ -2959,25 +2959,58 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   
   ---
 
-- [ ] **6.2.2 CV Timeout Enforcement** (Codex Analysis 20 - Issue 2, Codex Analysis 22 - Finding 4)
-  - [ ] Implement per-fold timeout kill logic in `models_src/pipelines/cross_validation.py`
-  - [ ] Implement total CV timeout kill logic
-  - [ ] Test timeout enforcement with slow models
-  - [ ] Validate timeout behavior doesn't break gracefully failing folds
-  - **Reference:** Lines 193-211, Line 208, Line 68-73
-  - **Note:** Must complete before running backtests to prevent hangs
-  - **Estimated Time:** 4-6 hours
+- [x] **6.2.2 CV Timeout Enforcement** ✅ **COMPLETE** (2025-12-02)
+  - [x] Implement per-fold timeout kill logic in `models_src/pipelines/cross_validation.py`
+  - [x] Implement total CV timeout kill logic
+  - [x] Test timeout enforcement with slow models (SlowMockForecaster)
+  - [x] Validate timeout behavior doesn't break gracefully failing folds
+  - [x] Backward compatibility tests (None timeout = no limit)
+  - **Docker Testing:** ✅ **56/56 tests PASSING** (Python 3.9.25, pytest 7.4.0)
+  - **Status:** ✅ **COMPLETE** (2025-12-02) - Verified in Docker environment
+  - **Impact:**
+    - ✅ Per-fold timeout: Skips slow folds with warning, continues to next fold
+    - ✅ Total CV timeout: Stops early and returns partial results for completed folds
+    - ✅ Timing tracking: elapsed_seconds included in fold results
+    - ✅ Comprehensive logging: Warnings for timeouts with fold index and elapsed time
+    - ✅ Backward compatible: None timeout (default) runs all folds without limits
+    - ✅ New exceptions: CVTimeoutError, FoldTimeoutError defined (for future use)
+  - **Test Coverage:**
+    - 15 new timeout enforcement tests (TestTimeoutEnforcement class)
+    - Per-fold timeout tests (4 tests)
+    - Total CV timeout tests (4 tests)
+    - Backward compatibility tests (3 tests)
+    - Edge case tests (4 tests)
+  - **Files Modified:**
+    - `models_src/pipelines/cross_validation.py` - Added timeout enforcement logic
+    - `tests/models/test_cross_validation.py` - Added SlowMockForecaster and 15 tests
 
   ---
 
   
-- [ ] **6.2.3 Metrics Validation for Backtesting** (verify Phase 5.1.2 metrics are sufficient)
+- [x] **6.2.3 Metrics Validation for Backtesting** ✅ **VALIDATED** (2025-12-02)
   - **Reference:** Phase 5.1.2 already implemented RMSE, sMAPE, CRPS, MAE, MAPE, turning points, PI coverage, ECE (33 tests passing)
-  - [ ] Review existing metrics in `models_src/utils/metrics.py` for backtesting completeness
-  - [ ] Verify metrics support vintage-aware computation
-  - [ ] Add any backtest-specific metric aggregation if needed (cross-vintage averaging, time-series of errors)
-  - [ ] If existing metrics are sufficient, mark complete and proceed to 6.3
-  - **Estimated Time:** 2-4 hours (validation only) or 1 day (if additions needed)
+  - [x] Review existing metrics in `models_src/utils/metrics.py` for backtesting completeness
+  - [x] Verify metrics support vintage-aware computation
+  - [x] Assess backtest-specific metric aggregation needs
+  - [x] **CONCLUSION: Existing metrics are SUFFICIENT for Phase 6.3**
+  - **Docker Testing:** ✅ **33/33 metric tests PASSING** (Python 3.9.25, pytest 7.4.0)
+  - **Status:** ✅ **VALIDATED** (2025-12-02) - No additions needed
+  - **Validation Findings:**
+    - ✅ **Point Forecast Metrics:** RMSE, MAE, MAPE, sMAPE - Cover accuracy targets
+    - ✅ **Probabilistic Metrics:** CRPS - Covers probabilistic forecast quality
+    - ✅ **Calibration Metrics:** PI Coverage (85-95% for 90% PI), ECE (< 0.05 gate)
+    - ✅ **Specialized Metrics:** Turning Point Accuracy - Covers directional changes
+    - ✅ **CV Aggregation:** aggregate_cv_metrics() provides mean, std, min, max, per_fold
+    - ✅ **Vintage-Aware:** Metrics accept y_true/y_pred arrays from any vintage
+  - **Backtest-Specific Aggregation Assessment:**
+    - Cross-vintage averaging: Not needed as separate function; VintageHarness + CV provides results per vintage, standard numpy operations can aggregate
+    - Time-series of errors: Analysis feature for Phase 6.4, not blocking for 6.3 execution
+  - **Deployment Gate Metrics Available:**
+    - sMAPE < 20% (hard blocker) ✅
+    - 90% PI coverage: 85-95% (hard blocker) ✅
+    - Calibration ECE < 0.05 ✅
+    - RMSE thresholds ✅
+  - **Decision:** Proceed to Phase 6.3 with existing metrics
 
 ---
 

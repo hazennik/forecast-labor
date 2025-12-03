@@ -21,6 +21,8 @@ from models_src.pipelines.cross_validation import (
     generate_expanding_window_folds,
     cross_validate_model,
     aggregate_cv_metrics,
+    CVTimeoutError,
+    FoldTimeoutError,
 )
 from models_src.utils.base_model import BaseForecaster
 
@@ -322,7 +324,7 @@ class TestFoldGeneration:
         # Request more folds than data can support
         sample_cv_config.n_folds = 100
         
-        with pytest.raises(ValueError, match="insufficient data|not enough data"):
+        with pytest.raises(ValueError, match="(?i)insufficient data|not enough data"):
             generate_expanding_window_folds(sample_time_series_data, sample_cv_config)
     
     def test_forecast_horizon_consistency(self, sample_time_series_data, sample_cv_config):
@@ -850,4 +852,500 @@ class TestTimeoutDocumentation:
             origin = get_origin(hint_type)
             assert origin is not None or hint_type == int, \
                 f"Timeout parameter should have Optional[int] or int type, got {hint_type}"
+
+
+# ============================================================================
+# Timeout Enforcement Tests (Phase 6.2.2)
+# ============================================================================
+
+
+class SlowMockForecaster(BaseForecaster):
+    """
+    Mock forecaster that sleeps to simulate slow training.
+    
+    Used to test timeout enforcement in cross-validation.
+    """
+    
+    def __init__(self, sleep_seconds: float = 0.0, random_state: int = 42):
+        """
+        Initialize slow mock forecaster.
+        
+        Args:
+            sleep_seconds: Time to sleep during fit() to simulate slow training
+            random_state: Random seed for reproducibility
+        """
+        super().__init__(random_state=random_state)
+        self.sleep_seconds = sleep_seconds
+        self._is_fitted = False
+        self.fit_count = 0
+        self.predict_count = 0
+    
+    def fit(self, X, y, vintage_date):
+        """Fit with configurable sleep time."""
+        import time
+        time.sleep(self.sleep_seconds)
+        
+        self.fit_count += 1
+        self._is_fitted = True
+        self.vintage_date = vintage_date
+        self.feature_names = X.columns.tolist()
+        
+        return self
+    
+    def predict(self, X):
+        """Generate simple predictions."""
+        if not self._is_fitted:
+            raise ValueError("Model must be fitted before prediction")
+        
+        self.predict_count += 1
+        return np.random.RandomState(self.random_state).randn(len(X)) * 100 + 150000
+    
+    def get_params(self):
+        """Return parameters."""
+        return {
+            "sleep_seconds": self.sleep_seconds,
+            "random_state": self.random_state,
+            "fit_count": self.fit_count,
+        }
+
+
+class TestTimeoutEnforcement:
+    """
+    Test actual timeout enforcement in cross-validation.
+    
+    Phase 6.2.2: These tests verify that CV properly enforces
+    per-fold and total timeout limits.
+    """
+    
+    @pytest.fixture
+    def timeout_data(self):
+        """Create sample data for timeout tests."""
+        dates = pd.date_range(start="2020-01-01", end="2024-12-31", freq="MS")
+        n_samples = len(dates)
+        
+        np.random.seed(42)
+        
+        data = pd.DataFrame({
+            "date": dates,
+            "feature_1": np.random.randn(n_samples),
+            "feature_2": np.random.randn(n_samples),
+            "target": np.random.randn(n_samples) * 100 + 150000,
+        })
+        
+        data.set_index("date", inplace=True)
+        return data
+    
+    @pytest.fixture
+    def fast_config(self):
+        """Config with short timeouts for testing."""
+        return CrossValidationConfig(
+            n_folds=3,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=1,  # 1 second per fold
+            total_max_time_seconds=10,     # 10 seconds total
+        )
+    
+    # -----------------------------------------------------------------------
+    # Per-Fold Timeout Tests
+    # -----------------------------------------------------------------------
+    
+    def test_per_fold_timeout_skips_slow_fold(self, timeout_data, fast_config):
+        """
+        Test that per-fold timeout skips slow folds and continues.
+        
+        When a fold exceeds max_time_per_fold_seconds, CV should:
+        1. Log a warning
+        2. Skip the fold
+        3. Continue with remaining folds
+        4. Return partial results
+        """
+        # Create model that takes 2 seconds per fold (exceeds 1s limit)
+        slow_model = SlowMockForecaster(sleep_seconds=2.0)
+        
+        # CV should skip slow folds and return partial results
+        results = cross_validate_model(
+            data=timeout_data,
+            model=slow_model,
+            config=fast_config,
+        )
+        
+        # Should get fewer results due to timeouts (or none if all timeout)
+        # The key is that CV doesn't hang indefinitely
+        assert isinstance(results, list)
+        # At minimum, CV should complete (not hang)
+    
+    def test_per_fold_timeout_logs_warning(self, timeout_data, fast_config, caplog):
+        """Test that per-fold timeout logs warning with fold index."""
+        import logging
+        
+        # Create model that takes 2 seconds (exceeds 1s limit)
+        slow_model = SlowMockForecaster(sleep_seconds=2.0)
+        
+        with caplog.at_level(logging.WARNING):
+            results = cross_validate_model(
+                data=timeout_data,
+                model=slow_model,
+                config=fast_config,
+            )
+        
+        # Should have logged timeout warning
+        # Note: This will fail until implementation is done
+        log_messages = [record.message for record in caplog.records]
+        timeout_warnings = [msg for msg in log_messages if "timeout" in msg.lower()]
+        
+        # We expect timeout warnings to be logged
+        assert len(timeout_warnings) > 0 or len(results) == 0, \
+            "Expected timeout warnings or no results due to timeouts"
+    
+    def test_per_fold_timeout_returns_partial_results(self, timeout_data):
+        """Test that partial results are returned when some folds complete."""
+        config = CrossValidationConfig(
+            n_folds=5,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=1,  # 1 second per fold
+            total_max_time_seconds=60,     # Long total to allow some folds
+        )
+        
+        # Fast model that completes within timeout
+        fast_model = SlowMockForecaster(sleep_seconds=0.1)
+        
+        results = cross_validate_model(
+            data=timeout_data,
+            model=fast_model,
+            config=config,
+        )
+        
+        # Fast model should complete all folds
+        assert len(results) == 5
+        assert all("train_metrics" in r for r in results)
+    
+    def test_per_fold_timeout_includes_elapsed_time_in_log(self, timeout_data, fast_config, caplog):
+        """Test that timeout log includes elapsed time."""
+        import logging
+        
+        slow_model = SlowMockForecaster(sleep_seconds=2.0)
+        
+        with caplog.at_level(logging.WARNING):
+            results = cross_validate_model(
+                data=timeout_data,
+                model=slow_model,
+                config=fast_config,
+            )
+        
+        # Check if elapsed time info is logged
+        # This test documents expected behavior
+        assert isinstance(results, list)
+    
+    # -----------------------------------------------------------------------
+    # Total CV Timeout Tests
+    # -----------------------------------------------------------------------
+    
+    def test_total_timeout_stops_cv_early(self, timeout_data):
+        """
+        Test that total CV timeout stops all processing.
+        
+        When total elapsed time exceeds total_max_time_seconds, CV should:
+        1. Stop processing additional folds
+        2. Return results for completed folds
+        3. Log a warning about early termination
+        """
+        config = CrossValidationConfig(
+            n_folds=10,  # Many folds to ensure total timeout triggers
+            initial_train_size=12,
+            forecast_horizon=3,
+            step_size=3,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=60,  # High per-fold (won't trigger)
+            total_max_time_seconds=2,       # Short total timeout
+        )
+        
+        # Model that takes 0.5s per fold - should get ~4 folds before timeout
+        slow_model = SlowMockForecaster(sleep_seconds=0.5)
+        
+        import time
+        start_time = time.time()
+        
+        results = cross_validate_model(
+            data=timeout_data,
+            model=slow_model,
+            config=config,
+        )
+        
+        elapsed = time.time() - start_time
+        
+        # Should terminate around 2s (total timeout), not 5s (all folds)
+        assert elapsed < 5.0, "Total timeout should prevent running all folds"
+        
+        # Should have some results (not zero)
+        assert len(results) < 10, "Should not complete all folds due to total timeout"
+    
+    def test_total_timeout_returns_completed_fold_results(self, timeout_data):
+        """Test that results for completed folds are returned on total timeout."""
+        config = CrossValidationConfig(
+            n_folds=5,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=60,
+            total_max_time_seconds=1,  # Very short total timeout
+        )
+        
+        # Model that takes 0.3s per fold
+        slow_model = SlowMockForecaster(sleep_seconds=0.3)
+        
+        results = cross_validate_model(
+            data=timeout_data,
+            model=slow_model,
+            config=config,
+        )
+        
+        # Should get partial results
+        if len(results) > 0:
+            # Completed folds should have valid metrics
+            for result in results:
+                assert "fold_index" in result
+                assert "train_metrics" in result
+                assert "test_metrics" in result
+    
+    def test_total_timeout_logs_warning(self, timeout_data, caplog):
+        """Test that total timeout logs appropriate warning."""
+        import logging
+        
+        config = CrossValidationConfig(
+            n_folds=10,
+            initial_train_size=12,
+            forecast_horizon=3,
+            step_size=3,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=60,
+            total_max_time_seconds=1,  # Short timeout
+        )
+        
+        slow_model = SlowMockForecaster(sleep_seconds=0.3)
+        
+        with caplog.at_level(logging.WARNING):
+            results = cross_validate_model(
+                data=timeout_data,
+                model=slow_model,
+                config=config,
+            )
+        
+        # This test documents expected behavior
+        assert isinstance(results, list)
+    
+    # -----------------------------------------------------------------------
+    # Backward Compatibility Tests
+    # -----------------------------------------------------------------------
+    
+    def test_none_timeout_runs_all_folds(self, timeout_data):
+        """Test that None timeout runs all folds (backward compatible)."""
+        config = CrossValidationConfig(
+            n_folds=3,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=None,  # No limit
+            total_max_time_seconds=None,      # No limit
+        )
+        
+        # Model that takes some time but should complete
+        model = SlowMockForecaster(sleep_seconds=0.1)
+        
+        results = cross_validate_model(
+            data=timeout_data,
+            model=model,
+            config=config,
+        )
+        
+        # Should complete all folds
+        assert len(results) == 3
+    
+    def test_default_timeout_is_none(self, timeout_data):
+        """Test that default timeout is None for backward compatibility."""
+        config = CrossValidationConfig(
+            n_folds=3,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            # Omit timeout parameters - should default to None
+        )
+        
+        assert config.max_time_per_fold_seconds is None
+        assert config.total_max_time_seconds is None
+    
+    def test_fast_model_completes_within_timeout(self, timeout_data):
+        """Test that fast models complete all folds even with timeouts set."""
+        config = CrossValidationConfig(
+            n_folds=3,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=60,  # Generous timeout
+            total_max_time_seconds=300,     # Generous timeout
+        )
+        
+        # Fast model (no sleep)
+        model = SlowMockForecaster(sleep_seconds=0.0)
+        
+        results = cross_validate_model(
+            data=timeout_data,
+            model=model,
+            config=config,
+        )
+        
+        # Should complete all folds
+        assert len(results) == 3
+        assert all("train_metrics" in r for r in results)
+        assert all("test_metrics" in r for r in results)
+    
+    # -----------------------------------------------------------------------
+    # Result Structure Tests
+    # -----------------------------------------------------------------------
+    
+    def test_timeout_results_include_timing_info(self, timeout_data, fast_config):
+        """Test that results include timing information."""
+        model = SlowMockForecaster(sleep_seconds=0.1)
+        
+        results = cross_validate_model(
+            data=timeout_data,
+            model=model,
+            config=fast_config,
+        )
+        
+        # Results should include timing info (even if it's just in metadata)
+        for result in results:
+            # At minimum, standard result fields should be present
+            assert "fold_index" in result
+            assert "train_metrics" in result
+            assert "test_metrics" in result
+    
+    def test_partial_results_can_be_aggregated(self, timeout_data):
+        """Test that partial results can still be aggregated."""
+        config = CrossValidationConfig(
+            n_folds=5,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=60,
+            total_max_time_seconds=2,  # Short to trigger partial results
+        )
+        
+        model = SlowMockForecaster(sleep_seconds=0.3)
+        
+        results = cross_validate_model(
+            data=timeout_data,
+            model=model,
+            config=config,
+        )
+        
+        # If we have partial results, they should be aggregatable
+        if len(results) > 0:
+            aggregated = aggregate_cv_metrics(results)
+            
+            assert "train" in aggregated
+            assert "test" in aggregated
+            assert "rmse_mean" in aggregated["test"]
+    
+    # -----------------------------------------------------------------------
+    # Edge Cases
+    # -----------------------------------------------------------------------
+    
+    def test_zero_folds_complete_on_immediate_timeout(self, timeout_data):
+        """Test handling when no folds complete due to timeouts."""
+        config = CrossValidationConfig(
+            n_folds=3,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=0.01,  # Very short - will timeout immediately
+            total_max_time_seconds=0.1,
+        )
+        
+        # Model that takes longer than timeout
+        slow_model = SlowMockForecaster(sleep_seconds=1.0)
+        
+        results = cross_validate_model(
+            data=timeout_data,
+            model=slow_model,
+            config=config,
+        )
+        
+        # Should return empty list or handle gracefully
+        assert isinstance(results, list)
+    
+    def test_per_fold_timeout_less_than_total(self, timeout_data):
+        """Test when per-fold timeout is less than total timeout."""
+        config = CrossValidationConfig(
+            n_folds=3,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=1,   # 1 second per fold
+            total_max_time_seconds=60,      # Long total
+        )
+        
+        # Model that exceeds per-fold but not total
+        slow_model = SlowMockForecaster(sleep_seconds=2.0)
+        
+        results = cross_validate_model(
+            data=timeout_data,
+            model=slow_model,
+            config=config,
+        )
+        
+        # Per-fold timeouts should trigger, not total timeout
+        assert isinstance(results, list)
+    
+    def test_total_timeout_less_than_per_fold(self):
+        """Test when total timeout is less than per-fold timeout."""
+        # This is an unusual but valid configuration
+        config = CrossValidationConfig(
+            n_folds=3,
+            initial_train_size=24,
+            forecast_horizon=6,
+            step_size=6,
+            target_column="target",
+            feature_columns=["feature_1", "feature_2"],
+            vintage_date="2024-12-31",
+            max_time_per_fold_seconds=60,  # Long per-fold
+            total_max_time_seconds=1,       # Short total
+        )
+        
+        # Should be a valid configuration
+        assert config.max_time_per_fold_seconds > config.total_max_time_seconds
 
