@@ -3405,6 +3405,11 @@ Identified during Phase 5 mathematical validation (see `docs/planning/PHASE_5_MA
 - [ ] Features agent (feature refresher & staleness checks)
 - [ ] Trainer agent (model training runner with gates)
 - [ ] Nowcast agent (in-month updates near release windows)
+  - [ ] Implement T-48h → T-2h optimal nowcast window (ACCURACY_MAP.md Section 8)
+  - [ ] Monitor for new daily Treasury / weekly claims data arrivals
+  - [ ] Trigger `MixedFrequencyPipeline.predict()` with updated `raw_sources`
+  - [ ] Handle ragged-edge gracefully (partial data available)
+  - [ ] Log nowcast updates with timestamp and data sources used
 - [ ] MinT agent (reconciliation automation)
 - [ ] Revision agent (revision forecasting)
 - [ ] Evaluator agent (CI gates: sMAPE/CRPS/coverage/coherence)
