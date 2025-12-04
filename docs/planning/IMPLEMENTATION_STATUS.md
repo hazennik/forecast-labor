@@ -3035,8 +3035,14 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   **⚠️ RE-VALIDATION REQUIRED:**
   - Results below are based on the **"from scratch" custom DFM implementation** which has fundamental numerical stability issues
   - The DFM *methodology* is sound; the *implementation* was flawed (acknowledged in code: "In production, would use statsmodels")
-  - **Next Step:** Re-run Phase 6.3.1a after completing `docs/planning/DFM_REFACTOR_PLAN.md` (Phase R6)
+  - **Next Step:** Re-run Phase 6.3.1a after completing `docs/planning/DFM_MIDAS_REFACTOR_PLAN.md` (Phase R7)
   - DFM may be included in production ensemble if statsmodels implementation passes validation
+  
+  **📋 Refactor Scope Note:**
+  - The DFM + MIDAS Bridge Refactor provides **infrastructure** for mixed-frequency nowcasting
+  - **Unchanged components:** Calibration, Revision modeling, MinT reconciliation, GBM/LightGBM, ETL pipelines
+  - **Phase 5 impact:** ~15-20% test updates (not full reimplementation)
+  - See `DFM_MIDAS_REFACTOR_PLAN.md` Phase 5 Impact Assessment for details
   
   **📊 Results (FROM-SCRATCH DFM - SUPERSEDED AFTER REFACTOR):**
   | Model   | Stability | Avg sMAPE | Recommendation |
@@ -3049,12 +3055,12 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - DFM stability: **0%** (0/17 vintages produce valid predictions) - *from-scratch implementation*
   - DFM errors: `overflow in matmul`, `invalid value in add`
   - Root cause: **Custom Kalman filter implementation** numerically unstable (not DFM methodology)
-  - **Action:** Implement battle-tested statsmodels DFM per `DFM_REFACTOR_PLAN.md`, then re-validate
+  - **Action:** Implement battle-tested statsmodels DFM per `DFM_MIDAS_REFACTOR_PLAN.md`, then re-validate
   - See `PHASE_6_3_1a_COMPLETION_SUMMARY.md` for full analysis of from-scratch results
   
   **Test File:** `tests/backtests/test_dfm_validation.py` (5/5 tests passing)
   **Vintage Script:** `scripts/create_historical_vintages.py`
-  **Refactor Plan:** `docs/planning/DFM_REFACTOR_PLAN.md`
+  **Refactor Plan:** `docs/planning/DFM_MIDAS_REFACTOR_PLAN.md`
   
   **6.3.1b Performance Baselines Measurement:** (Codex Analysis 20 - Issue 1, Codex Analysis 22 - Finding 4)
   - [ ] Measure real model training times on backtesting workload
@@ -3081,6 +3087,7 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - [ ] Document performance characteristics in backtest report
   - **Reference:** Phase 5.13.3 deferred tasks
   - **Rationale:** Real data provides accurate performance picture for production deployment
+  - **Dependency:** If DFM refactor complete (per `DFM_MIDAS_REFACTOR_PLAN.md`), include DFM + MIDASBridge in profiling
   - **Estimated Time:** 4-6 hours
 
 ---
@@ -3109,7 +3116,7 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
     - [ ] Compare all models on backtest results (MIDAS vs XGBoost vs LightGBM vs DFM)
     - [x] **DFM validation completed in 6.3.1a** (with from-scratch implementation) → ⚠️ **PENDING RE-VALIDATION**
       - From-scratch DFM: 0% stability, excluded from ensemble
-      - **After DFM refactor:** Re-run validation with statsmodels implementation (see `DFM_REFACTOR_PLAN.md`)
+      - **After DFM refactor:** Re-run validation with statsmodels implementation (see `DFM_MIDAS_REFACTOR_PLAN.md`)
       - DFM may be included in ensemble if statsmodels version passes validation
     - [ ] Document final production ensemble composition and rationale
     - [ ] Define ensemble weighting strategy (equal-weighted, performance-weighted, or stacking)

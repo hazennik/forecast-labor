@@ -65,6 +65,27 @@ Monthly BLS CES ─────────────────────�
 | **Feature Engineering** | 2 | ~200 | ~15 |
 | **Documentation** | 30+ | ~500 mentions | N/A |
 
+### Phase 5 Impact Assessment
+
+**This refactor does NOT require reimplementation of Phases 1-5.**
+
+| Impact Area | Tests Requiring Updates | Phase 5 Rework |
+|-------------|-------------------------|----------------|
+| DFM tests | ~50-70 (of ~200 model tests) | 15-20% effort |
+| state_space tests | ~26 (evaluate, may skip) | Minimal |
+| Integration tests | ~15-20 affected | Updates, not rewrites |
+
+**Components Unaffected:**
+- ✅ Calibration (`models_src/calibration/`) — unchanged
+- ✅ Revision modeling (`models_src/revision/`) — unchanged  
+- ✅ MinT reconciliation (`recon/mint/`) — unchanged
+- ✅ GBM/LightGBM models — unchanged
+- ✅ ETL pipelines — unchanged
+- ✅ Feature transforms — unchanged (MIDASLagConstructor reused)
+
+**Scope Clarification:**
+This refactor provides **infrastructure** for mixed-frequency nowcasting (MIDAS Bridge + stable DFM). Probability calibration, revision modeling, and state/sector reconciliation remain fully operational and are exercised during Phase 6.3+ validation.
+
 ---
 
 ## Table of Contents
@@ -474,6 +495,73 @@ class MIDASBridgedRegression(BaseForecaster):
 - [ ] Export `MIDASBridgedRegression`
 - [ ] Keep existing `MIDASRegression` for backward compatibility
 
+#### R3.2.3 Interface Compatibility Layer
+
+**Issue:** `MIDASBridgedRegression.fit(raw_sources, y, vintage_date)` differs from `BaseForecaster.fit(X, y, vintage_date)`.
+
+**Solution:** Implement dual-mode interface for backward compatibility:
+
+```python
+class MIDASBridgedRegression(BaseForecaster):
+    """
+    Supports two fit modes:
+    1. Legacy: fit(X, y, vintage_date) - pre-built feature matrix
+    2. Raw: fit_raw(raw_sources, y, vintage_date) - raw high-frequency data
+    """
+    
+    def fit(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        vintage_date: str
+    ) -> 'MIDASBridgedRegression':
+        """Legacy mode: accepts pre-built feature matrix."""
+        self._features = X
+        # ... standard regression fit
+        return self
+    
+    def fit_raw(
+        self,
+        raw_sources: Dict[str, pd.Series],
+        y: pd.Series,
+        vintage_date: str
+    ) -> 'MIDASBridgedRegression':
+        """New mode: accepts raw high-frequency data."""
+        self._features = self.bridge.build_features(
+            vintage_date=date.fromisoformat(vintage_date),
+            target_dates=y.index,
+            raw_sources=raw_sources
+        )
+        return self.fit(self._features, y, vintage_date)
+```
+
+**Benefits:**
+- Existing pipelines/tests using `fit(X, y, vintage_date)` continue to work
+- New pipelines can use `fit_raw(raw_sources, y, vintage_date)`
+- `BaseForecaster` contract maintained (non-breaking change)
+
+#### R3.2.4 Feature Naming Convention
+
+**Issue:** Risk of feature name divergence between stored artifacts and runtime features.
+
+**Solution:**
+- Preserve existing names where possible: `{source}_midas_lags`
+- New bridge columns: `{source}_bridge_lag_{n}` (explicit distinction)
+- Add feature version tracking:
+
+```python
+class MIDASBridge:
+    VERSION = "1.0.0"
+    
+    def build_features(...) -> pd.DataFrame:
+        df = ...
+        df.attrs['bridge_version'] = self.VERSION
+        df.attrs['build_timestamp'] = datetime.now().isoformat()
+        return df
+```
+
+- Feature registry MUST track bridge version used
+
 ### R3.3 Run MIDAS Bridge Tests
 
 #### R3.3.1 Run TDD Tests
@@ -602,6 +690,62 @@ The DFM receives **homogeneous monthly data**, so `DynamicFactor` is appropriate
 
 4. **Maintain identical interface to old DFM**
 
+**API Compatibility Guarantee:**
+| Element | Status | Notes |
+|---------|--------|-------|
+| Class name | `DynamicFactorModel` | ✅ Preserved |
+| Constructor | `(n_factors, max_iter, tol, random_state)` | ✅ Unchanged |
+| `fit(X, y, vintage_date)` | ✅ Unchanged | Returns self |
+| `predict(X)` | ✅ Unchanged | Returns np.ndarray |
+| `save(path)` / `load(path)` | ✅ Unchanged | joblib format |
+| `factors_`, `loadings_`, `is_fitted` | ✅ Preserved | Same attribute names |
+| `_em_step()`, `_kalman_smooth()` | ❌ Removed | Internal, replaced by statsmodels |
+
+**Serialization Approach:**
+
+statsmodels `DynamicFactorResults` objects are complex. We extract key artifacts to maintain existing numpy-based save/load format:
+
+```python
+def _extract_model_artifacts(self, results: DynamicFactorResults) -> Dict:
+    """Extract serializable artifacts from statsmodels results."""
+    return {
+        'loadings_': results.coefficients_of_determination,  # or custom extraction
+        'transition_': results.params[:self.n_factors**2].reshape(self.n_factors, -1),
+        'factors_': results.factors.filtered.T,
+        'X_mean_': self.X_mean_,
+        'X_std_': self.X_std_,
+        # Metadata
+        'statsmodels_version': statsmodels.__version__,
+        'n_iter_': results.nobs,
+    }
+```
+
+**Note:** The exact extraction depends on statsmodels internals; will be finalized during implementation.
+
+**Determinism Enforcement:**
+
+```python
+def fit(self, X: pd.DataFrame, y: pd.Series, vintage_date: str) -> 'DynamicFactorModel':
+    """Deterministic fitting with random_state control."""
+    # Set numpy random state for any stochastic operations
+    np.random.seed(self.random_state)
+    
+    # statsmodels DynamicFactor uses MLE, generally deterministic
+    # but we seed for any numerical noise
+    self.model_ = DynamicFactor(
+        endog=X.values,
+        k_factors=self.n_factors,
+        factor_order=1
+    )
+    
+    self.results_ = self.model_.fit(disp=False, maxiter=self.max_iter)
+    
+    # Same seed + same data = same results
+    return self
+```
+
+**Test:** Add `test_dfm_reproducibility_with_seed()` to verify determinism.
+
 #### R4.2.2 Evaluate `models_src/dfm/state_space.py`
 
 **Decision Required:**
@@ -609,7 +753,33 @@ The DFM receives **homogeneous monthly data**, so `DynamicFactor` is appropriate
 - [ ] **Deprecate:** Mark as deprecated, keep for compatibility
 - [ ] **Delete:** Remove if no longer needed
 
-**Recommendation:** Keep `state_space.py` for validation utilities (stability checks, dimension validation)
+**Decision Criteria:**
+
+| Criterion | Assessment | Action |
+|-----------|------------|--------|
+| `StateSpaceRepresentation` class | Useful for validating statsmodels output shapes | **KEEP** |
+| `build_transition_matrix()` | Not needed (statsmodels handles internally) | **DEPRECATE** |
+| `build_observation_matrix()` | Not needed (statsmodels handles internally) | **DEPRECATE** |
+| `validate_state_space_dimensions()` | Useful for debugging | **KEEP** |
+| `is_stable` property | Useful for post-fit validation | **KEEP** |
+
+**Recommendation:** 
+- **KEEP** `state_space.py` with deprecation warnings on builder functions
+- **UPDATE** `test_dfm_state_space.py` to test validation utilities on statsmodels output
+- **DO NOT DELETE** — validation utilities remain valuable for debugging
+
+```python
+# Example deprecation
+import warnings
+
+def build_transition_matrix(...):
+    warnings.warn(
+        "build_transition_matrix is deprecated. "
+        "statsmodels DynamicFactor handles transition matrix internally.",
+        DeprecationWarning
+    )
+    # ... existing implementation for compatibility
+```
 
 ### R4.3 Run DFM Tests
 
@@ -741,6 +911,41 @@ Monthly-Aligned Features
 - [ ] Maintain backward compatibility with existing feature building
 - [ ] Add CLI flag: `--use-midas-bridge`
 
+**Feature Versioning Rules:**
+
+| Context | Feature Source | Purpose |
+|---------|----------------|---------|
+| **Training artifacts** | `scripts/build_features.py --use-midas-bridge` | Stored parquet with version metadata |
+| **Runtime prediction** | `MIDASBridge.build_features()` | Real-time feature construction |
+| **Backtest validation** | `VintageHarness` + `MIDASBridge` | Vintage-consistent features |
+
+**Implementation:**
+```python
+# scripts/build_features.py
+def main():
+    parser.add_argument('--use-midas-bridge', action='store_true',
+                       help='Use MIDASBridge for D/W→M alignment')
+    parser.add_argument('--bridge-version', type=str, default='1.0.0',
+                       help='Track bridge version in feature metadata')
+    
+    # When saving features:
+    if args.use_midas_bridge:
+        features_df.attrs['bridge_version'] = args.bridge_version
+        features_df.attrs['feature_hash'] = hashlib.sha256(
+            features_df.to_json().encode()
+        ).hexdigest()[:16]
+```
+
+**Migration Utility:** Add `scripts/migrate_feature_registry.py --bridge-upgrade` for transitioning existing features.
+
+#### R5.2.2 Additional Script Updates Required
+
+| Script | Action | Changes |
+|--------|--------|---------|
+| `scripts/train_sample_model.py` | UPDATE | Update DFM instantiation to new implementation |
+| `scripts/test_pipelines.py` | UPDATE | Add bridge validation tests |
+| `scripts/verify_vintage_harness.py` | UPDATE | Test with MIDASBridge integration |
+
 ### R5.3 Integration Tests
 
 #### R5.3.1 Create `tests/integration/test_mixed_frequency_pipeline.py`
@@ -779,6 +984,21 @@ Monthly-Aligned Features
 **Purpose:** Comprehensive test validation across all components  
 **Estimated Time:** 3-4 hours  
 **Blocking:** Phase R5 complete
+
+### Test Runtime Budget
+
+**Clarification:** The analysis estimated ~700-1,200 new tests, but actual count is lower:
+
+| Category | Tests | Notes |
+|----------|-------|-------|
+| **New tests** | ~50 | Bridge, statsmodels DFM, pipeline |
+| **Modified tests** | ~100 | Interface updates, not rewrites |
+| **Total impacted** | ~150 | Of ~300 model/feature tests |
+
+**CI Considerations:**
+- Add +5 minutes buffer for new integration tests
+- Run MIDAS Bridge tests in parallel with DFM tests
+- Consider separate CI job for integration tests if timeout issues arise
 
 ### R6.1 Run All MIDAS Tests
 
@@ -873,6 +1093,45 @@ docker compose exec etl pytest tests/integration/ tests/models/test_ensemble_pip
 - [ ] Update `tests/backtests/test_dfm_validation.py` for new DFM
 - [ ] Ensure tests use real BLS CES vintage data
 - [ ] Ensure tests use MIDAS Bridge for feature building
+
+**Data Preprocessing Requirements:**
+
+The from-scratch DFM failed (0% stability) partly due to insufficient preprocessing. The statsmodels implementation should include:
+
+```python
+def _preprocess_features(self, X: pd.DataFrame) -> np.ndarray:
+    """
+    Preprocess features for DFM stability.
+    
+    1. Handle NaN/Inf: Replace or drop
+    2. Standardize: z-score normalization
+    3. Winsorize: Clip COVID-era outliers (optional)
+    4. Validate: Log feature statistics
+    """
+    # 1. Validate input
+    if X.isna().any().any():
+        logger.warning(f"NaN values found in {X.isna().sum().sum()} cells")
+        X = X.fillna(method='ffill').fillna(method='bfill')
+    
+    # 2. Standardize
+    self.X_mean_ = X.mean()
+    self.X_std_ = X.std().replace(0, 1)  # Avoid division by zero
+    X_scaled = (X - self.X_mean_) / self.X_std_
+    
+    # 3. Winsorize extreme values (optional, for COVID period)
+    lower, upper = X_scaled.quantile(0.01), X_scaled.quantile(0.99)
+    X_scaled = X_scaled.clip(lower=lower, upper=upper, axis=1)
+    
+    # 4. Log statistics for debugging
+    logger.info(f"Feature stats - mean: {X_scaled.mean().mean():.4f}, "
+                f"std: {X_scaled.std().mean():.4f}, "
+                f"min: {X_scaled.min().min():.4f}, "
+                f"max: {X_scaled.max().max():.4f}")
+    
+    return X_scaled.values
+```
+
+**Test:** Add `test_dfm_handles_preprocessing()` to verify robustness.
 
 #### R7.1.2 Run DFM Validation
 - [ ] Execute validation
@@ -1121,7 +1380,10 @@ Record final metrics:
 | `models_src/midas/__init__.py` | UPDATE | Export bridge components |
 | `features/midas/__init__.py` | UPDATE | Export MIDASBridge |
 | `models_src/pipelines/ensemble_pipeline.py` | UPDATE | Support new components |
-| `scripts/build_features.py` | UPDATE | Add bridge option |
+| `scripts/build_features.py` | UPDATE | Add bridge option, versioning |
+| `scripts/train_sample_model.py` | UPDATE | Update DFM instantiation |
+| `scripts/test_pipelines.py` | UPDATE | Add bridge validation |
+| `scripts/verify_vintage_harness.py` | UPDATE | Test MIDASBridge integration |
 | `tests/models/test_dfm.py` | UPDATE | Adapt for statsmodels |
 | `tests/models/test_dfm_properties.py` | UPDATE | Adapt for statsmodels |
 | `tests/integration/test_etl_features_models.py` | UPDATE | Add new tests |
@@ -1251,6 +1513,7 @@ git checkout backup/midas-dfm-pre-refactor -- models_src/dfm/ models_src/midas/ 
 |------|-------|--------|-------|
 | 2025-12-04 | Plan Created | 📋 PLANNED | Comprehensive Option C plan with MIDAS Bridge |
 | 2025-12-04 | Clarifications | 📋 UPDATED | Added: VintageManager details, Almon weight tests, MIDASLagConstructor reuse note, DynamicFactor rationale, vintage count confirmation |
+| 2025-12-04 | Risk Analysis | 📋 UPDATED | Added: Phase 5 Impact Assessment, Interface Compatibility Layer (R3.2.3), Feature Naming Convention (R3.2.4), API Compatibility Guarantee (R4.2.1), Serialization Approach (R4.2.1), Determinism Enforcement (R4.2.1), state_space.py Decision Criteria (R4.2.2), Feature Versioning Rules (R5.2.1), Additional Script Updates (R5.2.2), Test Runtime Budget (R6), Data Preprocessing Requirements (R7.1.1) |
 
 ---
 

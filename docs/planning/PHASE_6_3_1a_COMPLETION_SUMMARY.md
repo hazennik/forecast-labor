@@ -16,7 +16,7 @@
 > **Action Required:** Re-run Phase 6.3.1a validation after completing the DFM refactor to use 
 > the battle-tested `statsmodels.tsa.statespace.dynamic_factor.DynamicFactor` implementation.
 >
-> **See:** `docs/planning/DFM_REFACTOR_PLAN.md` for the comprehensive refactor plan.
+> **See:** `docs/planning/DFM_MIDAS_REFACTOR_PLAN.md` for the comprehensive refactor plan (includes MIDAS Bridge layer).
 >
 > **Expected Outcome:** With statsmodels implementation, DFM should achieve >90% stability and 
 > may be included in the production ensemble.
