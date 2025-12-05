@@ -3044,6 +3044,14 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - **Phase 5 impact:** ~15-20% test updates (not full reimplementation)
   - See `DFM_MIDAS_REFACTOR_PLAN.md` Phase 5 Impact Assessment for details
   
+  **🔄 Full Pipeline Validation (Post-Refactor Requirements):**
+  - Phase 6.3.1a re-validation must exercise **full pipeline**: MIDASBridge → DFM → Calibration → Intervals
+  - Verify 85-95% PI coverage on real vintages (ACCURACY_MAP.md Section 5.2)
+  - Verify ECE < 0.05 (deployment gate)
+  - Test with ragged-edge data (missing recent daily/weekly observations)
+  - Test intra-month update capability (T-48h → T-2h per ACCURACY_MAP.md Section 8)
+  - See `DFM_MIDAS_REFACTOR_PLAN.md` R7.1.4 for calibration integration tests
+  
   **📊 Results (FROM-SCRATCH DFM - SUPERSEDED AFTER REFACTOR):**
   | Model   | Stability | Avg sMAPE | Recommendation |
   |---------|-----------|-----------|----------------|
@@ -3088,6 +3096,10 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - **Reference:** Phase 5.13.3 deferred tasks
   - **Rationale:** Real data provides accurate performance picture for production deployment
   - **Dependency:** If DFM refactor complete (per `DFM_MIDAS_REFACTOR_PLAN.md`), include DFM + MIDASBridge in profiling
+  - **Calibration Integration Dependency:**
+    - If DFM refactor complete, validate calibration with bridge-produced features (not just pre-aggregated)
+    - If calibration metrics degrade vs. pre-aggregated features, flag for investigation
+    - See `DFM_MIDAS_REFACTOR_PLAN.md` R7.1.4 for specific calibration tests
   - **Estimated Time:** 4-6 hours
 
 ---

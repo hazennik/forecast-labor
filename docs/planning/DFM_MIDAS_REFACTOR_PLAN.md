@@ -966,6 +966,37 @@ def main():
   - Update DFM references
   - Add mixed-frequency pipeline tests
 
+#### R5.3.3 Intra-Month Update Tests
+
+**Rationale:** ACCURACY_MAP.md Section 8 specifies T-48h → T-2h optimal window for intra-month nowcasting. Must verify pipeline supports sequential updates with new data arrivals.
+
+**Tests to Add in `tests/integration/test_mixed_frequency_pipeline.py`:**
+- [ ] `test_pipeline_sequential_updates` — Call `predict()` multiple times with progressively updated `raw_sources`
+- [ ] `test_prediction_uncertainty_with_more_data` — Later updates (more data) should have tighter prediction intervals
+- [ ] `test_ragged_edge_graceful_degradation` — Missing recent daily/weekly data produces valid (wider) intervals, not errors
+
+**Example Test Structure:**
+```python
+def test_pipeline_sequential_updates(self, pipeline, vintage_date):
+    """Verify pipeline can be called multiple times as new data arrives."""
+    # Simulate T-48h: Only data through 2 days ago
+    raw_sources_t48 = load_raw_sources(vintage_date, cutoff_days=2)
+    pred_t48, intervals_t48 = pipeline.predict(vintage_date, raw_sources_t48)
+    
+    # Simulate T-24h: Data through yesterday
+    raw_sources_t24 = load_raw_sources(vintage_date, cutoff_days=1)
+    pred_t24, intervals_t24 = pipeline.predict(vintage_date, raw_sources_t24)
+    
+    # Both should produce valid predictions
+    assert not np.isnan(pred_t48).any()
+    assert not np.isnan(pred_t24).any()
+    
+    # Intervals should narrow with more data (optional assertion)
+    # assert intervals_t24 width <= intervals_t48 width
+```
+
+**Note:** Automated triggering of updates is Phase 9 (Nowcast Agent) scope; these tests verify the infrastructure supports it.
+
 ### R5.4 Gate Check: Integration Layer
 
 | Criterion | Required | Status |
@@ -1133,6 +1164,37 @@ def _preprocess_features(self, X: pd.DataFrame) -> np.ndarray:
 
 **Test:** Add `test_dfm_handles_preprocessing()` to verify robustness.
 
+**Test Fixture Migration Guidance:**
+
+When updating `tests/backtests/test_dfm_validation.py` for statsmodels DFM, verify fixture compatibility:
+
+| Fixture/Attribute | Current State | After Refactor | Action |
+|-------------------|---------------|----------------|--------|
+| `factors_` shape | `(n_samples, n_factors)` | Same (extracted from statsmodels) | Verify shape unchanged |
+| `loadings_` shape | `(n_features, n_factors)` | Same | Verify shape unchanged |
+| `SMAPE_THRESHOLD` | 20.0 | May improve with stable DFM | Monitor, don't lower prematurely |
+| `STABILITY_THRESHOLD` | 1,000,000 | Should rarely trigger | Expect near-100% stability |
+| `PI_COVERAGE_MIN/MAX` | 85.0 / 95.0 | Same targets | Now testable (DFM stable) |
+
+**Transition Period Validation:**
+```python
+def test_statsmodels_vs_scratch_comparison(self, vintage_date, features, target):
+    """One-time comparison to validate statsmodels produces comparable results."""
+    # Run both implementations on same data
+    dfm_scratch = DynamicFactorModelScratch(n_factors=2, random_state=42)
+    dfm_statsmodels = DynamicFactorModel(n_factors=2, random_state=42)
+    
+    # Fit both
+    dfm_scratch.fit(features, target, vintage_date=str(vintage_date))
+    dfm_statsmodels.fit(features, target, vintage_date=str(vintage_date))
+    
+    # Log differences for review (not strict assertions)
+    logger.info(f"Factors correlation: {np.corrcoef(dfm_scratch.factors_.flatten(), dfm_statsmodels.factors_.flatten())[0,1]:.4f}")
+    logger.info(f"Loadings correlation: {np.corrcoef(dfm_scratch.loadings_.flatten(), dfm_statsmodels.loadings_.flatten())[0,1]:.4f}")
+```
+
+**Note:** This comparison test is for validation during transition only; remove after confirming statsmodels implementation is stable.
+
 #### R7.1.2 Run DFM Validation
 - [ ] Execute validation
   ```bash
@@ -1162,6 +1224,76 @@ def _preprocess_features(self, X: pd.DataFrame) -> np.ndarray:
 | MIDAS Bridged | ? | ? | ? |
 | XGBoost | ? | ? | ? |
 | Ensemble | ? | ? | ? |
+
+#### R7.1.4 Calibration Integration Validation
+
+**Rationale:** ACCURACY_MAP.md Section 5.2 requires 74-86% PI coverage. The refactor must verify calibration works with bridge-produced features, not just pre-aggregated features.
+
+**Gap Addressed:** Current `test_dfm_validation.py` defines `PI_COVERAGE_MIN/MAX` but does NOT exercise calibration. `test_complete_workflow.py` exercises calibration but with pre-aggregated features.
+
+**Tests to Add in `tests/backtests/test_dfm_validation.py`:**
+- [ ] `test_bridge_to_calibration_pipeline` — MIDASBridge → DFM → ConformalPredictor
+- [ ] `test_mixed_frequency_interval_coverage` — Verify 85-95% coverage on real vintages
+- [ ] `test_calibration_with_ragged_edge` — Partial data doesn't break calibration
+
+**Test Structure:**
+```python
+class TestDFMCalibrationIntegration:
+    """
+    Verify calibration works with bridge-produced features.
+    
+    Target: ACCURACY_MAP.md Section 5.2 (74-86% PI coverage)
+    """
+    
+    def test_mixed_frequency_interval_coverage(
+        self,
+        vintage_datasets: Dict[date, Dict],
+        midas_bridge: MIDASBridge
+    ):
+        """
+        Verify prediction interval coverage meets ACCURACY_MAP targets.
+        """
+        from models_src.calibration.conformal import ConformalPredictor
+        
+        coverage_results = []
+        
+        for vintage_date, data in vintage_datasets.items():
+            # Build features via bridge (not pre-aggregated)
+            bridged_features = midas_bridge.build_features(
+                vintage_date=vintage_date,
+                target_dates=data["target"].index,
+                raw_sources=data["raw_sources"]
+            )
+            
+            # Train DFM on bridged features
+            dfm = DynamicFactorModel(n_factors=3, random_state=42)
+            # ... split, fit, predict ...
+            
+            # Apply calibration
+            conformal = ConformalPredictor(confidence_levels=[0.9])
+            conformal.fit(val_predictions, val_actuals)
+            intervals = conformal.predict_intervals(test_predictions)
+            
+            # Measure coverage
+            coverage = prediction_interval_coverage(
+                test_actuals, intervals[:, 0], intervals[:, 1]
+            )
+            coverage_results.append(coverage)
+        
+        avg_coverage = np.mean(coverage_results)
+        logger.info(f"Average 90% PI coverage: {avg_coverage:.1f}%")
+        
+        # ACCURACY_MAP.md target: 85-95% for 90% intervals
+        assert PI_COVERAGE_MIN <= avg_coverage <= PI_COVERAGE_MAX, \
+            f"Coverage {avg_coverage:.1f}% outside target range [{PI_COVERAGE_MIN}, {PI_COVERAGE_MAX}]"
+```
+
+**Success Criteria:**
+| Metric | Target | Source |
+|--------|--------|--------|
+| 90% PI Coverage | 85-95% | ACCURACY_MAP.md Section 5.2 |
+| ECE (Expected Calibration Error) | < 0.05 | IMPLEMENTATION_STATUS.md deployment gates |
+| No NaN intervals | 100% | Basic stability |
 
 ### R7.2 DFM Ensemble Decision
 
@@ -1505,6 +1637,24 @@ git checkout backup/midas-dfm-pre-refactor -- models_src/dfm/ models_src/midas/ 
 | sMAPE < 20% | ❌ N/A (DFM NaN) | ✅ Target | Pending |
 | Prediction intervals | ⚠️ Partial | ✅ Full | Pending |
 
+### D.4 Alignment with Calibration Requirements
+
+**Source:** ACCURACY_MAP.md Section 5, FORECASTING_CAPABILITIES.md Section 5, IMPLEMENTATION_STATUS.md deployment gates
+
+| Requirement | Before Refactor | After Refactor | Validation |
+|-------------|-----------------|----------------|------------|
+| 74-86% PI Coverage (ACCURACY_MAP 5.2) | Untested with DFM (DFM unstable) | ✅ R7.1.4 tests verify | Pending |
+| ECE < 0.05 (deployment gate) | Tested in `test_complete_workflow.py` | ✅ Add to bridge pipeline tests | Pending |
+| Low-noise vectors (FORECASTING_CAPABILITIES 5.3) | Depends on stable DFM | ✅ statsmodels provides stability | Pending |
+| Calibrated bins for SN41 | Partially working (MIDAS/XGB only) | ✅ Full ensemble with DFM | Pending |
+
+**Key Insight:** Calibration module (`models_src/calibration/`) is unchanged, but this refactor enables its use with DFM for the first time (DFM was previously unstable and excluded from calibrated pipelines).
+
+**Validation Path:**
+1. R7.1.4 adds calibration tests with bridge-produced features
+2. Phase 6.3.1a re-validation exercises full pipeline including calibration
+3. Coverage metrics recorded in R7.1.3 accuracy comparison table
+
 ---
 
 ## Change Log
@@ -1514,6 +1664,7 @@ git checkout backup/midas-dfm-pre-refactor -- models_src/dfm/ models_src/midas/ 
 | 2025-12-04 | Plan Created | 📋 PLANNED | Comprehensive Option C plan with MIDAS Bridge |
 | 2025-12-04 | Clarifications | 📋 UPDATED | Added: VintageManager details, Almon weight tests, MIDASLagConstructor reuse note, DynamicFactor rationale, vintage count confirmation |
 | 2025-12-04 | Risk Analysis | 📋 UPDATED | Added: Phase 5 Impact Assessment, Interface Compatibility Layer (R3.2.3), Feature Naming Convention (R3.2.4), API Compatibility Guarantee (R4.2.1), Serialization Approach (R4.2.1), Determinism Enforcement (R4.2.1), state_space.py Decision Criteria (R4.2.2), Feature Versioning Rules (R5.2.1), Additional Script Updates (R5.2.2), Test Runtime Budget (R6), Data Preprocessing Requirements (R7.1.1) |
+| 2025-12-04 | Calibration & Validation | 📋 UPDATED | Added: R5.3.3 Intra-Month Update Tests, R7.1.1 Fixture Migration Guidance, R7.1.4 Calibration Integration Validation, D.4 Calibration Requirements Alignment |
 
 ---
 
