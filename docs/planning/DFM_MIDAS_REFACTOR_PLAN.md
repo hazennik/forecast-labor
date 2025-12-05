@@ -1271,8 +1271,8 @@ class TestDFMCalibrationIntegration:
             
             # Apply calibration
             conformal = ConformalPredictor(confidence_levels=[0.9])
-            conformal.fit(val_predictions, val_actuals)
-            intervals = conformal.predict_intervals(test_predictions)
+            conformal.fit(val_actuals, val_predictions)  # fit(y_true, y_pred)
+            lower, upper = conformal.predict_interval(test_predictions)  # returns (lower, upper) tuple
             
             # Measure coverage
             coverage = prediction_interval_coverage(
