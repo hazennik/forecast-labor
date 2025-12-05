@@ -1276,7 +1276,7 @@ class TestDFMCalibrationIntegration:
             
             # Measure coverage
             coverage = prediction_interval_coverage(
-                test_actuals, intervals[:, 0], intervals[:, 1]
+                test_actuals, lower, upper
             )
             coverage_results.append(coverage)
         
