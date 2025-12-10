@@ -231,6 +231,60 @@ This refactor provides **infrastructure** for mixed-frequency nowcasting (MIDAS 
 
 ### R2.1 Design MIDAS Bridge Architecture
 
+#### R2.1.0 Source Configuration Registry
+
+Create source configuration to bridge ETL outputs to MIDASBridge inputs:
+
+| Source | ETL Class | Frequency | Date Column | Value Column(s) | Expected Lags |
+|--------|-----------|-----------|-------------|-----------------|---------------|
+| `treasury_withholdings` | `TreasuryWithholdingsETL` | `D` | `date` | `daily_withholding` | 20 |
+| `ui_claims` | `UIClaimsETL` | `W` | `report_date` | `initial_claims` | 8 |
+| `bls_ces` | `BLSCesETL` | `M` | `date` | `all_employees` | 1 (pass-through) |
+
+**Implementation:** Create `features/midas/source_config.py`:
+```python
+from dataclasses import dataclass
+from typing import Literal
+
+@dataclass
+class SourceConfig:
+    """Configuration for a data source used by MIDASBridge."""
+    source_name: str
+    frequency: Literal["D", "W", "M"]
+    date_column: str
+    value_column: str
+    n_lags: int
+
+DEFAULT_SOURCE_CONFIGS = {
+    "treasury_withholdings": SourceConfig(
+        source_name="treasury_withholdings",
+        frequency="D",
+        date_column="date",
+        value_column="daily_withholding",
+        n_lags=20
+    ),
+    "ui_claims": SourceConfig(
+        source_name="ui_claims",
+        frequency="W",
+        date_column="report_date",
+        value_column="initial_claims",
+        n_lags=8
+    ),
+    "bls_ces": SourceConfig(
+        source_name="bls_ces",
+        frequency="M",
+        date_column="date",
+        value_column="all_employees",
+        n_lags=1
+    ),
+}
+```
+
+**Why This Is Needed:**
+- ETL pipelines don't store frequency metadata with vintages
+- Different sources have different column structures
+- MIDASBridge needs to know how to extract the relevant series from each source
+
 #### R2.1.1 Define Bridge Interface
 The MIDAS Bridge must:
 1. Ingest raw high-frequency data (daily, weekly) from ETL
@@ -272,6 +326,84 @@ class VintageManager:
     def load_vintage(source_name: str, vintage_date: date) -> pd.DataFrame
     def list_vintages(source_name: str) -> List[date]
     def get_vintage_as_of(source_name: str, as_of_date: date) -> pd.DataFrame
+```
+
+**MIDASBridge ↔ VintageManager Integration Pattern:**
+
+```python
+class MIDASBridge:
+    def __init__(
+        self,
+        vintage_manager: Optional[VintageManager] = None,
+        source_configs: Dict[str, SourceConfig] = None,
+        daily_n_lags: int = 20,
+        weekly_n_lags: int = 8,
+        almon_degree: int = 2,
+        handle_ragged: bool = True
+    ):
+        """
+        Args:
+            vintage_manager: Injected VintageManager or created internally
+            source_configs: Per-source configuration (frequency, columns, ragged handling)
+        """
+        self.vm = vintage_manager or VintageManager(Path("data/vintages"))
+        self.source_configs = source_configs or DEFAULT_SOURCE_CONFIGS
+        # ... other init
+    
+    def build_features(
+        self,
+        vintage_date: date,
+        target_dates: pd.DatetimeIndex,
+        raw_sources: Optional[Dict[str, pd.Series]] = None
+    ) -> pd.DataFrame:
+        """
+        Build monthly-aligned features from raw high-frequency data.
+        
+        If raw_sources provided: Use directly (runtime prediction, testing)
+        If raw_sources is None: Load from VintageManager (training, backtesting)
+        """
+        if raw_sources is None:
+            raw_sources = self._load_from_vintage_manager(vintage_date)
+        # ... rest of implementation
+    
+    def _load_from_vintage_manager(self, vintage_date: date) -> Dict[str, pd.Series]:
+        """Load raw sources from VintageManager with frequency-aware handling."""
+        sources = {}
+        for source_name, config in self.source_configs.items():
+            df = self.vm.get_vintage_as_of(source_name, vintage_date)
+            if df is not None:
+                # Extract the primary series based on config
+                series = df.set_index(config.date_column)[config.value_column]
+                sources[source_name] = series
+            else:
+                logger.warning(f"No vintage data for {source_name} as of {vintage_date}")
+        return sources
+```
+
+**Ragged-Edge Detection and Handling:**
+```python
+def _detect_ragged_edge(self, series: pd.Series, vintage_date: date, config: SourceConfig) -> int:
+    """
+    Detect how many observations are missing from expected.
+    
+    Returns:
+        Number of missing periods (0 = complete data)
+    """
+    latest_data_date = series.index.max()
+    
+    if config.frequency == "D":
+        # For daily: count business days between latest and vintage
+        gap = pd.bdate_range(latest_data_date, vintage_date).size - 1
+    elif config.frequency == "W":
+        # For weekly: count weeks
+        gap = (vintage_date - latest_data_date.date()).days // 7
+    else:
+        gap = 0  # Monthly is pass-through
+    
+    if gap > 0:
+        logger.info(f"Ragged edge detected for {config.source_name}: {gap} {config.frequency} periods missing")
+    
+    return gap
 ```
 
 ### R2.2 Create MIDAS Bridge Test File
@@ -561,6 +693,64 @@ class MIDASBridge:
 ```
 
 - Feature registry MUST track bridge version used
+
+#### R3.2.5 Feature Registry Integration
+
+**When to Register Bridged Features:**
+
+| Context | Register? | Backend | Rationale |
+|---------|-----------|---------|-----------|
+| Training artifacts (`scripts/build_features.py --use-midas-bridge`) | ✅ Yes | Database | Production lineage tracking |
+| Runtime prediction (`MIDASBridge.build_features()`) | ⚠️ Optional | Memory | Performance-sensitive |
+| Backtest validation | ❌ No | N/A | Ephemeral features |
+
+**Registration Schema:**
+```python
+def register_bridged_features(
+    registry: FeatureRegistry,
+    features_df: pd.DataFrame,
+    bridge: MIDASBridge,
+    vintage_date: date
+) -> List[str]:
+    """
+    Register bridged features to registry with lineage.
+    
+    Args:
+        registry: Feature registry instance
+        features_df: Output from MIDASBridge.build_features()
+        bridge: MIDASBridge instance (for config metadata)
+        vintage_date: Vintage date used
+    
+    Returns:
+        List of registered feature IDs
+    """
+    feature_ids = []
+    for col in features_df.columns:
+        feature_id = registry.register({
+            'name': col,
+            'source': 'midas_bridge',
+            'frequency': 'monthly',  # Output is always monthly
+            'transform': 'midas_bridge',
+            'vintage_date': str(vintage_date),
+            'metadata': {
+                'bridge_version': bridge.VERSION,
+                'input_sources': list(bridge.source_configs.keys()),
+                'almon_degree': bridge.almon_degree,
+                'daily_n_lags': bridge.daily_n_lags,
+                'weekly_n_lags': bridge.weekly_n_lags,
+            }
+        })
+        feature_ids.append(feature_id)
+    return feature_ids
+```
+
+**Lineage Tracking:**
+- **Parent features:** Raw ETL outputs (by `source_name` in `source_configs`)
+- **Child features:** Bridged monthly features (by `bridge.VERSION` + column name)
+- **Query:** `registry.get_lineage(bridged_feature_id)` returns source chain
+
+**FeatureMetadata Extension:**
+The existing `FeatureMetadata` schema in `features/registry.py` supports this via the `metadata` dict field—no schema changes required.
 
 ### R3.3 Run MIDAS Bridge Tests
 
@@ -997,6 +1187,132 @@ def test_pipeline_sequential_updates(self, pipeline, vintage_date):
 
 **Note:** Automated triggering of updates is Phase 9 (Nowcast Agent) scope; these tests verify the infrastructure supports it.
 
+#### R5.3.4 VintageHarness Compatibility Tests
+
+**Rationale:** The existing `backtests/vintage_harness/harness.py` reconstructs historical data states. MIDASBridge must integrate seamlessly with `ReconstructedState` for vintage-honest backtesting.
+
+**Tests to Add in `tests/integration/test_mixed_frequency_pipeline.py`:**
+- [ ] `test_bridge_with_vintage_harness_reconstructed_state` — Verify MIDASBridge works with VintageHarness output
+- [ ] `test_bridge_handles_partial_vintage_availability` — Graceful handling when not all sources available
+- [ ] `test_pipeline_vintage_honesty_validation` — Validate no future data leakage
+
+**Test Structure:**
+```python
+def test_bridge_with_vintage_harness_reconstructed_state(self, midas_bridge):
+    """Verify MIDASBridge works with VintageHarness output."""
+    from backtests.vintage_harness.harness import VintageHarness, ReconstructedState
+    
+    harness = VintageHarness(Path("data/vintages"))
+    
+    # Reconstruct state for a backtest date
+    state = harness.reconstruct_state(
+        as_of_date=date(2024, 6, 1),
+        sources=["treasury_withholdings", "ui_claims", "bls_ces"],
+        allow_partial=True
+    )
+    
+    # Convert ReconstructedState.data to raw_sources format
+    raw_sources = midas_bridge._convert_reconstructed_state(state)
+    
+    # Build features
+    target_dates = pd.date_range("2024-01-01", "2024-06-01", freq="MS")
+    features = midas_bridge.build_features(
+        vintage_date=state.as_of_date,
+        target_dates=target_dates,
+        raw_sources=raw_sources
+    )
+    
+    # Validate
+    assert not features.isna().all().any(), "All-NaN columns detected"
+    assert len(features) == len(target_dates)
+    
+    # Verify vintage honesty
+    is_valid, errors = harness.validate_vintage_honesty(state)
+    assert is_valid, f"Vintage honesty violated: {errors}"
+
+
+def test_bridge_handles_partial_vintage_availability(self, midas_bridge):
+    """Verify graceful degradation when some sources unavailable."""
+    harness = VintageHarness(Path("data/vintages"))
+    
+    # Request sources that may not all be available
+    state = harness.reconstruct_state(
+        as_of_date=date(2022, 1, 1),  # Early date, may have partial data
+        sources=["treasury_withholdings", "ui_claims", "bls_ces"],
+        allow_partial=True
+    )
+    
+    # Should not raise, even with partial data
+    raw_sources = midas_bridge._convert_reconstructed_state(state)
+    target_dates = pd.date_range("2021-06-01", "2022-01-01", freq="MS")
+    
+    features = midas_bridge.build_features(
+        vintage_date=state.as_of_date,
+        target_dates=target_dates,
+        raw_sources=raw_sources
+    )
+    
+    # Features should exist for available sources
+    assert len(features.columns) > 0
+```
+
+**ReconstructedState → raw_sources Adapter:**
+Add helper method to `MIDASBridge`:
+```python
+def _convert_reconstructed_state(self, state: ReconstructedState) -> Dict[str, pd.Series]:
+    """
+    Convert VintageHarness ReconstructedState to raw_sources format.
+    
+    Args:
+        state: ReconstructedState from VintageHarness.reconstruct_state()
+    
+    Returns:
+        Dict mapping source_name to pd.Series (date-indexed values)
+    """
+    raw_sources = {}
+    for source_name, df in state.data.items():
+        if source_name not in self.source_configs:
+            logger.warning(f"No config for source {source_name}, skipping")
+            continue
+        
+        config = self.source_configs[source_name]
+        
+        # Extract series based on config
+        if config.date_column in df.columns and config.value_column in df.columns:
+            series = df.set_index(config.date_column)[config.value_column]
+            series.index = pd.to_datetime(series.index)
+            raw_sources[source_name] = series
+        else:
+            logger.warning(
+                f"Expected columns {config.date_column}, {config.value_column} "
+                f"not found in {source_name} vintage data"
+            )
+    
+    return raw_sources
+
+def build_features_from_harness_state(
+    self,
+    state: ReconstructedState,
+    target_dates: pd.DatetimeIndex
+) -> pd.DataFrame:
+    """
+    Convenience method to build features from VintageHarness output.
+    
+    Args:
+        state: ReconstructedState from VintageHarness.reconstruct_state()
+        target_dates: Monthly dates to produce features for
+    
+    Returns:
+        Monthly-aligned feature DataFrame
+    """
+    raw_sources = self._convert_reconstructed_state(state)
+    return self.build_features(
+        vintage_date=state.as_of_date,
+        target_dates=target_dates,
+        raw_sources=raw_sources
+    )
+```
+
 ### R5.4 Gate Check: Integration Layer
 
 | Criterion | Required | Status |
@@ -1226,6 +1542,21 @@ def test_statsmodels_vs_scratch_comparison(self, vintage_date, features, target)
 | Ensemble | ? | ? | ? |
 
 #### R7.1.4 Calibration Integration Validation
+
+**Calibration Module Status:** ✅ **NO MODIFICATIONS REQUIRED**
+
+The existing `models_src/calibration/conformal.py` is used unchanged:
+
+| Method | Signature | Notes |
+|--------|-----------|-------|
+| `fit()` | `fit(y_true, y_pred)` | Same signature, no changes |
+| `predict_interval()` | `predict_interval(y_pred, confidence_level)` | Returns `(lower, upper)` tuple |
+| `validate_coverage()` | `validate_coverage(y_true, y_pred, confidence_level)` | For metrics |
+
+**What Changes:** Only the *features* fed to models change (via MIDASBridge), not the calibration itself. The pipeline flow is:
+```
+MIDASBridge → DFM/Ensemble → predictions → ConformalPredictor (unchanged) → intervals
+```
 
 **Rationale:** ACCURACY_MAP.md Section 5.2 requires 74-86% PI coverage. The refactor must verify calibration works with bridge-produced features, not just pre-aggregated features.
 
@@ -1491,12 +1822,13 @@ Record final metrics:
 
 | File | Purpose | Lines (Est.) |
 |------|---------|--------------|
-| `features/midas/bridge.py` | MIDAS Bridge Layer | ~200-300 |
+| `features/midas/source_config.py` | Source configuration registry | ~50-80 |
+| `features/midas/bridge.py` | MIDAS Bridge Layer | ~250-350 |
 | `models_src/midas/bridged_regression.py` | Bridged MIDAS Model | ~150-200 |
 | `models_src/pipelines/mixed_frequency_pipeline.py` | Integration Pipeline | ~300-400 |
 | `tests/features/test_midas_bridge.py` | Bridge Tests | ~300-400 |
 | `tests/models/test_dfm_statsmodels.py` | DFM Tests | ~400-500 |
-| `tests/integration/test_mixed_frequency_pipeline.py` | Integration Tests | ~300-400 |
+| `tests/integration/test_mixed_frequency_pipeline.py` | Integration Tests | ~400-500 |
 
 ### A.2 Files to REPLACE
 
@@ -1552,9 +1884,9 @@ Record final metrics:
 
 | Test File | Tests (Est.) | Purpose |
 |-----------|--------------|---------|
-| `test_midas_bridge.py` | ~15-20 | MIDAS Bridge functionality |
+| `test_midas_bridge.py` | ~20-25 | MIDAS Bridge functionality (incl. Almon weights, ragged-edge) |
 | `test_dfm_statsmodels.py` | ~20-25 | statsmodels DFM |
-| `test_mixed_frequency_pipeline.py` | ~10-15 | Integration pipeline |
+| `test_mixed_frequency_pipeline.py` | ~15-20 | Integration pipeline (incl. VintageHarness compatibility) |
 
 ### B.2 Existing Tests to Update
 
@@ -1665,6 +1997,7 @@ git checkout backup/midas-dfm-pre-refactor -- models_src/dfm/ models_src/midas/ 
 | 2025-12-04 | Clarifications | 📋 UPDATED | Added: VintageManager details, Almon weight tests, MIDASLagConstructor reuse note, DynamicFactor rationale, vintage count confirmation |
 | 2025-12-04 | Risk Analysis | 📋 UPDATED | Added: Phase 5 Impact Assessment, Interface Compatibility Layer (R3.2.3), Feature Naming Convention (R3.2.4), API Compatibility Guarantee (R4.2.1), Serialization Approach (R4.2.1), Determinism Enforcement (R4.2.1), state_space.py Decision Criteria (R4.2.2), Feature Versioning Rules (R5.2.1), Additional Script Updates (R5.2.2), Test Runtime Budget (R6), Data Preprocessing Requirements (R7.1.1) |
 | 2025-12-04 | Calibration & Validation | 📋 UPDATED | Added: R5.3.3 Intra-Month Update Tests, R7.1.1 Fixture Migration Guidance, R7.1.4 Calibration Integration Validation, D.4 Calibration Requirements Alignment |
+| 2025-12-09 | Integration Clarifications | 📋 UPDATED | Added: R2.1.0 Source Configuration Registry (ETL frequency metadata), VintageManager integration pattern with ragged-edge detection (R2.1.2), R3.2.5 Feature Registry Integration, R5.3.4 VintageHarness Compatibility Tests, R7.1.4 calibration module status clarification |
 
 ---
 
