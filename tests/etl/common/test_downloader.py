@@ -45,7 +45,7 @@ class TestDownloader:
         assert downloader.max_retries == 3
         assert downloader.retry_delay == 5
         assert downloader.timeout == 30
-        assert downloader.session.headers["User-Agent"] == "forecast-labor/1.0"
+        assert "Mozilla/5.0" in downloader.session.headers["User-Agent"]
     
     def test_init_custom_values(self):
         """Test downloader initialization with custom values"""

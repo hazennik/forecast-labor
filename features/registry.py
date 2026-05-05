@@ -162,6 +162,7 @@ class DatabaseBackend:
                 password=password,
             )
             self._conn.autocommit = False  # Use transactions
+            self._search_cache: Dict[tuple, List[Dict[str, Any]]] = {}
             
             logger.info(
                 "database_backend_connected",
@@ -179,12 +180,64 @@ class DatabaseBackend:
                 exc_info=True,
             )
             raise
+
+    @property
+    def conn(self):
+        """Backward-compatible access to the database connection."""
+        return self._conn
     
     def close(self) -> None:
         """Close database connection."""
         if hasattr(self, '_conn') and self._conn:
             self._conn.close()
             logger.info("database_connection_closed")
+
+    def _cache_key(self, filters: Dict[str, Any]) -> tuple:
+        """Build a stable key for cached metadata searches."""
+        return tuple(sorted(filters.items()))
+
+    def _feature_matches_filters(
+        self,
+        feature: Dict[str, Any],
+        filters: Dict[str, Any],
+    ) -> bool:
+        """Return whether a feature row satisfies all filter predicates."""
+        return all(feature.get(key) == value for key, value in filters.items())
+
+    def _normalize_feature_row(
+        self,
+        feature: Dict[str, Any],
+        feature_id: Any,
+    ) -> Dict[str, Any]:
+        """Create a JSON-like feature row for cache and API responses."""
+        row = dict(feature)
+        row['feature_id'] = str(feature_id)
+        if row.get('vintage_date') and hasattr(row['vintage_date'], 'isoformat'):
+            row['vintage_date'] = row['vintage_date'].isoformat()
+        if not row.get('display_name'):
+            row['display_name'] = row.get('name')
+        if 'current_version' not in row:
+            row['current_version'] = 1
+        if 'data_type' not in row:
+            row['data_type'] = row.get('data_type', 'float64')
+        if 'status' not in row:
+            row['status'] = row.get('status', 'active')
+        if 'is_synthetic' not in row:
+            row['is_synthetic'] = row.get('is_synthetic', False)
+        return row
+
+    def _update_search_cache(self, feature: Dict[str, Any]) -> None:
+        """Keep cached search results current after local writes."""
+        for filters_tuple, cached_features in self._search_cache.items():
+            filters = dict(filters_tuple)
+            if not self._feature_matches_filters(feature, filters):
+                continue
+            cached_features[:] = [
+                cached_feature
+                for cached_feature in cached_features
+                if cached_feature.get('feature_id') != feature.get('feature_id')
+            ]
+            cached_features.append(dict(feature))
     
     def register_feature(self, feature_data: Dict[str, Any]) -> str:
         """
@@ -207,6 +260,18 @@ class DatabaseBackend:
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
+                    ON CONFLICT (name, vintage_date) DO UPDATE SET
+                        display_name = EXCLUDED.display_name,
+                        description = EXCLUDED.description,
+                        source = EXCLUDED.source,
+                        frequency = EXCLUDED.frequency,
+                        data_type = EXCLUDED.data_type,
+                        unit = EXCLUDED.unit,
+                        seasonal_adjustment = EXCLUDED.seasonal_adjustment,
+                        status = EXCLUDED.status,
+                        is_synthetic = EXCLUDED.is_synthetic,
+                        tags = EXCLUDED.tags,
+                        updated_at = CURRENT_TIMESTAMP
                     RETURNING feature_id
                 """)
                 
@@ -229,9 +294,26 @@ class DatabaseBackend:
                 feature_id = cur.fetchone()[0]
                 
                 # Insert lineage if depends_on is provided
-                depends_on = feature_data.get('depends_on', [])
+                depends_on = feature_data.get('depends_on') or feature_data.get('parent_features', [])
                 if depends_on:
-                    for parent_id in depends_on:
+                    transformations = feature_data.get('transformations') or []
+                    default_transform = {
+                        'type': feature_data.get('transform', 'custom'),
+                        'params': feature_data.get('transform_params', {}),
+                    }
+                    allowed_transform_types = {
+                        'diff', 'log', 'log_diff', 'pct_change', 'midas_lag',
+                        'seasonal_adj', 'detrend', 'standardize', 'normalize',
+                        'rolling_mean', 'rolling_std', 'ewm', 'aggregation',
+                        'custom',
+                    }
+                    for index, parent_id in enumerate(depends_on):
+                        transform = transformations[index] if index < len(transformations) else default_transform
+                        transform_type = transform.get('type', default_transform['type'])
+                        if transform_type == 'lag':
+                            transform_type = 'midas_lag'
+                        elif transform_type not in allowed_transform_types:
+                            transform_type = 'custom'
                         lineage_query = sql.SQL("""
                             INSERT INTO features.feature_transforms (
                                 feature_id, transform_type, transform_params, parent_feature_id
@@ -239,8 +321,8 @@ class DatabaseBackend:
                         """)
                         cur.execute(lineage_query, (
                             feature_id,
-                            feature_data.get('transform', 'custom'),
-                            json.dumps(feature_data.get('transform_params', {})),
+                            transform_type,
+                            json.dumps(transform.get('params', default_transform['params'])),
                             parent_id,
                         ))
                 
@@ -249,6 +331,7 @@ class DatabaseBackend:
                     INSERT INTO features.feature_versions (
                         feature_id, version, checksum, change_description
                     ) VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (feature_id, version) DO NOTHING
                 """)
                 cur.execute(version_query, (
                     feature_id,
@@ -258,6 +341,8 @@ class DatabaseBackend:
                 ))
                 
                 self._conn.commit()
+                cached_feature = self._normalize_feature_row(feature_data, feature_id)
+                self._update_search_cache(cached_feature)
                 
                 logger.info(
                     "feature_registered_to_database",
@@ -309,6 +394,29 @@ class DatabaseBackend:
                 feature['vintage_date'] = feature['vintage_date'].isoformat()
             if feature.get('tags'):
                 feature['tags'] = json.loads(feature['tags']) if isinstance(feature['tags'], str) else feature['tags']
+
+            cur.execute("""
+                SELECT parent_feature_id, transform_type, transform_params
+                FROM features.feature_transforms
+                WHERE feature_id = %s
+                ORDER BY applied_at ASC
+            """, (feature_id,))
+            transform_rows = cur.fetchall()
+            if transform_rows:
+                feature['parent_features'] = [
+                    str(row['parent_feature_id']) for row in transform_rows
+                ]
+                feature['transformations'] = [
+                    {
+                        'type': row['transform_type'],
+                        'params': (
+                            json.loads(row['transform_params'])
+                            if isinstance(row['transform_params'], str)
+                            else row['transform_params']
+                        ),
+                    }
+                    for row in transform_rows
+                ]
             
             return feature
     
@@ -330,6 +438,10 @@ class DatabaseBackend:
             List of feature dictionaries
         """
         with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cache_key = self._cache_key(filters)
+            if filters and limit is None and offset is None and cache_key in self._search_cache:
+                return [dict(feature) for feature in self._search_cache[cache_key]]
+
             # Build query with filters
             query_parts = ["SELECT * FROM features.feature_metadata"]
             params = []
@@ -341,7 +453,8 @@ class DatabaseBackend:
                     params.append(value)
                 query_parts.append("WHERE " + " AND ".join(where_clauses))
             
-            query_parts.append("ORDER BY created_at DESC")
+            if not filters:
+                query_parts.append("ORDER BY created_at DESC")
             
             if limit:
                 query_parts.append(f"LIMIT {limit}")
@@ -362,8 +475,20 @@ class DatabaseBackend:
                 if feature.get('tags'):
                     feature['tags'] = json.loads(feature['tags']) if isinstance(feature['tags'], str) else feature['tags']
                 features.append(feature)
+
+            if filters and limit is None and offset is None:
+                self._search_cache[cache_key] = [dict(feature) for feature in features]
             
             return features
+
+    def search_features(self, **filters) -> List[Dict[str, Any]]:
+        """
+        Search features by metadata filters.
+
+        This is a compatibility wrapper around list_features for callers that
+        use the database backend directly.
+        """
+        return self.list_features(**filters)
     
     def update_feature(self, feature_id: str, updates: Dict[str, Any]) -> None:
         """
@@ -432,6 +557,7 @@ class DatabaseBackend:
                 
                 cur.execute(query, (feature_id,))
                 self._conn.commit()
+                self._search_cache.clear()
                 
                 logger.info("feature_deleted_from_database", feature_id=feature_id)
             
@@ -954,11 +1080,18 @@ class FeatureRegistry:
         Returns:
             List of feature IDs
         """
-        feature_ids = []
+        if self.backend == 'database' and self._db_backend:
+            feature_ids = [self._db_backend.register_feature(feature_data) for feature_data in features]
+        else:
+            feature_ids = []
+            new_features = {}
 
-        for feature_data in features:
-            feature_id = self.register(feature_data)
-            feature_ids.append(feature_id)
+            for feature_data in features:
+                feature_id = str(uuid.uuid4())
+                new_features[feature_id] = FeatureMetadata(**feature_data)
+                feature_ids.append(feature_id)
+
+            self._features.update(new_features)
 
         logger.info("bulk_registration_complete", feature_count=len(feature_ids))
 

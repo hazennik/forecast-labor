@@ -96,18 +96,41 @@ class UIClaimsETL(BaseETL):
             bool: True if valid
         """
         logger.info("Validating UI Claims data...")
-        
-        # Required columns (updated 2025-11-28: DOL changed to c# schema)
-        # c3 = Initial Claims (IC), c8 = Continued Claims (CW)
-        required_cols = ["rptdate", "st", "c3", "c8"]
-        
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        if missing_cols:
-            logger.error(f"Missing required columns: {missing_cols}")
+
+        if df.empty:
+            logger.error("UI Claims data is empty")
             return False
         
+        df = df.copy()
+        df.columns = [str(col).lower().strip() for col in df.columns]
+
+        # DOL has used both descriptive and generic c# schemas.
+        # c3/ic = Initial Claims, c8/cc = Continued Claims.
+        claim_column_pairs = [("c3", "c8"), ("ic", "cc")]
+        claims_cols = next(
+            (
+                (initial_col, continued_col)
+                for initial_col, continued_col in claim_column_pairs
+                if initial_col in df.columns and continued_col in df.columns
+            ),
+            None,
+        )
+
+        required_cols = ["rptdate", "st"]
+        if claims_cols is not None:
+            required_cols.extend(claims_cols)
+        
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols or claims_cols is None:
+            if claims_cols is None:
+                missing_cols.extend(["c3/c8 or ic/cc"])
+            logger.error(f"Missing required columns: {missing_cols}")
+            return False
+
+        initial_col, continued_col = claims_cols
+        
         # Check for null values in critical columns
-        if df[["rptdate", "st", "c3", "c8"]].isnull().any().any():
+        if df[["rptdate", "st", initial_col, continued_col]].isnull().any().any():
             logger.warning("Found null values in critical columns")
         
         # Check data types
@@ -118,7 +141,13 @@ class UIClaimsETL(BaseETL):
             return False
         
         # Check for reasonable values (claims should be positive)
-        if (df["c3"] < 0).any() or (df["c8"] < 0).any():
+        initial_claims = pd.to_numeric(df[initial_col], errors="coerce")
+        continued_claims = pd.to_numeric(df[continued_col], errors="coerce")
+        if initial_claims.isna().any() or continued_claims.isna().any():
+            logger.error("Found non-numeric claims values")
+            return False
+
+        if (initial_claims < 0).any() or (continued_claims < 0).any():
             logger.error("Found negative claims values")
             return False
         
@@ -162,6 +191,8 @@ class UIClaimsETL(BaseETL):
             "st": "state_code",
             "c3": "initial_claims",      # IC in DOL spec
             "c8": "continued_claims",    # CW in DOL spec
+            "ic": "initial_claims",      # Legacy descriptive schema
+            "cc": "continued_claims",    # Legacy descriptive schema
             "c13": "continued_claims_13week",  # if exists
         }, inplace=True)
         

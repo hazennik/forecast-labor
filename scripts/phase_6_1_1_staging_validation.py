@@ -115,7 +115,7 @@ class Phase611Validator:
         """
         self.check_only = check_only
         self.report = ValidationReport(
-            validation_id=f"phase_6_1_1_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            validation_id=f"phase_6_1_1_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}",
             started_at=datetime.now().isoformat()
         )
         
@@ -251,7 +251,7 @@ class Phase611Validator:
         
         except subprocess.TimeoutExpired:
             step.status = ValidationStatus.FAILED
-            step.error_message = "Infrastructure health check timed out (>60s)"
+            step.error_message = "Infrastructure health check timeout (>60s)"
             logger.error("infrastructure_check_timeout")
         
         except Exception as e:
@@ -584,7 +584,8 @@ class Phase611Validator:
         """
         logger.info("generating_final_report")
         
-        self.report.completed_at = datetime.now().isoformat()
+        if self.report.completed_at is None:
+            self.report.completed_at = datetime.now().isoformat()
         
         # Calculate total duration
         start_time = datetime.fromisoformat(self.report.started_at)

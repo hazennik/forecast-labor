@@ -25,6 +25,11 @@ NOAA_API_BASE = "https://www.ncei.noaa.gov/access/services/data/v1"
 ALLOW_FALLBACK_DATA = os.getenv("ALLOW_FALLBACK_DATA", "false").lower() == "true"
 
 
+def _allow_fallback_data() -> bool:
+    """Return whether fallback weather data is allowed in the current environment."""
+    return os.getenv("ALLOW_FALLBACK_DATA", "false").lower() == "true"
+
+
 class WeatherETL(BaseETL):
     """
     ETL pipeline for NOAA Weather Disruptions
@@ -92,7 +97,7 @@ class WeatherETL(BaseETL):
             logger.warning(f"API fetch failed: {e}")
         
         # Fallback to synthetic data (only if allowed)
-        if ALLOW_FALLBACK_DATA:
+        if _allow_fallback_data():
             logger.warning("Using fallback weather data (ALLOW_FALLBACK_DATA=true)")
             logger.warning("Set ALLOW_FALLBACK_DATA=false in production to fail instead")
             df = self._create_fallback_data()

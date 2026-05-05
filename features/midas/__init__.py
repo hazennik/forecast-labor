@@ -11,9 +11,14 @@ from features.midas.lag_constructor import (
     infer_series_frequency,
     align_series_to_dates,
 )
+from features.midas.bridge import MIDASBridge
+from features.midas.source_config import DEFAULT_SOURCE_CONFIGS, SourceConfig
 
 __all__ = [
     "MIDASLagConstructor",
+    "MIDASBridge",
+    "SourceConfig",
+    "DEFAULT_SOURCE_CONFIGS",
     "get_frequency_ratio",
     "infer_series_frequency",
     "align_series_to_dates",

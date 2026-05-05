@@ -6,12 +6,14 @@ Does not require pytest or database dependencies
 
 import sys
 import os
+from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Add parent directory to path
-project_root = '/Users/ryan/Documents/GitHub/forecast-labor'
-sys.path.insert(0, project_root)
+# Add project root to path. Resolve relative to this script so the test works
+# both on the host checkout and inside the Docker /app mount.
+project_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(project_root))
 
 # Import directly from file
 import importlib.util

@@ -185,6 +185,7 @@ services:
       - ./seasonal:/app/seasonal
       - ./features:/app/features
       - ./models_src:/app/models_src
+      - ./backtests:/app/backtests
       - ./recon:/app/recon
       - ./data:/app/data
       - ./scripts:/app/scripts

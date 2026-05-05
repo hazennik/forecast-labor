@@ -288,15 +288,28 @@ class TestCNBFSETL:
             ["2024-03", "11000", "5500", "3300"],
         ]
     
-    @patch('etl.common.downloader.Downloader.download')
-    def test_cnbfs_extract(self, mock_download, temp_paths, mock_cnbfs_data):
+    @patch('requests.get')
+    def test_cnbfs_extract(self, mock_get, temp_paths, mock_cnbfs_data):
         """Test CNBFS ETL extraction"""
         from etl.public.cnbfs.cnbfs_etl import CNBFSETL
-        
-        # Mock CSV data (CNBFS uses download, not download_json)
-        csv_data = "month,formations,applications,high_propensity\n"
-        csv_data += "\n".join([",".join(row) for row in mock_cnbfs_data])
-        mock_download.return_value = csv_data.encode('utf-8')
+
+        class MockResponse:
+            status_code = 200
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                rows = [
+                    ["cell_value", "data_type_code", "time_slot_id", "time", "category_code"]
+                ]
+                rows.extend(
+                    [row[1], "BA_BA", str(idx + 1), row[0], "TOTAL"]
+                    for idx, row in enumerate(mock_cnbfs_data)
+                )
+                return rows
+
+        mock_get.return_value = MockResponse()
         
         etl = CNBFSETL(
             raw_data_path=temp_paths["raw_data"],
@@ -306,7 +319,7 @@ class TestCNBFSETL:
         df = etl.extract()
         
         assert isinstance(df, pd.DataFrame)
-        assert mock_download.called
+        assert mock_get.called
 
 
 @pytest.mark.integration

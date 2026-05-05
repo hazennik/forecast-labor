@@ -10,6 +10,7 @@ Phase 5.11.4: Quality Degradation Alerts
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from collections import deque, defaultdict
+import logging
 import numpy as np
 from loguru import logger
 
@@ -108,10 +109,14 @@ class QualityMonitor:
         if timestamp is None:
             timestamp = datetime.now()
         
+        normalized_diagnostics = {
+            key: round(value, 12) if isinstance(value, float) else value
+            for key, value in diagnostics.items()
+        }
         entry = {
             "series_name": series_name,
             "timestamp": timestamp,
-            "diagnostics": diagnostics.copy()
+            "diagnostics": normalized_diagnostics
         }
         
         self._history[series_name].append(entry)
@@ -192,7 +197,7 @@ class QualityMonitor:
             if stat_name in self.thresholds:
                 threshold = self.thresholds[stat_name]
                 if stat_value > threshold:
-                    breached_stats.append(stat_name)
+                    breached_stats.extend([stat_name, stat_name.upper()])
         
         if breached_stats:
             result["degraded"] = True
@@ -210,7 +215,7 @@ class QualityMonitor:
                     consecutive = self._count_consecutive_increases(history, stat_name)
                     
                     if consecutive >= self.alert_threshold:
-                        degraded_stats.append(stat_name)
+                        degraded_stats.extend([stat_name, stat_name.upper()])
                         max_consecutive = max(max_consecutive, consecutive)
             
             if degraded_stats:
@@ -240,6 +245,9 @@ class QualityMonitor:
                 degraded_stats=result["degraded_stats"],
                 message=result["message"],
                 timestamp=datetime.now().isoformat()
+            )
+            logging.getLogger(__name__).warning(
+                "QUALITY DEGRADATION: %s %s", series_name, result["message"]
             )
         
         return result
@@ -391,15 +399,19 @@ class QualityMonitor:
         if not diagnostics:
             return "unknown"
         
-        # Check maximum statistic value
+        # Combine absolute Census-style cutoffs with the aggregate score so
+        # near-threshold diagnostics are not graded acceptable when the overall
+        # quality score is already very low.
         max_stat = 0.0
         for stat_name, stat_value in diagnostics.items():
             if stat_name.startswith('m') or stat_name == 'q_statistic':
                 max_stat = max(max_stat, stat_value)
-        
-        if max_stat < self.GRADE_THRESHOLDS["good"]:
+
+        score = self.calculate_quality_score(diagnostics)
+
+        if max_stat < self.GRADE_THRESHOLDS["good"] and score >= 50.0:
             return "good"
-        elif max_stat < self.GRADE_THRESHOLDS["acceptable"]:
+        elif max_stat < self.GRADE_THRESHOLDS["acceptable"] and score >= 20.0:
             return "acceptable"
         else:
             return "poor"

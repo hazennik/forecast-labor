@@ -639,10 +639,10 @@ def validate_quality_thresholds(
         
         value = m_stats[m_key]
         
-        if value >= thresholds.fail:
+        if value >= 2.0:
             failures.append(f"{m_key}={value:.2f} (>= {thresholds.fail})")
-        elif value >= thresholds.acceptable:
-            warnings.append(f"{m_key}={value:.2f} (>= {thresholds.acceptable})")
+        elif value >= thresholds.good:
+            warnings.append(f"{m_key}={value:.2f} (>= {thresholds.good})")
     
     # Overall quality assessment
     q_stat = m_stats.get('q_statistic', 999)
@@ -650,7 +650,7 @@ def validate_quality_thresholds(
     if q_stat < thresholds.good and len(failures) == 0:
         overall_quality = 'good'
         pass_flag = True
-    elif q_stat < thresholds.acceptable and len(failures) <= 2:
+    elif q_stat < 2.0 and len(failures) == 0:
         overall_quality = 'acceptable'
         pass_flag = True
     else:
@@ -701,7 +701,14 @@ def store_diagnostics_to_db(
     # Create engine if not provided
     if engine is None:
         import os
-        db_url = os.getenv('DATABASE_URL', 'postgresql://forecast_user:forecast_pass@localhost:5432/forecast_db')
+        db_url = os.getenv('DATABASE_URL')
+        if not db_url:
+            host = os.getenv('POSTGRES_HOST', 'postgres')
+            port = os.getenv('POSTGRES_PORT', '5432')
+            db = os.getenv('POSTGRES_DB', 'forecast_labor')
+            user = os.getenv('POSTGRES_USER', 'forecast_user')
+            password = os.getenv('POSTGRES_PASSWORD', 'forecast_pass_change_me')
+            db_url = f'postgresql://{user}:{password}@{host}:{port}/{db}'
         engine = sa.create_engine(db_url)
     
     # Prepare record
@@ -729,7 +736,7 @@ def store_diagnostics_to_db(
             # Update existing
             update_query = sa.text("""
                 UPDATE raw.seasonal_specs
-                SET m_stats = :m_stats::jsonb,
+                SET m_stats = CAST(:m_stats AS jsonb),
                     last_updated = :updated_at
                 WHERE series_name = :series_name
                 RETURNING spec_id
@@ -745,7 +752,7 @@ def store_diagnostics_to_db(
             # Insert new
             insert_query = sa.text("""
                 INSERT INTO raw.seasonal_specs (series_name, m_stats, last_updated)
-                VALUES (:series_name, :m_stats::jsonb, :updated_at)
+                VALUES (:series_name, CAST(:m_stats AS jsonb), :updated_at)
                 RETURNING spec_id
             """)
             result = conn.execute(insert_query, {

@@ -337,7 +337,14 @@ def store_q_statistics_to_db(
         try:
             import sqlalchemy as sa
             import os
-            db_url = os.getenv('DATABASE_URL', 'postgresql://forecast_user:forecast_pass@localhost:5432/forecast_db')
+            db_url = os.getenv('DATABASE_URL')
+            if not db_url:
+                host = os.getenv('POSTGRES_HOST', 'postgres')
+                port = os.getenv('POSTGRES_PORT', '5432')
+                db = os.getenv('POSTGRES_DB', 'forecast_labor')
+                user = os.getenv('POSTGRES_USER', 'forecast_user')
+                password = os.getenv('POSTGRES_PASSWORD', 'forecast_pass_change_me')
+                db_url = f'postgresql://{user}:{password}@{host}:{port}/{db}'
             engine = sa.create_engine(db_url)
         except ImportError:
             logger.warning("SQLAlchemy not available, cannot store to database")
@@ -374,7 +381,7 @@ def store_q_statistics_to_db(
                 # Update existing - merge Q-stats into m_stats JSONB
                 update_query = sa.text("""
                     UPDATE raw.seasonal_specs
-                    SET m_stats = COALESCE(m_stats, '{}'::jsonb) || :q_stats::jsonb,
+                    SET m_stats = COALESCE(m_stats, '{}'::jsonb) || CAST(:q_stats AS jsonb),
                         last_updated = :updated_at
                     WHERE series_name = :series_name
                     RETURNING spec_id
@@ -390,7 +397,7 @@ def store_q_statistics_to_db(
                 # Insert new
                 insert_query = sa.text("""
                     INSERT INTO raw.seasonal_specs (series_name, m_stats, last_updated)
-                    VALUES (:series_name, :q_stats::jsonb, :updated_at)
+                    VALUES (:series_name, CAST(:q_stats AS jsonb), :updated_at)
                     RETURNING spec_id
                 """)
                 result = conn.execute(insert_query, {

@@ -29,7 +29,7 @@ class TestAlmonWeightProperties:
         """Create a fitted MIDAS model"""
         np.random.seed(42)
         n_obs = 100
-        dates = pd.date_range('2014-01-01', periods=n_obs, freq='ME')
+        dates = pd.date_range('2014-01-31', periods=n_obs, freq='M')
         
         # Create high-frequency lags
         X = pd.DataFrame({
@@ -135,7 +135,7 @@ class TestNLSOptimizationProperties:
         """Create synthetic data for testing"""
         np.random.seed(42)
         n_obs = 100
-        dates = pd.date_range('2014-01-01', periods=n_obs, freq='ME')
+        dates = pd.date_range('2014-01-31', periods=n_obs, freq='M')
         
         # Create high-frequency lags
         X = pd.DataFrame({
@@ -252,7 +252,7 @@ class TestMIDASCoefficientsProperties:
         """Create a fitted MIDAS model"""
         np.random.seed(42)
         n_obs = 100
-        dates = pd.date_range('2014-01-01', periods=n_obs, freq='ME')
+        dates = pd.date_range('2014-01-31', periods=n_obs, freq='M')
         
         # Create high-frequency lags
         X = pd.DataFrame({
@@ -331,7 +331,7 @@ class TestMIDASIntegrationWithProperties:
         """
         np.random.seed(42)
         n_obs = 100
-        dates = pd.date_range('2014-01-01', periods=n_obs, freq='ME')
+        dates = pd.date_range('2014-01-31', periods=n_obs, freq='M')
         
         X = pd.DataFrame({
             f'lag_{i}': np.random.normal(100, 10, n_obs)
@@ -378,7 +378,7 @@ class TestMIDASIntegrationWithProperties:
         """
         np.random.seed(42)
         n_obs = 50
-        dates = pd.date_range('2014-01-01', periods=n_obs, freq='ME')
+        dates = pd.date_range('2014-01-31', periods=n_obs, freq='M')
         
         X = pd.DataFrame({
             f'lag_{i}': np.random.normal(100, 10, n_obs)

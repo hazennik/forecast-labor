@@ -211,6 +211,14 @@ class SeasonalAdjustmentPipeline:
             except Exception as e:
                 logger.error(f"Failed to build weather regressors: {e}")
         
+        if not all_regressors.empty:
+            variances = all_regressors.var()
+            non_zero_columns = variances[variances > 0].index.tolist()
+            dropped_columns = [col for col in all_regressors.columns if col not in non_zero_columns]
+            if dropped_columns:
+                logger.warning(f"Dropping zero-variance regressors: {dropped_columns}")
+            all_regressors = all_regressors[non_zero_columns]
+        
         logger.info(f"Built {len(all_regressors.columns)} total regressors")
         
         return all_regressors

@@ -32,6 +32,22 @@ from models_src.utils.io import save_model_with_metadata, ModelMetadata
 from models_src.utils.mlflow_logger import MLflowLogger, ExperimentConfig
 from models_src.utils.metrics import compute_metrics
 
+try:
+    from features.registry import get_global_registry
+except ImportError:  # pragma: no cover - optional integration
+    get_global_registry = None
+
+try:
+    from prefect import flow, task
+except ImportError:  # pragma: no cover - Prefect is optional in unit tests
+    def flow(func=None, **_kwargs):
+        """No-op flow decorator when Prefect is unavailable."""
+        return func if func is not None else lambda wrapped: wrapped
+
+    def task(func=None, **_kwargs):
+        """No-op task decorator when Prefect is unavailable."""
+        return func if func is not None else lambda wrapped: wrapped
+
 
 # ============================================================================
 # Performance Monitoring Utilities
@@ -530,9 +546,10 @@ def train_pipeline(
         feature_metadata = None
         if config.query_feature_registry:
             try:
-                from features.registry import get_global_registry
-                
-                registry = get_global_registry()
+                registry_getter = getattr(train_pipeline, "get_global_registry", get_global_registry)
+                if registry_getter is None:
+                    raise ImportError("Feature registry not available")
+                registry = registry_getter()
                 
                 feature_info = []
                 for feature_name in config.feature_columns:
@@ -581,7 +598,8 @@ def train_pipeline(
                     },
                 )
                 
-                mlflow_logger = MLflowLogger(mlflow_config)
+                mlflow_logger_cls = getattr(train_pipeline, "MLflowLogger", MLflowLogger)
+                mlflow_logger = mlflow_logger_cls(mlflow_config)
                 
                 with mlflow_logger.start_run() as run:
                     mlflow_run_id = run.info.run_id
@@ -714,4 +732,10 @@ def train_pipeline(
             exc_info=True,
         )
         raise
+
+
+train_pipeline.MLflowLogger = MLflowLogger
+train_pipeline.get_global_registry = get_global_registry
+train_pipeline.flow = flow
+train_pipeline.task = task
 

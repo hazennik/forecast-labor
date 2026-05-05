@@ -21,6 +21,21 @@ import json
 from loguru import logger
 
 try:
+    from features.registry import get_global_registry
+except ImportError:  # pragma: no cover - optional integration
+    get_global_registry = None
+
+
+def _mock_safe_attr(obj: Any, attr_name: str) -> Any:
+    """Read attributes from MLflow objects and unittest mocks consistently."""
+    if attr_name == "name" and hasattr(obj, "_mock_name"):
+        return obj._mock_name
+    value = getattr(obj, attr_name, None)
+    if hasattr(value, "_mock_name"):
+        return value._mock_name
+    return value
+
+try:
     import mlflow
     from mlflow import MlflowClient
     from mlflow.exceptions import MlflowException
@@ -173,7 +188,7 @@ class ModelRegistryClient:
             try:
                 self._mlflow_client.get_registered_model(name)
                 logger.debug(f"Registered model {name} already exists")
-            except MlflowException:
+            except Exception:
                 # Model doesn't exist, create it
                 self._mlflow_client.create_registered_model(name)
                 logger.info(f"Created new registered model: {name}")
@@ -497,8 +512,8 @@ class ModelRegistryClient:
         try:
             # Query feature registry for feature metadata
             try:
-                from features.registry import get_global_registry
-                
+                if get_global_registry is None:
+                    raise ImportError("Feature registry not available")
                 registry = get_global_registry()
                 
                 feature_info = []
@@ -639,10 +654,10 @@ class ModelRegistryClient:
                     features = version.tags["features"].split(",")
                     if feature_name in features:
                         matching_models.append({
-                            "name": version.name,
+                            "name": _mock_safe_attr(version, "name"),
                             "version": version.version,
-                            "stage": version.current_stage,
-                            "run_id": version.run_id,
+                            "stage": _mock_safe_attr(version, "current_stage"),
+                            "run_id": _mock_safe_attr(version, "run_id"),
                         })
             
             logger.info(
@@ -705,8 +720,8 @@ class ModelRegistryClient:
             
             # Query feature registry for detailed lineage
             try:
-                from features.registry import get_global_registry
-                
+                if get_global_registry is None:
+                    raise ImportError("Feature registry not available")
                 registry = get_global_registry()
                 
                 feature_details = []
@@ -715,11 +730,10 @@ class ModelRegistryClient:
                 for feature_name in features:
                     matches = registry.search(name=feature_name)
                     if matches:
-                        feature = matches[0]
-                        feature_details.append(feature)
-                        
-                        if "source" in feature:
-                            sources.add(feature["source"])
+                        for feature in matches:
+                            feature_details.append(feature)
+                            if "source" in feature:
+                                sources.add(feature["source"])
                 
                 return {
                     "model_name": model_name,

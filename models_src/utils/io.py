@@ -24,6 +24,11 @@ import sys
 
 from loguru import logger
 
+try:
+    import cloudpickle
+except ImportError:  # pragma: no cover - optional fallback
+    cloudpickle = None
+
 
 # ============================================================================
 # Data Classes
@@ -52,17 +57,31 @@ class ModelMetadata:
         notes: Optional free-text notes about the model
     """
     
-    model_id: str
-    model_type: str
-    training_date: datetime
-    vintage_date: date
-    features: List[str]
-    hyperparameters: Dict[str, Any]
-    metrics: Dict[str, float]
-    python_version: str
-    dependencies: Dict[str, str]
+    model_id: str = ""
+    model_type: str = ""
+    training_date: Union[datetime, str] = field(default_factory=datetime.now)
+    vintage_date: Union[date, str] = field(default_factory=date.today)
+    features: List[str] = field(default_factory=list)
+    hyperparameters: Dict[str, Any] = field(default_factory=dict)
+    metrics: Dict[str, float] = field(default_factory=dict)
+    python_version: str = field(
+        default_factory=lambda: f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    )
+    dependencies: Dict[str, str] = field(default_factory=dict)
     feature_versions: Optional[Dict[str, str]] = None
     notes: Optional[str] = None
+    model_name: Optional[str] = None
+    version: Optional[str] = None
+    feature_names: List[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Normalize legacy metadata aliases used by older callers."""
+        if not self.model_id and self.model_name:
+            self.model_id = self.model_name
+        if not self.features and self.feature_names:
+            self.features = list(self.feature_names)
+        if not self.feature_names and self.features:
+            self.feature_names = list(self.features)
     
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -94,6 +113,11 @@ class ModelMetadata:
         Returns:
             ModelMetadata instance
         """
+        data = dict(data)
+        data.pop("artifact_hash", None)
+        data.pop("serialization_format", None)
+        data.pop("feature_registry_info", None)
+
         # Parse datetime string
         if isinstance(data["training_date"], str):
             data["training_date"] = datetime.fromisoformat(data["training_date"])
@@ -168,7 +192,13 @@ def save_model(
             with open(file_path, "wb") as f:
                 pickle.dump(model, f, protocol=pickle.HIGHEST_PROTOCOL)
         elif format == "joblib":
-            joblib.dump(model, file_path, compress=3)
+            try:
+                joblib.dump(model, file_path, compress=0)
+            except Exception:
+                if cloudpickle is None:
+                    raise
+                with open(file_path, "wb") as f:
+                    cloudpickle.dump(model, f, protocol=pickle.HIGHEST_PROTOCOL)
         
         logger.info(
             "Model saved successfully",
@@ -226,7 +256,11 @@ def load_model(
             with open(file_path, "rb") as f:
                 model = pickle.load(f)
         elif format == "joblib":
-            model = joblib.load(file_path)
+            try:
+                model = joblib.load(file_path)
+            except Exception:
+                with open(file_path, "rb") as f:
+                    model = pickle.load(f)
         
         logger.info(
             "Model loaded successfully",

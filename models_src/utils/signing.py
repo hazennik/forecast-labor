@@ -30,6 +30,11 @@ import shutil
 
 from loguru import logger
 
+try:
+    from features.registry import get_global_registry
+except ImportError:  # pragma: no cover - optional integration
+    get_global_registry = None
+
 
 # ============================================================================
 # Custom Exceptions
@@ -282,8 +287,8 @@ class ArtifactSigner:
         # Optionally validate against feature registry
         if validate_features:
             try:
-                from features.registry import get_global_registry
-                
+                if get_global_registry is None:
+                    raise ImportError("Feature registry not available")
                 registry = get_global_registry()
                 
                 # Query registry for feature validation
@@ -522,6 +527,20 @@ def extract_signed_bundle(
         # Check for manifest
         if "manifest.json" not in zf.namelist():
             raise SignatureError("Bundle missing manifest.json")
+
+        if verify:
+            unexpected_files = [
+                name for name in zf.namelist()
+                if not (
+                    name == "manifest.json"
+                    or name.startswith("artifact/")
+                    or name.startswith("additional/")
+                )
+            ]
+            if unexpected_files:
+                raise TamperDetectedError(
+                    f"Bundle contains unexpected files: {unexpected_files}"
+                )
         
         # Read manifest
         manifest_data = json.loads(zf.read("manifest.json"))

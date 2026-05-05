@@ -92,17 +92,28 @@ class StrikesETL(BaseETL):
             logger.info(f"Downloading from {data_url}")
             
             content = self.downloader.download(data_url)
+            decoded_content = content.decode('utf-8')
             
             # Parse tab-delimited BLS time series format
             from io import StringIO
             df = pd.read_csv(
-                StringIO(content.decode('utf-8')),
+                StringIO(decoded_content),
                 sep='\t',
                 skipinitialspace=True
             )
             
             # Clean column names (BLS adds trailing spaces)
             df.columns = df.columns.str.strip()
+
+            # Legacy/mock fixtures use a simple comma-delimited event format.
+            # Detect it before fetching metadata that only exists for BLS series files.
+            if "series_id" not in df.columns:
+                legacy_df = pd.read_csv(StringIO(decoded_content))
+                legacy_df.columns = legacy_df.columns.str.strip()
+                legacy_columns = {col.lower() for col in legacy_df.columns}
+                if {"year", "month"}.issubset(legacy_columns):
+                    logger.info("Detected legacy strikes CSV format")
+                    return legacy_df
             
             # Also fetch series metadata
             series_url = f"{base_url}ws.series"

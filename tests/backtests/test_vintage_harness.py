@@ -8,9 +8,16 @@ for vintage-honest backtesting.
 import pytest
 import pandas as pd
 import numpy as np
+import sys
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Dict, List
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) in sys.path:
+    sys.path.remove(str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.modules.pop("backtests", None)
 
 from backtests.vintage_harness.harness import (
     VintageHarness,
