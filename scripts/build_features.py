@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
@@ -28,6 +29,8 @@ from loguru import logger
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from features.midas.lag_constructor import MIDASLagConstructor
+from features.midas.bridge import MIDASBridge
+from features.midas.source_config import DEFAULT_SOURCE_CONFIGS, SourceConfig
 from features.transforms.frequency import FrequencyConverter
 from features.transforms.calendar import apply_calendar_adjustment
 from features.transforms.scaling import StandardScaler, Winsorizer
@@ -210,6 +213,57 @@ class FeatureBuilder:
             logger.error("midas_feature_creation_failed", series="claims", error=str(e))
 
         return features
+
+    def build_midas_bridge_features(self, bridge_version: str = "1.0.0") -> Dict[str, pd.DataFrame]:
+        """Build monthly features using the MIDASBridge mixed-frequency alignment layer."""
+        raw_sources: Dict[str, pd.DataFrame] = {}
+        source_configs: Dict[str, SourceConfig] = {}
+
+        for source_name, config in DEFAULT_SOURCE_CONFIGS.items():
+            source_df = self._load_vintage_data(source_name)
+            if source_df is None or source_df.empty:
+                logger.warning("midas_bridge_source_unavailable", source=source_name)
+                continue
+
+            bridge_frame = self._prepare_bridge_source_frame(source_df, config)
+            if bridge_frame is None:
+                logger.warning("midas_bridge_source_skipped", source=source_name)
+                continue
+
+            raw_sources[source_name] = bridge_frame
+            source_configs[source_name] = config
+
+        if not raw_sources:
+            logger.warning("midas_bridge_no_sources_available")
+            return {}
+
+        target_dates = self._infer_bridge_target_dates(raw_sources)
+        bridge = MIDASBridge(source_configs=source_configs)
+        bridge_features = bridge.build_features(
+            raw_sources=raw_sources,
+            target_dates=target_dates,
+            vintage_date=self.vintage_date,
+        )
+        bridge_features.attrs["bridge_version"] = bridge_version
+        bridge_features.attrs["feature_hash"] = hashlib.sha256(
+            bridge_features.to_json(date_format="iso").encode("utf-8")
+        ).hexdigest()[:16]
+        bridge_features.attrs["vintage_date"] = self.vintage_date
+
+        self._register_feature(
+            "midas_bridge_features",
+            source="mixed_frequency",
+            transform=f"midas_bridge_v{bridge_version}",
+            frequency="monthly",
+        )
+        logger.info(
+            "midas_bridge_features_created",
+            n_sources=len(raw_sources),
+            n_features=bridge_features.shape[1],
+            bridge_version=bridge_version,
+            feature_hash=bridge_features.attrs["feature_hash"],
+        )
+        return {"midas_bridge_features": bridge_features}
 
     def build_frequency_features(self) -> Dict[str, pd.DataFrame]:
         """Build frequency-converted features."""
@@ -508,6 +562,60 @@ class FeatureBuilder:
         except Exception as e:
             logger.error("feature_registration_failed", feature=name, error=str(e))
 
+    def _prepare_bridge_source_frame(
+        self,
+        source_df: pd.DataFrame,
+        config: SourceConfig,
+    ) -> Optional[pd.DataFrame]:
+        """Coerce a vintage frame to the configured MIDASBridge columns."""
+        if config.date_column not in source_df.columns:
+            logger.warning(
+                "midas_bridge_date_column_missing",
+                source=config.source_name,
+                date_column=config.date_column,
+            )
+            return None
+
+        if config.value_column in source_df.columns:
+            value_column = config.value_column
+        else:
+            numeric_columns = source_df.select_dtypes(include=["number"]).columns.tolist()
+            if not numeric_columns:
+                logger.warning("midas_bridge_value_column_missing", source=config.source_name)
+                return None
+            value_column = numeric_columns[0]
+            logger.warning(
+                "midas_bridge_value_column_fallback",
+                source=config.source_name,
+                expected=config.value_column,
+                actual=value_column,
+            )
+
+        frame = source_df[[config.date_column, value_column]].copy()
+        if value_column != config.value_column:
+            frame = frame.rename(columns={value_column: config.value_column})
+        return frame
+
+    def _infer_bridge_target_dates(
+        self,
+        raw_sources: Dict[str, pd.DataFrame],
+    ) -> pd.DatetimeIndex:
+        """Infer monthly target dates from available raw source date ranges."""
+        starts = []
+        ends = []
+        for source_name, source_df in raw_sources.items():
+            config = DEFAULT_SOURCE_CONFIGS[source_name]
+            dates = pd.to_datetime(source_df[config.date_column])
+            starts.append(dates.min())
+            ends.append(dates.max())
+
+        start = max(starts).to_period("M").to_timestamp()
+        end = min(ends).to_period("M").to_timestamp()
+        if start > end:
+            end = max(ends).to_period("M").to_timestamp()
+            start = min(starts).to_period("M").to_timestamp()
+        return pd.date_range(start, end, freq="MS")
+
     def _save_features(self, features: Dict[str, pd.DataFrame]) -> None:
         """Save features to disk."""
         for feature_name, feature_df in features.items():
@@ -557,6 +665,17 @@ def main():
         help="Build only MIDAS features",
     )
     parser.add_argument(
+        "--use-midas-bridge",
+        action="store_true",
+        help="Use MIDASBridge for daily/weekly/monthly alignment",
+    )
+    parser.add_argument(
+        "--bridge-version",
+        type=str,
+        default="1.0.0",
+        help="Track MIDASBridge version in feature metadata",
+    )
+    parser.add_argument(
         "--aggregations-only",
         action="store_true",
         help="Build only aggregations",
@@ -577,7 +696,9 @@ def main():
     )
 
     # Build features based on flags
-    if args.all or (not args.midas_only and not args.aggregations_only):
+    if args.use_midas_bridge:
+        features = builder.build_midas_bridge_features(bridge_version=args.bridge_version)
+    elif args.all or (not args.midas_only and not args.aggregations_only):
         features = builder.build_all()
     elif args.midas_only:
         features = builder.build_midas_features()

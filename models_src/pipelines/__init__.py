@@ -27,6 +27,11 @@ from models_src.pipelines.cross_validation import (
     aggregate_cv_metrics,
 )
 
+from models_src.pipelines.mixed_frequency_pipeline import (
+    MixedFrequencyPipeline,
+    MixedFrequencyPipelineConfig,
+)
+
 __all__ = [
     # Training pipeline
     "TrainingConfig",
@@ -41,5 +46,8 @@ __all__ = [
     "generate_expanding_window_folds",
     "cross_validate_model",
     "aggregate_cv_metrics",
+    # Mixed-frequency pipeline
+    "MixedFrequencyPipeline",
+    "MixedFrequencyPipelineConfig",
 ]
 

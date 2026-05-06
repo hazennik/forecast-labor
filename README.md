@@ -1,4 +1,5 @@
 # forecast-labor
+
 This repository contains a purpose-built macroeconomic forecasting system optimized for extremely accurate U.S. job-market predictions. It ingests high-frequency public data (UI claims, Treasury withholdings, CES/LAUS vintages, weather, strikes) and optional private microdata, processes them with X-13 seasonal adjustment, constructs mixed-frequency features, and trains a hybrid forecasting architecture (Dynamic Factor Model + MIDAS + XGBoost quantile + revision model). The system outputs calibrated probability distributions, reconciled state/national forecasts, and interpretable diagnostics suitable for institutional use. A built-in SN41 miner adapter converts each forecast into validated, low-noise probability vectors for top-tier mining performance. Designed for portability—runs locally on macOS and deploys seamlessly to a dedicated server.
 
 # Labor Market Forecasting Engine + SN41 Miner
@@ -8,6 +9,7 @@ An elite, real-time U.S. labor-market forecasting system designed for institutio
 ---
 
 ## ✅ Features
+
 - Real-time ingestion of labor-market signals  
 - X-13 seasonal adjustment (Dockerized)  
 - Mixed-frequency feature engineering (daily/weekly → monthly)  
@@ -17,11 +19,12 @@ An elite, real-time U.S. labor-market forecasting system designed for institutio
 - Portable Docker-based pipeline (Mac → server)  
 - SN41 miner adapter for live submissions  
 - Backtesting engine using real-time vintages  
-- Institutional-quality dashboards & diagnostics  
+- Institutional-quality dashboards & diagnostics
 
 ---
 
 ## ✅ Repo Structure
+
 /infra/          # docker images, containers, deployment
 /app/            # API endpoints for forecasting & miner
 /etl/            # data ingestion & validation
@@ -40,6 +43,7 @@ An elite, real-time U.S. labor-market forecasting system designed for institutio
 ## ✅ Quick Start (Local)
 
 ### First Time Setup
+
 ```bash
 # Clone repository
 git clone <repo-url>
@@ -64,6 +68,7 @@ make backtest
 **Note:** Vintage data is NOT in the repository (gitignored). Run `make setup-test-data` to generate synthetic test vintages for development, or `make seed` with production API keys for real data.
 
 ### Testing
+
 ```bash
 # Run full test suite (287 tests)
 make test
@@ -73,6 +78,7 @@ make test
 ```
 
 ## ✅ Deployment (Server)
+
 1. Clone repo.
 2. Create `.env.server` with production API keys.
 3. Generate test data: `make setup-test-data` (or run real ETL)
@@ -185,3 +191,5 @@ All PRs must include:
 - No edits to vintage data  
 - Full reproducibility from raw → forecast  
 - Updated documentation for new components  
+```
+

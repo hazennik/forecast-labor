@@ -128,7 +128,7 @@ class TestDFMFitting:
             model.fit(X, y, vintage_date='11-15-2024')  # Wrong format
     
     def test_fit_convergence(self, sample_data):
-        """Test that EM algorithm converges"""
+        """Test that statsmodels optimizer metadata is recorded."""
         X, y = sample_data
         model = DynamicFactorModel(
             n_factors=2,
@@ -273,25 +273,21 @@ class TestDFMReproducibility:
         
         np.testing.assert_array_almost_equal(pred1, pred2, decimal=10)
     
-    def test_different_seed_produces_different_results(self, sample_data):
-        """Test that different seeds produce different results"""
+    def test_different_seed_preserves_deterministic_statsmodels_solution(self, sample_data):
+        """Statsmodels MLE should be deterministic for the same data."""
         X, y = sample_data
         
-        # Train two models with different seeds
         model1 = DynamicFactorModel(n_factors=2, max_iter=20, random_state=42)
         model1.fit(X, y, vintage_date='2024-11-15')
         
         model2 = DynamicFactorModel(n_factors=2, max_iter=20, random_state=123)
         model2.fit(X, y, vintage_date='2024-11-15')
         
-        # Check that predictions differ (more reliable than checking tiny loadings)
         X_test = X.iloc[:5]
         pred1 = model1.predict(X_test)
         pred2 = model2.predict(X_test)
         
-        # Predictions should be different with different seeds
-        assert not np.array_equal(pred1, pred2), \
-            "Predictions should differ with different random seeds"
+        np.testing.assert_array_almost_equal(pred1, pred2, decimal=8)
 
 
 class TestDFMMissingData:

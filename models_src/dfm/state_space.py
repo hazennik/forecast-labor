@@ -24,8 +24,9 @@ Key Features:
 - Stability checks (eigenvalue analysis)
 """
 
-from typing import Optional, Literal, Union
 from dataclasses import dataclass
+from typing import Optional, Literal, Union
+import warnings
 
 import numpy as np
 from loguru import logger
@@ -171,6 +172,13 @@ def build_transition_matrix(
         Φ = build_transition_matrix(n_factors=2, transition_matrix=custom_Φ)
         ```
     """
+    warnings.warn(
+        "build_transition_matrix is deprecated for DynamicFactorModel fitting; "
+        "statsmodels DynamicFactor now handles transition estimation internally. "
+        "This helper remains available for diagnostics and tests.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if ar_order != 1:
         raise NotImplementedError(
             f"Only AR(1) currently supported, got ar_order={ar_order}"
@@ -265,6 +273,13 @@ def build_observation_matrix(
         Λ = build_observation_matrix(n_obs=6, n_factors=2, structure='block')
         ```
     """
+    warnings.warn(
+        "build_observation_matrix is deprecated for DynamicFactorModel fitting; "
+        "statsmodels DynamicFactor now handles loading estimation internally. "
+        "This helper remains available for diagnostics and tests.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     # Validate dimensions
     if n_obs <= 0:
         raise ValueError(f"n_obs must be positive, got {n_obs}")

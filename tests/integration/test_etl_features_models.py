@@ -39,11 +39,17 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from features.registry import FeatureRegistry
+from features.midas import MIDASBridge, SourceConfig
 from models_src.utils.metrics import compute_metrics
 from models_src.midas.midas_model import MIDASRegression
 from models_src.dfm.dfm_model import DynamicFactorModel
 from models_src.gbm_quantile.xgb_quantile import XGBoostQuantile
 from models_src.gbm_quantile.lgb_quantile import LightGBMQuantile
+from models_src.pipelines.ensemble_pipeline import EnsembleConfig, EnsembleMethod
+from models_src.pipelines.mixed_frequency_pipeline import (
+    MixedFrequencyPipeline,
+    MixedFrequencyPipelineConfig,
+)
 
 
 # ============================================================================
@@ -543,6 +549,86 @@ class TestETLFeaturesModelsIntegration:
                                                   err_msg=f"Reproducibility: LightGBM quantile {q} identical")
         
         logger.info(f"✅ LIGHTGBM TEST PASSED - RMSE: {metrics['rmse']:.2f}")
+
+    def test_complete_pipeline_with_midas_bridge_and_dfm(
+        self,
+        vintage_data: Dict[str, pd.DataFrame],
+        integration_vintage_date: date,
+    ):
+        """
+        Test: Raw mixed-frequency sources → MIDASBridge → DFM/XGBoost/MIDAS ensemble.
+
+        Validates the R5 integration layer while preserving the existing ETL →
+        Features → Models contract tested above.
+        """
+        data = vintage_data["monthly_data"].iloc[:24]
+        target = data["nfp_employment"]
+        daily_dates = pd.date_range(
+            data.index[0] - pd.Timedelta(days=120), data.index[-1], freq="D"
+        )
+        weekly_dates = pd.date_range(
+            data.index[0] - pd.Timedelta(days=120), data.index[-1], freq="W"
+        )
+        raw_sources = {
+            "treasury": pd.DataFrame(
+                {
+                    "date": daily_dates,
+                    "daily_withholding": np.interp(
+                        np.arange(len(daily_dates)),
+                        np.linspace(0, len(daily_dates) - 1, len(data)),
+                        data["treasury_withholdings"].to_numpy(),
+                    ),
+                }
+            ),
+            "claims": pd.DataFrame(
+                {
+                    "report_date": weekly_dates,
+                    "initial_claims": np.interp(
+                        np.arange(len(weekly_dates)),
+                        np.linspace(0, len(weekly_dates) - 1, len(data)),
+                        data["initial_claims"].to_numpy(),
+                    ),
+                }
+            ),
+            "ces": pd.DataFrame(
+                {
+                    "date": data.index,
+                    "all_employees": data["ces_employment"].to_numpy(),
+                }
+            ),
+        }
+        source_configs = {
+            "treasury": SourceConfig("treasury", "D", "date", "daily_withholding", 5),
+            "claims": SourceConfig("claims", "W", "report_date", "initial_claims", 3),
+            "ces": SourceConfig("ces", "M", "date", "all_employees", 1),
+        }
+        pipeline = MixedFrequencyPipeline(
+            midas_bridge=MIDASBridge(source_configs=source_configs),
+            dfm=DynamicFactorModel(n_factors=2, max_iter=20, random_state=42),
+            xgboost=XGBoostQuantile(
+                quantiles=[0.5],
+                n_estimators=5,
+                max_depth=2,
+                random_state=42,
+            ),
+            ensemble_config=EnsembleConfig(
+                method=EnsembleMethod.SIMPLE_AVERAGE,
+                model_names=["dfm", "midas", "xgboost"],
+            ),
+            pipeline_config=MixedFrequencyPipelineConfig(residual_scale_floor=5.0),
+        )
+
+        pipeline.fit(integration_vintage_date, raw_sources, target)
+        predictions, intervals = pipeline.predict(
+            integration_vintage_date,
+            raw_sources,
+            target_dates=pd.DatetimeIndex(target.index[-3:]),
+        )
+
+        assert predictions.shape == (3,)
+        assert intervals.shape == (3, 2)
+        assert np.isfinite(predictions).all()
+        assert np.all(intervals[:, 0] < intervals[:, 1])
 
 
 # ============================================================================

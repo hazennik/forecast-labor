@@ -2,7 +2,7 @@
 ## Hybrid Architecture: True Mixed-Frequency Support
 
 **Date Created:** 2025-12-04  
-**Status:** R2/R3 COMPLETE ✅ — MIDAS Bridge implemented; next phase R4 DFM stabilization  
+**Status:** R2/R3/R4/R5 COMPLETE ✅ — MIDAS Bridge, stable DFM, and integration layer implemented  
 **Priority:** HIGH (Architectural Debt Resolution + Capability Gap Closure)  
 **Estimated Effort:** 32-40 hours  
 **Reference:** Phase 6.3.1a findings, 5_PILLARS.md, FORECASTING_CAPABILITIES.md, ACCURACY_MAP.md, `.cursorrules`
@@ -791,6 +791,7 @@ The existing `FeatureMetadata` schema in `features/registry.py` supports this vi
 **Estimated Time:** 4-5 hours  
 **Blocking:** Phase R3 complete  
 **TDD:** ✅ Implementation to make tests pass
+**Status:** COMPLETE ✅ (2026-05-05)
 
 ### R4.1 Create DFM TDD Tests
 
@@ -1005,11 +1006,17 @@ def build_transition_matrix(...):
 
 | Criterion | Required | Status |
 |-----------|----------|--------|
-| New DFM implementation created | Yes | [ ] |
-| Out-of-sample prediction fixed | Yes | [ ] |
-| All new tests pass | Yes | [ ] |
-| All updated existing tests pass | Yes | [ ] |
-| state_space.py decision made | Yes | [ ] |
+| New DFM implementation created | Yes | [x] |
+| Out-of-sample prediction fixed | Yes | [x] |
+| All new tests pass | Yes | [x] |
+| All updated existing tests pass | Yes | [x] |
+| state_space.py decision made | Yes | [x] |
+
+**Validation recorded 2026-05-05:**
+- ✅ Focused R4 DFM suite: `69 passed, 51 warnings in 7.29s`
+- ✅ Affected integration suite: `59 passed, 9 warnings in 29.46s`
+- ✅ Real-data DFM validation: `5 passed, 76 warnings in 449.49s`
+- ✅ Full repository suite: `1316 passed, 5 skipped, 210 warnings in 599.36s`
 
 **⚠️ DO NOT PROCEED to Phase R5 until all R4 tasks are complete.**
 
@@ -1017,13 +1024,15 @@ def build_transition_matrix(...):
 
 ## Phase R5: Integration Layer
 
+**Status:** COMPLETE ✅ (2026-05-05)
+
 **Purpose:** Connect MIDAS Bridge → DFM → Ensemble  
 **Estimated Time:** 3-4 hours  
 **Blocking:** Phase R4 complete
 
 ### R5.1 Create Integration Pipeline
 
-#### R5.1.1 Create `models_src/pipelines/mixed_frequency_pipeline.py`
+#### R5.1.1 Create `models_src/pipelines/mixed_frequency_pipeline.py` ✅
 
 **Structure:**
 ```python
@@ -1093,17 +1102,17 @@ Monthly-Aligned Features
 
 #### R5.1.2 Update `models_src/pipelines/ensemble_pipeline.py`
 
-- [ ] Ensure `EnsembleForecaster` can accept new DFM
-- [ ] Add mixed-frequency pipeline as ensemble option
-- [ ] Update docstrings to reflect new capabilities
+- [x] Ensure `EnsembleForecaster` can accept new DFM
+- [x] Add mixed-frequency pipeline as ensemble option
+- [x] Update docstrings to reflect new capabilities
 
 ### R5.2 Update Feature Building Pipeline
 
 #### R5.2.1 Update `scripts/build_features.py`
 
-- [ ] Add option to use `MIDASBridge` for feature building
-- [ ] Maintain backward compatibility with existing feature building
-- [ ] Add CLI flag: `--use-midas-bridge`
+- [x] Add option to use `MIDASBridge` for feature building
+- [x] Maintain backward compatibility with existing feature building
+- [x] Add CLI flag: `--use-midas-bridge`
 
 **Feature Versioning Rules:**
 
@@ -1145,18 +1154,18 @@ def main():
 #### R5.3.1 Create `tests/integration/test_mixed_frequency_pipeline.py`
 
 **Tests:**
-- [ ] `test_pipeline_builds_from_raw_data`
-- [ ] `test_pipeline_produces_monthly_predictions`
-- [ ] `test_pipeline_handles_ragged_edge`
-- [ ] `test_pipeline_integrates_with_vintage_manager`
-- [ ] `test_pipeline_produces_prediction_intervals`
+- [x] `test_pipeline_builds_from_raw_data`
+- [x] `test_pipeline_produces_monthly_predictions`
+- [x] `test_pipeline_handles_ragged_edge`
+- [x] `test_pipeline_integrates_with_vintage_manager`
+- [x] `test_pipeline_produces_prediction_intervals`
 
 #### R5.3.2 Update Existing Integration Tests
 
-- [ ] Update `tests/integration/test_etl_features_models.py`
+- [x] Update `tests/integration/test_etl_features_models.py`
   - Add tests for MIDAS Bridge integration
   - Add tests for new DFM
-- [ ] Update `tests/integration/test_complete_workflow.py`
+- [x] Update `tests/integration/test_complete_workflow.py`
   - Update DFM references
   - Add mixed-frequency pipeline tests
 
@@ -1165,9 +1174,9 @@ def main():
 **Rationale:** ACCURACY_MAP.md Section 8 specifies T-48h → T-2h optimal window for intra-month nowcasting. Must verify pipeline supports sequential updates with new data arrivals.
 
 **Tests to Add in `tests/integration/test_mixed_frequency_pipeline.py`:**
-- [ ] `test_pipeline_sequential_updates` — Call `predict()` multiple times with progressively updated `raw_sources`
-- [ ] `test_prediction_uncertainty_with_more_data` — Later updates (more data) should have tighter prediction intervals
-- [ ] `test_ragged_edge_graceful_degradation` — Missing recent daily/weekly data produces valid (wider) intervals, not errors
+- [x] `test_pipeline_sequential_updates` — Call `predict()` multiple times with progressively updated `raw_sources`
+- [x] `test_prediction_uncertainty_with_more_data` — Later updates (more data) should have tighter prediction intervals
+- [x] `test_ragged_edge_graceful_degradation` — Missing recent daily/weekly data produces valid (wider) intervals, not errors
 
 **Example Test Structure:**
 ```python
@@ -1196,9 +1205,9 @@ def test_pipeline_sequential_updates(self, pipeline, vintage_date):
 **Rationale:** The existing `backtests/vintage_harness/harness.py` reconstructs historical data states. MIDASBridge must integrate seamlessly with `ReconstructedState` for vintage-honest backtesting.
 
 **Tests to Add in `tests/integration/test_mixed_frequency_pipeline.py`:**
-- [ ] `test_bridge_with_vintage_harness_reconstructed_state` — Verify MIDASBridge works with VintageHarness output
-- [ ] `test_bridge_handles_partial_vintage_availability` — Graceful handling when not all sources available
-- [ ] `test_pipeline_vintage_honesty_validation` — Validate no future data leakage
+- [x] `test_bridge_with_vintage_harness_reconstructed_state` — Verify MIDASBridge works with VintageHarness output
+- [x] `test_bridge_handles_partial_vintage_availability` — Graceful handling when not all sources available
+- [x] `test_pipeline_vintage_honesty_validation` — Validate no future data leakage
 
 **Test Structure:**
 ```python
@@ -1321,10 +1330,10 @@ def build_features_from_harness_state(
 
 | Criterion | Required | Status |
 |-----------|----------|--------|
-| Mixed-frequency pipeline created | Yes | [ ] |
-| Ensemble pipeline updated | Yes | [ ] |
-| Feature building script updated | Yes | [ ] |
-| All integration tests pass | Yes | [ ] |
+| Mixed-frequency pipeline created | Yes | [x] |
+| Ensemble pipeline updated | Yes | [x] |
+| Feature building script updated | Yes | [x] |
+| All integration tests pass | Yes | [x] |
 
 **⚠️ DO NOT PROCEED to Phase R6 until all R5 tasks are complete.**
 
@@ -2002,6 +2011,7 @@ git checkout backup/midas-dfm-pre-refactor -- models_src/dfm/ models_src/midas/ 
 | 2025-12-04 | Risk Analysis | 📋 UPDATED | Added: Phase 5 Impact Assessment, Interface Compatibility Layer (R3.2.3), Feature Naming Convention (R3.2.4), API Compatibility Guarantee (R4.2.1), Serialization Approach (R4.2.1), Determinism Enforcement (R4.2.1), state_space.py Decision Criteria (R4.2.2), Feature Versioning Rules (R5.2.1), Additional Script Updates (R5.2.2), Test Runtime Budget (R6), Data Preprocessing Requirements (R7.1.1) |
 | 2025-12-04 | Calibration & Validation | 📋 UPDATED | Added: R5.3.3 Intra-Month Update Tests, R7.1.1 Fixture Migration Guidance, R7.1.4 Calibration Integration Validation, D.4 Calibration Requirements Alignment |
 | 2025-12-09 | Integration Clarifications | 📋 UPDATED | Added: R2.1.0 Source Configuration Registry (ETL frequency metadata), VintageManager integration pattern with ragged-edge detection (R2.1.2), R3.2.5 Feature Registry Integration, R5.3.4 VintageHarness Compatibility Tests, R7.1.4 calibration module status clarification |
+| 2026-05-05 | R4 DFM Stabilization | ✅ COMPLETE | Replaced custom DFM internals with statsmodels DynamicFactor, fixed out-of-sample projection, kept state-space utilities for diagnostics with deprecated builders, and validated full suite: 1316 passed, 5 skipped |
 
 ---
 

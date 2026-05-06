@@ -2,9 +2,8 @@
 Property Tests for Dynamic Factor Model (DFM)
 
 Tests mathematical properties and algorithmic invariants:
-- EM Algorithm: Likelihood monotonicity, convergence
-- Kalman Filter: Covariance positive-definiteness
-- State-Space: Dimension consistency, stability
+- Statsmodels DFM fit: finite likelihood and factor artifacts
+- State-space validation utilities: covariance and stability checks
 
 Purpose: Prevent TDD blindspots by testing mathematical correctness,
          not just observable behavior.
@@ -25,8 +24,8 @@ from models_src.dfm.state_space import (
 )
 
 
-class TestEMAlgorithmProperties:
-    """Test mathematical properties of EM algorithm"""
+class TestStatsmodelsDFMProperties:
+    """Test mathematical properties of the statsmodels DFM fit."""
     
     @pytest.fixture
     def sample_data(self):
@@ -52,142 +51,52 @@ class TestEMAlgorithmProperties:
         
         return X, y
     
-    def test_em_likelihood_increases_monotonically(self, sample_data):
-        """
-        EM algorithm must increase likelihood at each iteration.
-        
-        Mathematical Property:
-            L[t+1] >= L[t] for all iterations t
-        
-        Purpose: Verify that EM is correctly implementing the
-                 expectation-maximization steps that guarantee
-                 likelihood improvement.
-        """
+    def test_statsmodels_reports_finite_likelihood(self, sample_data):
+        """The fitted likelihood reported by statsmodels must be finite."""
         X, y = sample_data
         model = DynamicFactorModel(n_factors=2, max_iter=20, random_state=42)
-        
-        # Fit model
+
         model.fit(X, y, vintage_date='2024-11-15')
-        
-        # Get likelihood history
-        likelihoods = model.log_likelihood_
-        
-        # Must have at least 2 iterations to test monotonicity
-        assert len(likelihoods) >= 2, "Need at least 2 EM iterations"
-        
-        # Check monotonicity (allowing small numerical tolerance)
-        for t in range(1, len(likelihoods)):
-            improvement = likelihoods[t] - likelihoods[t-1]
-            assert improvement >= -1e-8, \
-                f"Likelihood decreased at iteration {t}: " \
-                f"{likelihoods[t-1]:.6f} -> {likelihoods[t]:.6f} " \
-                f"(delta = {improvement:.2e})"
-    
-    def test_em_converges_to_stable_solution(self, sample_data):
-        """
-        EM algorithm should converge (not oscillate).
-        
-        Mathematical Property:
-            |L[t] - L[t-1]| decreases as t increases
-        
-        Purpose: Verify that EM converges to a local maximum,
-                 not cycling or diverging.
-        """
+
+        assert len(model.log_likelihood_) == 1
+        assert np.isfinite(model.log_likelihood_[0])
+
+    def test_statsmodels_fit_records_optimizer_status(self, sample_data):
+        """The fitted model should expose optimizer iteration and convergence metadata."""
         X, y = sample_data
         model = DynamicFactorModel(n_factors=2, max_iter=50, tol=1e-6, random_state=42)
-        
-        # Fit model
+
         model.fit(X, y, vintage_date='2024-11-15')
-        
-        # Get likelihood history
-        likelihoods = model.log_likelihood_
-        
-        # Compute improvements at each iteration
-        improvements = [abs(likelihoods[t] - likelihoods[t-1]) 
-                       for t in range(1, len(likelihoods))]
-        
-        # Check that improvements generally decrease (allowing some noise)
-        # Use a window to check trend
-        if len(improvements) >= 10:
-            early_avg = np.mean(improvements[:5])
-            late_avg = np.mean(improvements[-5:])
-            
-            assert late_avg <= early_avg, \
-                f"Improvements not decreasing: early={early_avg:.2e}, late={late_avg:.2e}"
-    
-    def test_em_final_likelihood_higher_than_initial(self, sample_data):
-        """
-        Final likelihood must be higher than initial likelihood.
-        
-        Mathematical Property:
-            L[final] > L[initial]
-        
-        Purpose: Verify that EM makes progress from initialization.
-        """
+
+        assert hasattr(model, 'n_iter_')
+        assert hasattr(model, 'converged_')
+        assert model.n_iter_ <= model.max_iter
+        assert isinstance(model.converged_, bool)
+
+    def test_factor_artifacts_have_valid_shapes(self, sample_data):
+        """Factors and loadings must match the configured public factor count."""
         X, y = sample_data
         model = DynamicFactorModel(n_factors=2, max_iter=20, random_state=42)
-        
-        # Fit model
+
         model.fit(X, y, vintage_date='2024-11-15')
-        
-        # Get likelihood history
-        likelihoods = model.log_likelihood_
-        
-        # Final must be better than initial
-        assert len(likelihoods) >= 2
-        improvement = likelihoods[-1] - likelihoods[0]
-        
-        # Allow for edge case where model is already at optimum
-        assert improvement >= -1e-10, \
-            f"Final likelihood worse than initial: " \
-            f"{likelihoods[0]:.6f} -> {likelihoods[-1]:.6f}"
-    
-    def test_em_convergence_criterion_met(self, sample_data):
-        """
-        When EM reports convergence, improvement should be < tol.
-        
-        Mathematical Property:
-            If converged_, then |L[n] - L[n-1]| < tol
-        
-        Purpose: Verify that convergence criterion is correctly implemented.
-        """
+
+        assert model.factors_.shape == (len(X), model.n_factors)
+        assert model.loadings_.shape == (X.shape[1], model.n_factors)
+        assert model.transition_.shape == (model.n_factors, model.n_factors)
+        assert np.all(np.isfinite(model.factors_))
+        assert np.all(np.isfinite(model.loadings_))
+
+    def test_out_of_sample_projection_is_finite(self, sample_data):
+        """New observations should project through learned loadings without NaN/Inf."""
         X, y = sample_data
-        tol = 1e-4
-        model = DynamicFactorModel(n_factors=2, max_iter=100, tol=tol, random_state=42)
-        
-        # Fit model
-        model.fit(X, y, vintage_date='2024-11-15')
-        
-        # If model reports convergence
-        if model.converged_:
-            likelihoods = model.log_likelihood_
-            
-            # Check that final improvement was < tol
-            final_improvement = abs(likelihoods[-1] - likelihoods[-2])
-            
-            assert final_improvement < tol, \
-                f"Converged but improvement ({final_improvement:.2e}) >= tol ({tol:.2e})"
-    
-    def test_em_likelihood_not_nan_or_inf(self, sample_data):
-        """
-        Likelihood values should never be NaN or Inf.
-        
-        Mathematical Property:
-            L[t] is finite for all t
-        
-        Purpose: Verify numerical stability of EM algorithm.
-        """
-        X, y = sample_data
-        model = DynamicFactorModel(n_factors=2, max_iter=20, random_state=42)
-        
-        # Fit model
-        model.fit(X, y, vintage_date='2024-11-15')
-        
-        # Check all likelihood values
-        likelihoods = model.log_likelihood_
-        for t, lik in enumerate(likelihoods):
-            assert np.isfinite(lik), \
-                f"Likelihood at iteration {t} is not finite: {lik}"
+        model = DynamicFactorModel(n_factors=2, max_iter=50, random_state=42)
+
+        model.fit(X.iloc[:-10], y.iloc[:-10], vintage_date='2024-11-15')
+        X_new = model._preprocess_features(X.iloc[-10:], fit=False)
+        factors = model._extract_factors(X_new)
+
+        assert factors.shape == (10, model.n_factors)
+        assert np.all(np.isfinite(factors))
 
 
 class TestStateSpaceCovarianceProperties:
@@ -427,13 +336,8 @@ class TestDFMIntegrationWithProperties:
         Mathematical Property:
             Ideally, DFM learns stable dynamics (|λ| < 1)
         
-        Purpose: Document that unconstrained EM can learn unstable systems.
-                 This is a known limitation - production DFM should
-                 constrain eigenvalues during estimation.
-        
-        Note: This test currently documents the limitation rather than
-              enforcing stability, which would require constraining
-              the M-step of EM algorithm.
+        Purpose: Verify that statsmodels returns usable finite transition
+                 dynamics for downstream stability diagnostics.
         """
         X, y = sample_data
         model = DynamicFactorModel(n_factors=2, max_iter=20, random_state=42)
@@ -460,14 +364,14 @@ class TestDFMIntegrationWithProperties:
         assert np.all(np.isfinite(eigenvalues)), \
             "Transition matrix has non-finite eigenvalues"
     
-    def test_em_improves_fit_quality(self, sample_data):
+    def test_additional_optimizer_iterations_do_not_degrade_fit_quality(self, sample_data):
         """
-        EM iterations should improve reconstruction quality.
+        Additional optimizer iterations should not degrade predictive quality.
         
         Mathematical Property:
-            Reconstruction error decreases with more EM iterations
+            More optimizer budget should not produce materially worse fit
         
-        Purpose: Verify that EM is improving the model, not just likelihood.
+        Purpose: Verify the statsmodels optimization budget is meaningful.
         """
         X, y = sample_data
         
@@ -489,5 +393,5 @@ class TestDFMIntegrationWithProperties:
         # More iterations should not make things significantly worse
         # (Allow for some numerical noise in this toy example)
         assert error_many <= error_few * 1.1, \
-            f"More EM iterations increased error: {error_few:.2f} -> {error_many:.2f}"
+            f"More optimizer iterations increased error: {error_few:.2f} -> {error_many:.2f}"
 

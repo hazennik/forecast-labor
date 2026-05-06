@@ -8,6 +8,7 @@ Key Features:
 - Simple averaging (equal weights)
 - Weighted averaging (user-defined or optimized weights)
 - Weight optimization via variance minimization
+- Mixed-frequency pipeline compatibility via raw-source bridge outputs
 - Reproducibility (deterministic with same seed)
 - Integration with BaseForecaster interface
 
@@ -307,7 +308,7 @@ class EnsembleForecaster(BaseForecaster):
         optimized_weights: Optimized weights (if optimization enabled)
         
     Example:
-        >>> # Create ensemble with pre-trained models
+        >>> # Create ensemble with pre-trained monthly models
         >>> models = {'dfm': dfm_model, 'midas': midas_model, 'xgboost': xgb_model}
         >>> config = EnsembleConfig(
         ...     method=EnsembleMethod.SIMPLE_AVERAGE,

@@ -6,7 +6,7 @@ monthly features. It reuses MIDASLagConstructor for high-frequency sources and
 adds deterministic missing-value handling for ragged-edge nowcasting.
 """
 
-from typing import Dict, Mapping, Optional, Union
+from typing import Any, Dict, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -226,3 +226,60 @@ class MIDASBridge:
         if self.availability_ is None:
             raise ValueError("Availability is not available before build_features()")
         return self.availability_.copy()
+
+    def convert_reconstructed_state(self, state: Any) -> Dict[str, pd.Series]:
+        """
+        Convert a VintageHarness ReconstructedState to raw_sources format.
+
+        Args:
+            state: ReconstructedState-like object with a ``data`` mapping.
+
+        Returns:
+            Mapping of configured source name to date-indexed numeric Series.
+        """
+        raw_sources: Dict[str, pd.Series] = {}
+        for source_name, source_frame in state.data.items():
+            if source_name not in self.source_configs:
+                logger.warning("midas_bridge_state_source_skipped", source=source_name)
+                continue
+
+            config = self.source_configs[source_name]
+            if not isinstance(source_frame, pd.DataFrame):
+                logger.warning("midas_bridge_state_source_not_dataframe", source=source_name)
+                continue
+
+            required_columns = {config.date_column, config.value_column}
+            missing_columns = required_columns - set(source_frame.columns)
+            if missing_columns:
+                logger.warning(
+                    "midas_bridge_state_source_missing_columns",
+                    source=source_name,
+                    missing_columns=sorted(missing_columns),
+                )
+                continue
+
+            raw_sources[source_name] = self._extract_series(source_frame, config)
+
+        return raw_sources
+
+    def build_features_from_harness_state(
+        self,
+        state: Any,
+        target_dates: pd.DatetimeIndex,
+    ) -> pd.DataFrame:
+        """
+        Build features directly from a VintageHarness ReconstructedState.
+
+        Args:
+            state: ReconstructedState-like object with ``as_of_date`` and ``data``.
+            target_dates: Monthly dates to produce features for.
+
+        Returns:
+            Monthly-aligned feature DataFrame.
+        """
+        raw_sources = self.convert_reconstructed_state(state)
+        return self.build_features(
+            raw_sources=raw_sources,
+            target_dates=target_dates,
+            vintage_date=state.as_of_date.isoformat(),
+        )
