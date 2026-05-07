@@ -5,7 +5,7 @@ This reflects realistic, data-driven, statistically valid predictions — not LL
 
 If you build the full system as designed (public signals + private signals + seasonal models + revision modeling + AI automation), this is exactly what it will be able to predict accurately and consistently.
 
-Current Phase 6.3.1a validation note: the DFM implementation is stable on real CES vintages, but it is not part of the production ensemble until true pre-release public signals such as claims, Treasury withholdings, business formation, strikes/weather controls, and prior CES releases pass vintage-honest accuracy gates.
+Current Phase 5/6 validation note: the DFM implementation is stable on real CES vintages, but it is not part of the production ensemble until true pre-release public signals such as claims, Treasury withholdings, business formation, strikes/weather controls, and prior CES releases pass vintage-honest accuracy gates. Current production ensemble candidates are MIDAS, XGBoost, and LightGBM.
 
 ⸻
 
@@ -221,6 +221,43 @@ Your system can simulate:
 ✅ “If storm event hits key states, expect a distortion of X jobs”
 
 This helps you validate the model’s logic and stability.
+
+⸻
+
+✅ 11. Implemented Phase 5 Model Stack
+
+Phase 5 now includes the complete model-development layer needed to support the capabilities above:
+
+✅ MIDAS and bridged MIDAS models
+	•	Mixed-frequency daily/weekly/monthly signal alignment
+	•	Almon lag weighting for interpretable high-frequency effects
+	•	Production candidate for pre-release NFP nowcasting
+
+✅ XGBoost and LightGBM quantile models
+	•	Nonlinear signal interactions
+	•	Multi-quantile outputs for prediction intervals
+	•	Production candidates for calibrated probability forecasts
+
+✅ Dynamic Factor Model
+	•	Statsmodels-backed latent factor extraction
+	•	Stable diagnostics on real CES vintages
+	•	Research/diagnostic only until pre-release accuracy gates pass
+
+✅ Calibration
+	•	Isotonic probability calibration
+	•	Split conformal prediction intervals
+	•	Coverage and ECE validation
+
+✅ Revision forecasting
+	•	First-to-later-print revision magnitude forecasts
+	•	Revision direction support
+
+✅ MinT reconciliation
+	•	State/sector-to-national coherence
+	•	OLS, WLS, sample MinT, and shrinkage MinT methods
+
+✅ Complete training documentation
+	•	See `docs/MODEL_TRAINING.md` for the training workflow, model selection decision tree, hyperparameter sensitivity guidance, gates, and troubleshooting.
 
 ⸻
 

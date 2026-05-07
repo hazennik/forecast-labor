@@ -2,7 +2,7 @@
   "_comment": "Performance baselines for regression detection",
   "_created": "2025-11-24",
   "_tolerance_pct": 20,
-  "_purpose": "Track performance over time to detect regressions",
+  "_purpose": "Track real model performance over time to detect regressions",
   "mock_model": {
     "training_time_sec": 1.0,
     "prediction_time_sec": 0.1,
@@ -10,40 +10,86 @@
     "throughput_pred_per_sec": 10
   },
   "real_models": {
-    "_note": "Real model baselines to be established during Phase 6 backtesting",
     "dfm": {
+      "training_time_sec": 0.156561,
+      "prediction_time_sec": 0.002809,
+      "memory_mb": 11.664,
+      "throughput_pred_per_sec": 4271.54,
+      "n_train_samples": 60,
+      "n_test_samples": 12,
+      "n_features": 8,
       "production_inclusion": false,
       "validation_note": "Stable on Phase 6.3.1a real CES vintages but excluded until true pre-release public signals pass accuracy gates",
       "phase_6_3_1a_stability_rate": 1.0,
-      "phase_6_3_1a_smape": 103.61,
-      "training_time_sec": 300,
-      "prediction_time_sec": 1.0,
-      "memory_mb": 1024
+      "phase_6_3_1a_smape": 103.61
     },
     "midas": {
-      "training_time_sec": 180,
-      "prediction_time_sec": 0.5,
-      "memory_mb": 512
+      "training_time_sec": 0.120821,
+      "prediction_time_sec": 0.000244,
+      "memory_mb": 0.125,
+      "throughput_pred_per_sec": 49205.535,
+      "n_train_samples": 60,
+      "n_test_samples": 12,
+      "n_features": 8
     },
     "xgboost": {
-      "training_time_sec": 600,
-      "prediction_time_sec": 1.0,
-      "memory_mb": 2048
+      "training_time_sec": 0.23423,
+      "prediction_time_sec": 0.011881,
+      "memory_mb": 6.965,
+      "throughput_pred_per_sec": 1009.973,
+      "n_train_samples": 60,
+      "n_test_samples": 12,
+      "n_features": 8
+    },
+    "lightgbm": {
+      "training_time_sec": 0.203134,
+      "prediction_time_sec": 0.01649,
+      "memory_mb": 8.91,
+      "throughput_pred_per_sec": 727.729,
+      "n_train_samples": 60,
+      "n_test_samples": 12,
+      "n_features": 8
     },
     "revision": {
-      "training_time_sec": 120,
-      "prediction_time_sec": 0.3,
-      "memory_mb": 256
+      "training_time_sec": 0.007708,
+      "prediction_time_sec": 0.001038,
+      "memory_mb": 0.001,
+      "throughput_pred_per_sec": 11559.302,
+      "n_train_samples": 60,
+      "n_test_samples": 12,
+      "n_features": 8
     },
     "full_pipeline": {
-      "training_time_sec": 1800,
-      "memory_mb": 3072
+      "training_time_sec": 0.565893,
+      "prediction_time_sec": 0.029653,
+      "memory_mb": 16.001,
+      "throughput_pred_per_sec": 404.681,
+      "included_models": [
+        "midas",
+        "xgboost",
+        "lightgbm",
+        "revision"
+      ],
+      "excluded_models": [
+        "dfm"
+      ],
+      "exclusion_reason": "DFM diagnostic-only until pre-release public-signal accuracy gate passes"
+    },
+    "_measurement": {
+      "measured_at": "2026-05-07T02:14:11.536648+00:00",
+      "benchmark_type": "deterministic_real_model_classes",
+      "n_samples": 72,
+      "n_features": 8,
+      "test_size": 12,
+      "random_state": 42,
+      "vintage_date": "2025-11-29"
     }
   },
   "slas": {
     "full_pipeline_max_minutes": 30,
     "prediction_latency_max_ms": 1000,
     "memory_limit_mb": 4096
-  }
+  },
+  "_updated": "2026-05-07T02:14:11.536844+00:00",
+  "_phase": "6.3.1b"
 }
-
