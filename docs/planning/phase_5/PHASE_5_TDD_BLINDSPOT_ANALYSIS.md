@@ -131,19 +131,19 @@ def test_coverage_meets_target():
 
 ### ⚠️ **5. DFM (Dynamic Factor Model) - MEDIUM RISK**
 
-**Algorithm:** EM algorithm for parameter estimation + Kalman filter for prediction
+**Algorithm:** statsmodels factor extraction + deterministic supervised ridge nowcast head
 
 **Mathematical Properties to Verify:**
 
-1. **EM Algorithm:**
-   - Likelihood increases monotonically: `L[t+1] >= L[t]`
-   - Converges to local maximum (not saddle point)
-   - Parameters are identifiable
+1. **Factor Extraction:**
+   - Produces finite factors/loadings across real vintages
+   - Preserves deterministic predictions for a fixed vintage/config
+   - Handles ragged-edge and missing inputs without NaN/Inf outputs
 
-2. **Kalman Filter:**
-   - Prediction/update equations correct
-   - Covariance matrices positive semi-definite
-   - One-step-ahead predictions optimal (MMSE)
+2. **Supervised Nowcast Head:**
+   - Uses only features available before the release being forecast
+   - Adds value against MIDAS/XGBoost under vintage-honest timing
+   - Avoids same-release CES component leakage
 
 3. **Factor Structure:**
    - Loadings satisfy constraints (if any)
@@ -154,39 +154,26 @@ def test_coverage_meets_target():
 - ✅ Convergence check (`n_iter_ <= max_iter`)
 - ✅ Reproducibility (same seed → same output)
 - ✅ Output shape validation
-- ❌ **Likelihood progression** ← Should test monotonic increase
-- ❌ **Kalman filter equations** ← Should verify correctness
-- ❌ **Covariance positive definite** ← Should validate
+- ✅ Real CES vintage stability validation (17/17 stable)
+- ✅ Pre-release CES leakage guard
+- ⚠️ **Expanded pre-release signal value** ← Should validate after claims/Treasury/business formation/strike-weather inputs are integrated
 
 **Recommended Additional Tests:**
 
 ```python
-def test_em_likelihood_increases_monotonically():
-    """EM algorithm must increase likelihood at each iteration."""
-    model = DynamicFactorModel(n_factors=2, max_iter=20)
-    model.fit(X, y, vintage_date='2024-11-15')
-    
-    # Check likelihood history
-    likelihoods = model.likelihood_history_
-    for t in range(1, len(likelihoods)):
-        assert likelihoods[t] >= likelihoods[t-1] - 1e-8, \
-            f"Likelihood decreased at iteration {t}"
+def test_dfm_pre_release_signal_value():
+    """DFM must add value only using data available before release."""
+    model = DynamicFactorModel(n_factors=2, random_state=42)
+    model.fit(train_features, train_target, vintage_date='2024-11-15')
 
-def test_kalman_covariance_positive_definite():
-    """Kalman filter covariances must be positive semi-definite."""
-    model = DynamicFactorModel(n_factors=2)
-    model.fit(X, y, vintage_date='2024-11-15')
-    
-    # Check covariance matrices
-    for cov in model.state_covariances_:
-        eigenvalues = np.linalg.eigvals(cov)
-        assert np.all(eigenvalues >= -1e-8), \
-            "Covariance matrix not positive semi-definite"
+    predictions = model.predict(test_features)
+    assert np.isfinite(predictions).all()
+    assert smape(test_target, predictions) < production_gate
 ```
 
-**Priority:** Medium - Add these tests when implementing Phase 6 backtesting
+**Priority:** Medium - Add these tests when true pre-release public signals are integrated
 
-**Status:** ⚠️ **Review recommended** (not a blocker)
+**Status:** ⚠️ **Stable but production-excluded** until pre-release public-signal validation passes
 
 ---
 

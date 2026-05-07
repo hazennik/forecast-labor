@@ -36,10 +36,10 @@
 
 ### Challenge: DFM Sensitivity
 **Problem:** DFM produced 10^17 predictions with random synthetic test data  
-**Root Cause:** DFM's EM algorithm expects realistic covariance structure  
-**Evidence:** DFM unit tests (Phase 5.3) all passing with curated data  
-**Solution:** Excluded DFM from integration test, use MIDAS + XGBoost  
-**Phase 6 Action:** Validate DFM with real NFP vintage data
+**Root Cause:** The original custom DFM was numerically fragile and synthetic integration data lacked realistic covariance structure  
+**Evidence:** Later R4/R7 validation replaced the custom DFM with statsmodels and produced 17/17 stable real-vintage predictions  
+**Solution:** Keep DFM out of production ensemble until true pre-release public signals pass vintage-honest gates  
+**Phase 6 Action:** Completed; corrected CES-only pre-release validation excludes DFM from production
 
 ### Challenge: XGBoost Format Compatibility
 **Problem:** XGBoost returns dict, ensemble expects array  
@@ -59,24 +59,24 @@
 > "If DFM tests passed when implementing that model in a previous part of phase 5, why would the tests in phase 5.13.2 fail when it comes to DFM?"
 
 ### Answer
-**DFM is NOT broken.** This is a test data quality issue, not a model bug.
+**DFM infrastructure is now stable, but not production-selected.** The original failure combined a fragile custom implementation with unrealistic synthetic test data; the corrected Phase 6 validation fixed stability but exposed an honest pre-release accuracy gap.
 
-- **DFM Unit Tests (Phase 5.3):** 25/25 passing with carefully crafted test data ✅
-- **Integration Test:** Random synthetic data without realistic covariance structure ❌
-- **Root Cause:** DFM's EM algorithm is mathematically correct but sensitive to data characteristics
-- **Confidence:** 70-80% DFM will work with real NFP data (proper covariance structure)
+- **DFM Unit Tests (Phase 5.3):** Passing with curated data ✅
+- **R4 Refactor:** statsmodels factor extraction + supervised ridge head stabilized prediction ✅
+- **Corrected Phase 6.3.1a:** 17/17 stable, but DFM average sMAPE 103.61% after same-release CES leakage was removed ❌
+- **Current Decision:** DFM remains research/diagnostic until true pre-release public signals pass gates
 
 ### Resolution Strategy
 1. **Accept Limitation** - Document DFM exclusion from integration test ✅
 2. **Phase 6 Validation** - Test DFM on real NFP vintage data ✅
-3. **Ensemble Robustness** - Use MIDAS + XGBoost (stable with synthetic data) ✅
+3. **Ensemble Robustness** - Use MIDAS + XGBoost + LightGBM candidates; keep DFM diagnostic ✅
 
 ### Phase 6 DFM Validation Plan
-- [ ] Test DFM on 10+ actual vintage dates with real mixed-frequency data
-- [ ] Compare DFM vs MIDAS vs XGBoost accuracy (sMAPE, RMSE, PI coverage)
-- [ ] Verify DFM numerical stability with real data (no explosions)
-- [ ] Determine if DFM should be included in production ensemble
-- **Success Criteria:** DFM sMAPE < 20%, stable predictions, adds value to ensemble
+- [x] Test DFM on 10+ actual vintage dates with real mixed-frequency data
+- [x] Compare DFM vs MIDAS vs XGBoost accuracy (sMAPE, RMSE, PI coverage)
+- [x] Verify DFM numerical stability with real data (17/17 stable)
+- [x] Determine if DFM should be included in production ensemble → **NO**
+- **Result:** DFM stability fixed, but corrected pre-release CES-only sMAPE is 103.61%; integrate true pre-release public signals before reconsidering.
 
 ---
 

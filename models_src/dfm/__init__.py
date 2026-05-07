@@ -13,10 +13,9 @@ from models_src.dfm.state_space import (
 )
 
 __all__ = [
-    'DynamicFactorModel',
-    'StateSpaceRepresentation',
-    'build_transition_matrix',
-    'build_observation_matrix',
-    'validate_state_space_dimensions',
+    "DynamicFactorModel",
+    "StateSpaceRepresentation",
+    "build_transition_matrix",
+    "build_observation_matrix",
+    "validate_state_space_dimensions",
 ]
-

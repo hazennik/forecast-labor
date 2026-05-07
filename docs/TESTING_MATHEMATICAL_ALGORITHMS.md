@@ -55,14 +55,14 @@ Developers naturally test **observable behavior** (easy) rather than **mathemati
 ### ⚠️ **Medium Risk: Review Needed**
 
 **2. DFM (Dynamic Factor Model)**
-- **Algorithm:** EM algorithm + Kalman filter
-- **Current Tests:** Convergence, reproducibility, output shape
+- **Algorithm:** statsmodels factor extraction + deterministic supervised nowcast head
+- **Current Tests:** Convergence/stability, reproducibility, output shape, state-space compatibility, real CES vintage validation
 - **Potential Blindspot:**
-  - ❓ Does EM converge to correct maximum likelihood estimate?
-  - ❓ Does Kalman filter implement correct prediction/update equations?
+  - ❓ Does the supervised head add value under true pre-release public-signal timing?
+  - ❓ Are calibration intervals well-tuned once point forecasts pass gates?
   - ❓ Are factor loadings orthogonal (if assumed)?
-  - ❓ Does likelihood increase monotonically during EM iterations?
-- **Recommendation:** Add tests for EM likelihood progression, Kalman filter equations
+  - ❓ Does the model remain stable across expanded non-CES source vintages?
+- **Recommendation:** Keep real-vintage leakage guard tests and add true pre-release public-signal validation before any production ensemble inclusion
 
 **3. MIDAS Regression**
 - **Algorithm:** NLS estimation with Almon polynomial weights

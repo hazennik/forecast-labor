@@ -1,6 +1,206 @@
 # Implementation Status
 
-Last Updated: 2026-05-05 (DFM/MIDAS Refactor R5 COMPLETE ✅ | Full test suite passing: 1325 passed, 5 skipped | Next: R6 Unit & Integration Test Validation)
+Last Updated: 2026-05-06 (DFM/MIDAS Refactor R9 COMPLETE ✅ | Final validation and cleanup complete | Full Docker suite passing: 1332 passed, 5 skipped | Stop before next phase)
+
+## ✅ DFM/MIDAS REFACTOR R9 COMPLETE: Final Validation & Cleanup (2026-05-06)
+
+**Status:** COMPLETE - final validation, code quality, and cleanup gates passed  
+**Completion:** R9 100% ✅  
+**Breaking Changes:** NONE - public DFM/MIDAS interfaces preserved
+
+### Completed Deliverables
+
+- ✅ Ran all model, feature, integration, and backtest test gates in Docker.
+- ✅ Ran ruff and mypy quality gates for `models_src/dfm/`, `models_src/midas/`, and `features/midas/`.
+- ✅ Applied formatting and type-safety cleanup required by the quality gates.
+- ✅ Confirmed no production TODO/FIXME markers in DFM/MIDAS refactor modules.
+- ✅ Kept `models_src/dfm/state_space.py` as a deprecated diagnostics and compatibility module; deprecation warnings are intentional and covered by tests.
+- ✅ Confirmed no workspace `.tmp` or `.bak` cleanup artifacts.
+- ✅ Marked `docs/planning/DFM_MIDAS_REFACTOR_PLAN.md` complete through R9.
+
+### Validation
+
+- ✅ `docker compose exec etl pytest tests/models/ -v --tb=short`
+- ✅ Result: **683 passed, 63 warnings in 51.99s**
+- ✅ `docker compose exec etl pytest tests/features/ -v --tb=short`
+- ✅ Result: **145 passed, 1 warning in 1.82s**
+- ✅ `docker compose exec etl pytest tests/integration/ -v --tb=short`
+- ✅ Result: **83 passed, 17 warnings in 12.97s**
+- ✅ `docker compose exec etl pytest tests/backtests/ -v --tb=short`
+- ✅ Result: **32 passed, 173 warnings in 205.92s**
+- ✅ `docker compose exec etl ruff check models_src/dfm/ models_src/midas/ features/midas/`
+- ✅ Result: **passed**
+- ✅ `docker compose exec etl mypy models_src/dfm/ models_src/midas/ features/midas/ --ignore-missing-imports`
+- ✅ Result: **Success: no issues found in 10 source files**
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1332 passed, 5 skipped, 316 warnings in 488.38s**
+
+### Final Refactor Outcome
+
+- ✅ MIDAS Bridge implemented and validated.
+- ✅ DFM numerical stability fixed: **17/17 real CES vintages stable**.
+- ⚠️ DFM corrected pre-release CES-only sMAPE: **103.61%**, above the `<20%` production gate.
+- ❌ DFM remains excluded from the production ensemble until true pre-release public signals are integrated and vintage-honest validation passes.
+
+### Next Action
+
+Stop here before moving on. The next development phase should return to Phase 6 planning with DFM excluded from production ensemble composition.
+
+## ✅ DFM/MIDAS REFACTOR R8 COMPLETE: Documentation Update (2026-05-06)
+
+**Status:** COMPLETE - core documentation now reflects the corrected pre-release DFM validation decision  
+**Completion:** R8 100% ✅  
+**Breaking Changes:** NONE - documentation/status/baseline metadata only
+
+### Completed Deliverables
+
+- ✅ Updated `docs/planning/DFM_MIDAS_REFACTOR_PLAN.md` to mark R8 complete and record the documentation gate.
+- ✅ Reconciled `docs/planning/PHASE_6_3_1a_COMPLETION_SUMMARY.md` so stale 0/17 custom-DFM failure language no longer reads as the current decision.
+- ✅ Updated capability and accuracy docs to distinguish stable DFM infrastructure from production ensemble inclusion.
+- ✅ Updated Phase 5 documentation and mathematical testing guidance with the corrected DFM lesson: feature timing and pre-release signal availability are now the blocker, not DFM numerical stability.
+- ✅ Updated `tests/fixtures/performance_baselines.json` with DFM diagnostic validation metadata.
+- ✅ Verified no DFM YAML config references exist under `configs/`.
+
+### Validation
+
+- ✅ `python3 -m json.tool tests/fixtures/performance_baselines.json >/dev/null`
+- ✅ Result: JSON baseline valid
+- ✅ `docker compose exec etl pytest tests/models/test_dfm_statsmodels.py tests/integration/test_mixed_frequency_pipeline.py -v --tb=short`
+- ✅ Result: **15 passed, 15 warnings in 7.28s**
+- ✅ `docker compose exec etl pytest tests/backtests/test_dfm_validation.py -v -s --tb=short`
+- ✅ Result: **10 passed, 173 warnings in 202.52s**
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1332 passed, 5 skipped, 316 warnings in 473.79s**
+
+### Production Decision
+
+**Decision remains:** ❌ Exclude DFM from the production ensemble until true pre-release public signals are integrated and vintage-honest validation passes the accuracy gate.
+
+**Rationale:** R8 changed documentation only. The corrected R7 evidence still shows stable DFM predictions but CES-only pre-release accuracy below the production threshold.
+
+### Next Action
+
+Proceed to **DFM/MIDAS Refactor R9: Final Validation & Cleanup**. Do not start subsequent development until R9 handles final cleanup, code-quality checks, and the final completion summary.
+
+## ✅ DFM/MIDAS REFACTOR R7 REVIEW FIXES COMPLETE: Pre-Release Validation Correction (2026-05-06)
+
+**Status:** COMPLETE - R7 validation now avoids same-release CES leakage and records the corrected production decision  
+**Completion:** R7 review fixes 100% ✅  
+**Breaking Changes:** NONE - public DFM `fit/predict/save/load` interface preserved
+
+### Completed Deliverables
+
+- ✅ Kept the supervised DFM ridge nowcast head and serialization improvements from the remediation work.
+- ✅ Corrected real BLS CES validation to lag CES sector feature availability by one month because sector CES components release with total NFP.
+- ✅ Added a pre-release bridge guard test so same-release sector changes cannot be used to forecast same-month NFP.
+- ✅ Changed real CES mixed-frequency pipeline validation to use optimized ensemble weights instead of simple average.
+- ✅ Re-ran Phase 6.3.1a validation with the corrected pre-release feature timing.
+- ✅ Updated the production decision to reflect honest public-data validation, not the earlier contemporaneous CES result.
+
+### Corrected Validation Results
+
+- ✅ `docker compose exec etl pytest tests/backtests/test_dfm_validation.py -v -s --tb=short`
+- ✅ Result: **10 passed, 173 warnings in 190.28s**
+- ✅ Real vintages tested: **17**
+- ✅ DFM stability: **17/17 stable (100%)**
+- ✅ DFM finite predictions: **17/17, no NaN/Inf**
+- ⚠️ DFM average sMAPE: **103.61%** (threshold: <20%)
+- ⚠️ DFM average RMSE: **1042.22**
+- ⚠️ Optimized DFM+XGBoost average test sMAPE: **88.10%**
+- ⚠️ Optimized DFM weight: **0.305 average**, **11/17 non-zero**
+- ⚠️ DFM-only 90% PI coverage: **100.0%**, interval ECE **0.100** (over-conservative)
+- ⚠️ Real CES mixed-frequency optimized ensemble average sMAPE: **98.16%**, average DFM optimized weight **0.186**
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1332 passed, 5 skipped, 316 warnings in 466.46s**
+
+### Production Decision
+
+**Decision:** ❌ Exclude DFM from the production ensemble until true pre-release public signals are integrated and vintage-honest validation passes the accuracy gate.
+
+**Rationale:** The statsmodels DFM and supervised ridge head are stable, and DFM can receive non-zero optimized weight on some validation windows. However, once same-release CES component leakage is removed, CES-only pre-release validation does not meet the sMAPE gate. DFM remains a research/diagnostic component pending real pre-release public signals such as claims, Treasury withholdings, business formation, strikes/weather controls, and prior CES releases.
+
+### Remaining Follow-Up
+
+- Add true pre-release public mixed-frequency signals to the R7 validation harness before reconsidering DFM production inclusion.
+- Tune DFM interval calibration after point forecasts pass honest pre-release accuracy gates; current intervals are finite but over-conservative.
+
+### Next Action
+
+Proceed to **DFM/MIDAS Refactor R8: Documentation Update**. Do not start R9 until R8 updates the core documentation and Phase 6.3.1a summary with the corrected DFM exclusion decision.
+
+## ✅ DFM/MIDAS REFACTOR R7 COMPLETE: Real Data Validation (2026-05-06)
+
+**Status:** SUPERSEDED by R7 remediation above - initial Phase 6.3.1a real-data validation re-run on BLS CES vintages with bridge-built features
+**Completion:** R7 100% ✅
+**Breaking Changes:** NONE - validation and production decision only
+
+### Completed Deliverables
+
+- ✅ Updated `tests/backtests/test_dfm_validation.py` to build real BLS CES features through `MIDASBridge` instead of direct pre-aggregated feature assembly.
+- ✅ Added bridge-to-DFM-to-conformal calibration validation using the existing `ConformalPredictor`.
+- ✅ Added ragged-edge calibration validation for partially available real CES source inputs.
+- ✅ Added real CES `MixedFrequencyPipeline` validation across 10+ vintages.
+- ✅ Re-ran Phase 6.3.1a DFM validation on real BLS CES vintages.
+- ✅ Recorded the DFM production ensemble decision.
+
+### Validation Results
+
+- ✅ `docker compose exec etl pytest tests/backtests/test_dfm_validation.py -v -s --tb=short`
+- ✅ Result: **8 passed, 108 warnings in 183.47s**
+- ✅ Real vintages tested: **17**
+- ✅ DFM stability: **17/17 stable (100%)**
+- ✅ DFM finite predictions: **17/17, no NaN/Inf**
+- ⚠️ DFM average sMAPE: **113.33%** (threshold: <20%)
+- ⚠️ DFM average RMSE: **1059.99**
+- ⚠️ DFM 90% PI coverage: **99.7%** with interval ECE **0.097** (over-conservative; target ECE <0.05)
+- ⚠️ Real CES mixed-frequency ensemble average sMAPE: **83.26%**
+
+### Production Decision
+
+**Decision:** ❌ Exclude DFM from the production ensemble for now.
+
+**Rationale:** The R4 statsmodels implementation fixed the original numerical instability (0% stability → 100% stability), but R7 real-data validation shows DFM does not meet the accuracy or calibration gates. Keep DFM available as a diagnostic/research component, but do not assign production ensemble weight until a future model-form and calibration improvement phase proves real-data accuracy below the gate.
+
+### Next Action
+
+Proceed to **DFM/MIDAS Refactor R8: Documentation Update**. Do not start R9 until R8 updates the core documentation and Phase 6.3.1a summary with the R7 exclusion decision.
+
+## ✅ DFM/MIDAS REFACTOR R6 COMPLETE: Unit & Integration Test Validation (2026-05-06)
+
+**Status:** COMPLETE - MIDAS, DFM, integration, pipeline smoke checks, and the full Docker test suite all pass
+**Completion:** R6 100% ✅
+**Breaking Changes:** NONE - validation-only phase
+
+### Completed Deliverables
+
+- ✅ Ran all MIDAS unit/property/bridge tests.
+- ✅ Ran all statsmodels-backed DFM unit/property/state-space tests.
+- ✅ Ran integration tests spanning ETL, features, complete workflow, mixed-frequency pipeline, Phase 6.1.1 validation tooling, registry/Postgres integration, and ensemble pipeline behavior.
+- ✅ Verified `scripts/build_features.py --use-midas-bridge` CLI smoke path.
+- ✅ Verified the training pipeline with the new `DynamicFactorModel`.
+- ✅ Verified the mixed-frequency ensemble pipeline from raw daily/weekly/monthly sources through DFM, MIDAS, XGBoost, and ensemble predictions.
+- ✅ Ran the full Docker pytest suite as the final gate.
+
+### Validation
+
+- ✅ `docker compose exec etl pytest tests/models/test_midas*.py tests/features/test_midas*.py -v --tb=short`
+- ✅ Result: **78 passed, 3 warnings in 4.91s**
+- ✅ `docker compose exec etl pytest tests/models/test_dfm*.py -v --tb=short`
+- ✅ Result: **69 passed, 51 warnings in 6.84s**
+- ✅ `docker compose exec etl pytest tests/integration/ tests/models/test_ensemble_pipeline.py -v --tb=short`
+- ✅ Result: **111 passed, 16 warnings in 14.23s**
+- ✅ `docker compose exec etl python3 scripts/build_features.py --vintage-date 1900-01-01 --output-dir /tmp/forecast-labor-features-r6 --use-midas-bridge --bridge-version r6-validation`
+- ✅ Result: **CLI smoke passed** (0 feature sets expected for synthetic vintage with no source data)
+- ✅ DFM training pipeline synthetic smoke
+- ✅ Result: **passed**
+- ✅ Mixed-frequency ensemble pipeline synthetic smoke
+- ✅ Result: **passed**
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1325 passed, 5 skipped, 217 warnings in 490.61s**
+
+### Next Action
+
+Proceed to **DFM/MIDAS Refactor R7: Real Data Validation**. Do not start R8 until R7 re-runs Phase 6.3.1a validation with real data and records the DFM ensemble decision.
 
 ## ✅ DFM/MIDAS REFACTOR R5 COMPLETE: Integration Layer (2026-05-05)
 
@@ -3329,18 +3529,21 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
 - **6.3.1 Run backtests on historical vintages** (measure **Performance Baselines** during this step)
   - **Estimated Time:** 2-4 days (depending on compute and number of vintages)
   - **Include:** Test all models (DFM, MIDAS, XGBoost, LightGBM) on real vintage data
-  **6.3.1a DFM Validation:** ⚠️ **COMPLETE - PENDING RE-VALIDATION** (2025-12-02)
-  - Test DFM on 17 actual vintage dates with **REAL BLS CES data**
-  - Compare DFM vs MIDAS vs XGBoost accuracy (DFM produces NaN - cannot compare)
-  - Verify DFM numerical stability with real data (0/17 stable - **FAILED**)
-  - Determine if DFM should be included in production ensemble → **NO** (based on from-scratch implementation)
+  **6.3.1a DFM Validation:** ✅ **COMPLETE - REVALIDATED WITH PRE-RELEASE TIMING CORRECTION** (2026-05-06)
+  - Tested DFM on 17 actual vintage dates with **REAL BLS CES data**
+  - Corrected validation to lag CES sector feature availability by one month, preventing same-release NFP leakage
+  - Verified DFM numerical stability with real data: **17/17 stable**
+  - Compared DFM vs MIDAS vs XGBoost under CES-only pre-release timing
+  - Determine if DFM should be included in production ensemble → **NO** until true pre-release public signals are integrated
   - **Reference:** `docs/planning/PHASE_6_3_1a_COMPLETION_SUMMARY.md`
   - **Data Source:** BLS CES API (real employment data, 2010-2025)
-  **⚠️ RE-VALIDATION REQUIRED:**
-  - Results below are based on the **"from scratch" custom DFM implementation** which has fundamental numerical stability issues
-  - The DFM *methodology* is sound; the *implementation* was flawed (acknowledged in code: "In production, would use statsmodels")
-  - **Next Step:** Re-run Phase 6.3.1a after completing `docs/planning/DFM_MIDAS_REFACTOR_PLAN.md` (Phase R7)
-  - DFM may be included in production ensemble if statsmodels implementation passes validation
+  **Corrected Pre-Release Validation Result:**
+  - DFM stability: **100%** (17/17 vintages produce finite predictions)
+  - DFM average sMAPE: **103.61%** (threshold: <20%)
+  - DFM average RMSE: **1042.22**
+  - Optimized DFM+XGBoost ensemble average test sMAPE: **88.10%**
+  - Optimized DFM weight: **0.305 average**, **11/17 non-zero**
+  - DFM-only 90% PI coverage: **100.0%**, interval ECE **0.100**
   **📋 Refactor Scope Note:**
   - The DFM + MIDAS Bridge Refactor provides **infrastructure** for mixed-frequency nowcasting
   - **Unchanged components:** Calibration, Revision modeling, MinT reconciliation, GBM/LightGBM, ETL pipelines
@@ -3353,21 +3556,19 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - Test with ragged-edge data (missing recent daily/weekly observations)
   - Test intra-month update capability (T-48h → T-2h per ACCURACY_MAP.md Section 8)
   - See `DFM_MIDAS_REFACTOR_PLAN.md` R7.1.4 for calibration integration tests
-  **📊 Results (FROM-SCRATCH DFM - SUPERSEDED AFTER REFACTOR):**
+  **📊 Current Corrected Results (PRE-RELEASE CES-ONLY):**
 
   | Model   | Stability     | Avg sMAPE | Recommendation                |
   | ------- | ------------- | --------- | ----------------------------- |
-  | DFM     | **0/17 (0%)** | N/A (NaN) | ⚠️ Re-validate after refactor |
-  | MIDAS   | 100%          | TBD       | ✅ Include                     |
-  | XGBoost | 100%          | TBD       | ✅ Include                     |
+  | DFM     | **17/17 (100%)** | 103.61% | ❌ Exclude until true pre-release public signals are integrated |
+  | MIDAS   | 100%          | 116.39%   | ❌ Exclude as CES-only pre-release benchmark |
+  | XGBoost | 100%          | 91.84%    | ❌ Exclude as CES-only pre-release benchmark |
 
-  **🟡 Current Decision: EXCLUDE DFM (pending re-validation)**
-  - DFM stability: **0%** (0/17 vintages produce valid predictions) - *from-scratch implementation*
-  - DFM errors: `overflow in matmul`, `invalid value in add`
-  - Root cause: **Custom Kalman filter implementation** numerically unstable (not DFM methodology)
-  - **Action:** Implement battle-tested statsmodels DFM per `DFM_MIDAS_REFACTOR_PLAN.md`, then re-validate
-  - See `PHASE_6_3_1a_COMPLETION_SUMMARY.md` for full analysis of from-scratch results
-  **Test File:** `tests/backtests/test_dfm_validation.py` (5/5 tests passing)
+  **🔴 Current Decision: EXCLUDE DFM from production ensemble**
+  - DFM stability is fixed, but honest CES-only pre-release accuracy is below the production gate.
+  - **Action:** Integrate true pre-release public signals (claims, Treasury withholdings, business formation, strikes/weather controls, prior CES releases) before reconsidering DFM production inclusion.
+  - See `PHASE_6_3_1a_COMPLETION_SUMMARY.md` for corrected validation details.
+  **Test File:** `tests/backtests/test_dfm_validation.py` (10/10 tests passing)
   **Vintage Script:** `scripts/create_historical_vintages.py`
   **Refactor Plan:** `docs/planning/DFM_MIDAS_REFACTOR_PLAN.md`
   **6.3.1b Performance Baselines Measurement:** (Codex Analysis 20 - Issue 1, Codex Analysis 22 - Finding 4)
@@ -3390,7 +3591,7 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   - End-to-end latency measurement (ETL → final forecast) with complete pipeline
   - Memory usage profiling for complete workflow (all models, all layers)
   - Identify bottlenecks for optimization (calibration, reconciliation, ensemble)
-  - Profile with confirmed ensemble composition (**MIDAS + XGBoost** - DFM pending re-validation after refactor)
+  - Profile with confirmed ensemble composition (**MIDAS + XGBoost/LightGBM candidates**; DFM excluded until true pre-release public-signal validation passes)
   - Document performance characteristics in backtest report
   - **Reference:** Phase 5.13.3 deferred tasks
   - **Rationale:** Real data provides accurate performance picture for production deployment
@@ -3422,13 +3623,13 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
   ---
   - **6.4.2.1 Model Performance Comparison & Ensemble Selection**
     - Compare all models on backtest results (MIDAS vs XGBoost vs LightGBM vs DFM)
-    - **DFM validation completed in 6.3.1a** (with from-scratch implementation) → ⚠️ **PENDING RE-VALIDATION**
-      - From-scratch DFM: 0% stability, excluded from ensemble
-      - **After DFM refactor:** Re-run validation with statsmodels implementation (see `DFM_MIDAS_REFACTOR_PLAN.md`)
-      - DFM may be included in ensemble if statsmodels version passes validation
+    - **DFM validation completed in 6.3.1a** (statsmodels + supervised head, corrected pre-release timing)
+      - DFM stability: 100% on real CES vintages
+      - DFM CES-only pre-release sMAPE: 103.61%, excluded from ensemble
+      - DFM may be reconsidered only after true pre-release public signals are integrated and pass vintage-honest gates
     - Document final production ensemble composition and rationale
     - Define ensemble weighting strategy (equal-weighted, performance-weighted, or stacking)
-    - **Note:** Current ensemble: **MIDAS + XGBoost** (+ potentially LightGBM + DFM after refactor)
+    - **Note:** Current ensemble candidates: **MIDAS + XGBoost + LightGBM**; DFM remains research/diagnostic
     - **Estimated Time:** 4-6 hours
   ---
   - **6.4.2.2 Primary Accuracy Gates** (hard deployment blockers)

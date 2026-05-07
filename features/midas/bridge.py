@@ -6,7 +6,7 @@ monthly features. It reuses MIDASLagConstructor for high-frequency sources and
 adds deterministic missing-value handling for ragged-edge nowcasting.
 """
 
-from typing import Any, Dict, Mapping, Optional, Union
+from typing import Any, Dict, Literal, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -38,7 +38,7 @@ class MIDASBridge:
     def __init__(
         self,
         source_configs: Optional[Mapping[str, SourceConfig]] = None,
-        target_freq: str = "M",
+        target_freq: Literal["M"] = "M",
         almon_poly_degree: int = 2,
         apply_almon_weights: bool = True,
         fill_missing: bool = True,
@@ -76,10 +76,12 @@ class MIDASBridge:
         Args:
             raw_sources: Mapping of source name to DataFrame or Series.
             target_dates: Monthly dates to align features to.
-            vintage_date: Optional vintage date for logging and reproducibility metadata.
+            vintage_date: Optional vintage date for logging and reproducibility
+                metadata.
 
         Returns:
-            Numeric DataFrame indexed by target_dates, with one set of columns per source.
+            Numeric DataFrame indexed by target_dates, with one set of columns
+            per source.
         """
         if not isinstance(target_dates, pd.DatetimeIndex):
             raise ValueError("target_dates must be a DatetimeIndex")
@@ -124,12 +126,17 @@ class MIDASBridge:
         if isinstance(raw_source, pd.Series):
             series = raw_source.copy()
             if not isinstance(series.index, pd.DatetimeIndex):
-                raise ValueError(f"{config.source_name} series must use a DatetimeIndex")
+                raise ValueError(
+                    f"{config.source_name} series must use a DatetimeIndex"
+                )
         elif isinstance(raw_source, pd.DataFrame):
-            missing_columns = {config.date_column, config.value_column} - set(raw_source.columns)
+            missing_columns = {config.date_column, config.value_column} - set(
+                raw_source.columns
+            )
             if missing_columns:
                 raise ValueError(
-                    f"{config.source_name} missing required columns: {sorted(missing_columns)}"
+                    f"{config.source_name} missing required columns: "
+                    f"{sorted(missing_columns)}"
                 )
             frame = raw_source[[config.date_column, config.value_column]].copy()
             frame[config.date_column] = pd.to_datetime(frame[config.date_column])
@@ -167,7 +174,9 @@ class MIDASBridge:
     ) -> pd.DataFrame:
         """Build model feature columns for one source."""
         if config.frequency == "M":
-            aligned = align_series_to_dates(series, target_dates, method=config.aggregation)
+            aligned = align_series_to_dates(
+                series, target_dates, method=config.aggregation
+            )
             return pd.DataFrame(
                 {f"{config.source_name}_{config.value_column}": aligned},
                 index=target_dates,
@@ -245,7 +254,9 @@ class MIDASBridge:
 
             config = self.source_configs[source_name]
             if not isinstance(source_frame, pd.DataFrame):
-                logger.warning("midas_bridge_state_source_not_dataframe", source=source_name)
+                logger.warning(
+                    "midas_bridge_state_source_not_dataframe", source=source_name
+                )
                 continue
 
             required_columns = {config.date_column, config.value_column}

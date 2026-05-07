@@ -83,6 +83,54 @@ def test_predict_on_new_data_uses_learned_loading_projection(
     assert np.all(np.isfinite(projected_factors))
 
 
+def test_supervised_head_uses_bridge_features_when_predictive() -> None:
+    """Regularized DFM nowcast head should learn predictive bridge-feature signal."""
+    rng = np.random.default_rng(123)
+    n_obs = 96
+    dates = pd.date_range("2017-01-01", periods=n_obs, freq="MS")
+    common_factor = np.sin(np.linspace(0, 6 * np.pi, n_obs))
+    direct_signal = np.linspace(-1.0, 1.0, n_obs)
+
+    X = pd.DataFrame(
+        {
+            "common_1": 100.0 + common_factor + rng.normal(0.0, 0.05, n_obs),
+            "common_2": 50.0 - 0.8 * common_factor + rng.normal(0.0, 0.05, n_obs),
+            "bridge_signal": 20.0 + direct_signal + rng.normal(0.0, 0.02, n_obs),
+        },
+        index=dates,
+    )
+    y = pd.Series(
+        75.0 + 20.0 * direct_signal + 2.0 * common_factor + rng.normal(0.0, 0.5, n_obs),
+        index=dates,
+    )
+    train_X, test_X = X.iloc[:-18], X.iloc[-18:]
+    train_y, test_y = y.iloc[:-18], y.iloc[-18:]
+
+    factor_only = DynamicFactorModel(
+        n_factors=1,
+        max_iter=50,
+        random_state=42,
+        include_direct_features=False,
+    )
+    supervised = DynamicFactorModel(
+        n_factors=1,
+        max_iter=50,
+        random_state=42,
+        include_direct_features=True,
+        ridge_alphas=(0.01, 0.1, 1.0, 10.0),
+    )
+
+    factor_only.fit(train_X, train_y, vintage_date="2026-05-05")
+    supervised.fit(train_X, train_y, vintage_date="2026-05-05")
+
+    factor_mse = np.mean((factor_only.predict(test_X) - test_y.to_numpy()) ** 2)
+    supervised_mse = np.mean((supervised.predict(test_X) - test_y.to_numpy()) ** 2)
+
+    assert supervised.prediction_coef_.shape[0] == supervised.n_factors + train_X.shape[1]
+    assert supervised.selected_ridge_alpha_ in supervised.ridge_alphas
+    assert supervised_mse < factor_mse * 0.75
+
+
 def test_handles_nfp_scale_and_covid_shock() -> None:
     """Large labor-market scale values and shocks must not explode predictions."""
     rng = np.random.default_rng(7)
@@ -155,3 +203,4 @@ def test_save_load_restores_same_predictions(
 
     np.testing.assert_allclose(actual, expected, rtol=1e-10, atol=1e-10)
     assert loaded.get_params()["implementation"] == "statsmodels_dynamic_factor"
+    assert loaded.selected_ridge_alpha_ == model.selected_ridge_alpha_

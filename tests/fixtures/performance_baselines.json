@@ -12,6 +12,10 @@
   "real_models": {
     "_note": "Real model baselines to be established during Phase 6 backtesting",
     "dfm": {
+      "production_inclusion": false,
+      "validation_note": "Stable on Phase 6.3.1a real CES vintages but excluded until true pre-release public signals pass accuracy gates",
+      "phase_6_3_1a_stability_rate": 1.0,
+      "phase_6_3_1a_smape": 103.61,
       "training_time_sec": 300,
       "prediction_time_sec": 1.0,
       "memory_mb": 1024

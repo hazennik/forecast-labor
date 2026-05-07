@@ -159,6 +159,8 @@ SN41 rewards **smooth, calibrated, low-variance** vectors.
 - T-48 hours → T-2 hours  
 - Reliability: ★★★★☆
 
+Current implementation note: the mixed-frequency pipeline supports re-running forecasts as new raw daily/weekly sources arrive. DFM factors are stable but remain diagnostic until true pre-release public-signal validation passes the accuracy gate.
+
 ---
 
 ## 9. Labor Market Tightness & Risk Metrics

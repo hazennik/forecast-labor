@@ -90,7 +90,7 @@ feat1 = np.sin(...)  # Features: [-1, 1]
 ### Challenge 2: DFM Sensitivity to Test Data Quality
 **Problem:** DFM predictions exploded to 10^17 scale with randomly generated synthetic test data.
 
-**Important Clarification:** This is **NOT a DFM bug**. DFM passed all 25 unit tests in Phase 5.3. This is a **test data quality issue**.
+**Current Clarification (2026-05-06):** This was an early Phase 5 finding. The later DFM/MIDAS refactor replaced the fragile custom DFM with a statsmodels-backed implementation that is stable on real CES vintages. Corrected Phase 6.3.1a validation still excludes DFM from production because honest pre-release CES-only accuracy misses the gate.
 
 **Debug Process:**
 1. Verified target data was scaled correctly (148-156)
@@ -108,7 +108,7 @@ feat1 = np.sin(...)  # Features: [-1, 1]
 
 **Solution:** Excluded DFM from workflow integration test, used MIDAS + XGBoost ensemble for robust validation.
 
-**Action Item for Phase 6:** DFM will work correctly with real NFP data (which has proper covariance structure). Test with actual vintage data in backtesting.
+**Phase 6 Result:** Completed. DFM is stable on 17/17 real CES vintages, but after same-release CES leakage was removed, DFM sMAPE was 103.61% and optimized DFM+XGBoost sMAPE was 88.10%. DFM remains research/diagnostic until true pre-release public signals pass vintage-honest gates.
 
 **Lesson Learned:** Model behavior depends critically on test data quality. Unit tests with curated data ≠ integration tests with random data. DFM needs realistic data structure, MIDAS/XGBoost are more robust to random noise.
 
@@ -306,20 +306,20 @@ Phase 5.13.2 is complete. Recommend proceeding to:
 
 ### DFM Integration Decision
 
-**Decision:** Accept test limitation, document clearly, validate DFM in Phase 6
+**Decision:** Accept the Phase 5 integration-test limitation, and use the corrected Phase 6 validation as the production decision.
 
 **Rationale:**
 1. DFM is mathematically correct (Phase 5.3: 25/25 unit tests passing)
 2. DFM's EM algorithm is validated (likelihood monotonicity, covariance properties)
 3. Integration test purpose is workflow validation, not model tuning
 4. Synthetic test data lacks realistic covariance structure DFM expects
-5. Real NFP data will have proper characteristics for DFM
+5. Real-vintage validation must enforce pre-release feature availability, not only realistic covariance structure
 
-**Confidence Assessment:** 70-80% DFM will work in production
+**Corrected Production Assessment:** DFM is stable but production-excluded
 - ✅ Algorithm correctness validated (Phase 5.3 mathematical property tests)
-- ✅ Implementation quality production-ready
-- ⚠️ Requires real data validation (Phase 6 backtesting)
-- ⚠️ May need hyperparameter tuning with real data
+- ✅ statsmodels-backed implementation stable on real CES vintages
+- ⚠️ Corrected pre-release CES-only accuracy gate not met
+- ⚠️ Requires true pre-release public signals before reconsidering production ensemble weight
 
 **Integration Test Configuration:**
 - **Models Used:** MIDAS + XGBoost (robust with synthetic data)
@@ -327,10 +327,10 @@ Phase 5.13.2 is complete. Recommend proceeding to:
 - **Coverage:** Complete workflow validated end-to-end
 
 **Phase 6 Action Items:**
-- [ ] Test DFM on 10+ real NFP vintage dates
-- [ ] Compare DFM vs MIDAS vs XGBoost accuracy
-- [ ] Verify DFM numerical stability with real mixed-frequency data
-- [ ] Determine production ensemble composition (include DFM or not)
+- [x] Test DFM on 10+ real NFP vintage dates
+- [x] Compare DFM vs MIDAS vs XGBoost accuracy
+- [x] Verify DFM numerical stability with real mixed-frequency data
+- [x] Determine production ensemble composition: DFM excluded until true pre-release public signals pass gates
 
 **Documentation Updates:**
 - ✅ IMPLEMENTATION_STATUS.md - Added DFM limitation section

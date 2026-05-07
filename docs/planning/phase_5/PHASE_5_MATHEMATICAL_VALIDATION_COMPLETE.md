@@ -139,16 +139,16 @@ Successfully implemented and validated 37 additional mathematical property tests
 
 ### No Blocking Issues ✅
 
-All three models are production-ready:
-- **DFM:** EM algorithm correct, Kalman filter stable
+All three models have their mathematical unit/property checks in place:
+- **DFM:** Mathematical tests pass and the later statsmodels refactor is stable on real vintages; production ensemble inclusion is deferred until true pre-release public signals pass gates
 - **MIDAS:** NLS optimization correct, weights properly constrained
 - **Isotonic:** Monotonicity enforced, calibration improves ECE
 
 ### Optional Enhancements (Future Work)
 
 1. **DFM:**
-   - Add eigenvalue constraints in M-step to prevent unstable transitions
-   - Implement full Kalman covariance tracking (currently simplified)
+   - Integrate true pre-release public signals before reconsidering production ensemble weight
+   - Tune interval calibration after honest point forecasts pass accuracy gates
 
 2. **MIDAS:**
    - Track loss history during NLS optimization (currently only final loss)

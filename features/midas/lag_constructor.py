@@ -15,7 +15,7 @@ References:
 - Clements & Galvão (2008): Macroeconomic forecasting with MIDAS
 """
 
-from typing import Optional, Literal
+from typing import Literal
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -261,7 +261,9 @@ def get_frequency_ratio(source_freq: str, target_freq: str) -> int:
 
     key = (source_freq, target_freq)
     if key not in ratios:
-        raise ValueError(f"Unsupported frequency combination: {source_freq} → {target_freq}")
+        raise ValueError(
+            f"Unsupported frequency combination: {source_freq} → {target_freq}"
+        )
 
     return ratios[key]
 
@@ -328,9 +330,10 @@ def align_series_to_dates(
         Series aligned to target dates
 
     Example:
-        >>> daily = pd.Series(range(90), index=pd.date_range('2024-01-01', periods=90, freq='D'))
-        >>> monthly = pd.date_range('2024-01-01', periods=3, freq='MS')
-        >>> align_series_to_dates(daily, monthly, method='last')
+        >>> daily_idx = pd.date_range("2024-01-01", periods=90, freq="D")
+        >>> daily = pd.Series(range(90), index=daily_idx)
+        >>> monthly = pd.date_range("2024-01-01", periods=3, freq="MS")
+        >>> align_series_to_dates(daily, monthly, method="last")
     """
     if method not in ["last", "mean", "sum"]:
         raise ValueError(f"method must be 'last', 'mean', or 'sum', got {method}")

@@ -2,7 +2,7 @@
 ## Hybrid Architecture: True Mixed-Frequency Support
 
 **Date Created:** 2025-12-04  
-**Status:** R2/R3/R4/R5 COMPLETE ✅ — MIDAS Bridge, stable DFM, and integration layer implemented  
+**Status:** COMPLETE ✅ — MIDAS Bridge, stable supervised DFM, integration layer, tests, real-data validation, documentation updates, and final cleanup completed
 **Priority:** HIGH (Architectural Debt Resolution + Capability Gap Closure)  
 **Estimated Effort:** 32-40 hours  
 **Reference:** Phase 6.3.1a findings, 5_PILLARS.md, FORECASTING_CAPABILITIES.md, ACCURACY_MAP.md, `.cursorrules`
@@ -1363,10 +1363,10 @@ def build_features_from_harness_state(
 ### R6.1 Run All MIDAS Tests
 
 #### R6.1.1 MIDAS Unit Tests
-- [ ] `tests/models/test_midas.py`
-- [ ] `tests/models/test_midas_properties.py`
-- [ ] `tests/features/test_midas_lags.py`
-- [ ] `tests/features/test_midas_bridge.py` (new)
+- [x] `tests/models/test_midas.py`
+- [x] `tests/models/test_midas_properties.py`
+- [x] `tests/features/test_midas_lags.py`
+- [x] `tests/features/test_midas_bridge.py` (new)
 
 ```bash
 docker compose exec etl pytest tests/models/test_midas*.py tests/features/test_midas*.py -v --tb=short
@@ -1375,18 +1375,21 @@ docker compose exec etl pytest tests/models/test_midas*.py tests/features/test_m
 #### R6.1.2 Record Results
 | Test File | Tests | Pass | Fail | Skip |
 |-----------|-------|------|------|------|
-| test_midas.py | ? | ? | ? | ? |
-| test_midas_properties.py | ? | ? | ? | ? |
-| test_midas_lags.py | ? | ? | ? | ? |
-| test_midas_bridge.py | ? | ? | ? | ? |
+| test_midas.py | 32 | 32 | 0 | 0 |
+| test_midas_bridged_model.py | 5 | 5 | 0 | 0 |
+| test_midas_properties.py | 14 | 14 | 0 | 0 |
+| test_midas_lags.py | 19 | 19 | 0 | 0 |
+| test_midas_bridge.py | 8 | 8 | 0 | 0 |
+
+**Result:** `78 passed, 3 warnings in 4.91s` (2026-05-06)
 
 ### R6.2 Run All DFM Tests
 
 #### R6.2.1 DFM Unit Tests
-- [ ] `tests/models/test_dfm.py`
-- [ ] `tests/models/test_dfm_properties.py`
-- [ ] `tests/models/test_dfm_state_space.py`
-- [ ] `tests/models/test_dfm_statsmodels.py` (new)
+- [x] `tests/models/test_dfm.py`
+- [x] `tests/models/test_dfm_properties.py`
+- [x] `tests/models/test_dfm_state_space.py`
+- [x] `tests/models/test_dfm_statsmodels.py` (new)
 
 ```bash
 docker compose exec etl pytest tests/models/test_dfm*.py -v --tb=short
@@ -1395,18 +1398,20 @@ docker compose exec etl pytest tests/models/test_dfm*.py -v --tb=short
 #### R6.2.2 Record Results
 | Test File | Tests | Pass | Fail | Skip |
 |-----------|-------|------|------|------|
-| test_dfm.py | ? | ? | ? | ? |
-| test_dfm_properties.py | ? | ? | ? | ? |
-| test_dfm_state_space.py | ? | ? | ? | ? |
-| test_dfm_statsmodels.py | ? | ? | ? | ? |
+| test_dfm.py | 25 | 25 | 0 | 0 |
+| test_dfm_properties.py | 13 | 13 | 0 | 0 |
+| test_dfm_state_space.py | 25 | 25 | 0 | 0 |
+| test_dfm_statsmodels.py | 6 | 6 | 0 | 0 |
+
+**Result:** `69 passed, 51 warnings in 6.84s` (2026-05-06)
 
 ### R6.3 Run All Integration Tests
 
 #### R6.3.1 Integration Tests
-- [ ] `tests/integration/test_etl_features_models.py`
-- [ ] `tests/integration/test_complete_workflow.py`
-- [ ] `tests/integration/test_mixed_frequency_pipeline.py` (new)
-- [ ] `tests/models/test_ensemble_pipeline.py`
+- [x] `tests/integration/test_etl_features_models.py`
+- [x] `tests/integration/test_complete_workflow.py`
+- [x] `tests/integration/test_mixed_frequency_pipeline.py` (new)
+- [x] `tests/models/test_ensemble_pipeline.py`
 
 ```bash
 docker compose exec etl pytest tests/integration/ tests/models/test_ensemble_pipeline.py -v --tb=short
@@ -1415,26 +1420,37 @@ docker compose exec etl pytest tests/integration/ tests/models/test_ensemble_pip
 #### R6.3.2 Record Results
 | Test File | Tests | Pass | Fail | Skip |
 |-----------|-------|------|------|------|
-| test_etl_features_models.py | ? | ? | ? | ? |
-| test_complete_workflow.py | ? | ? | ? | ? |
-| test_mixed_frequency_pipeline.py | ? | ? | ? | ? |
-| test_ensemble_pipeline.py | ? | ? | ? | ? |
+| test_complete_workflow.py | 27 | 27 | 0 | 0 |
+| test_etl_features_models.py | 5 | 5 | 0 | 0 |
+| test_mixed_frequency_pipeline.py | 7 | 7 | 0 | 0 |
+| test_phase_6_1_1_validation.py | 35 | 35 | 0 | 0 |
+| test_registry_postgres_integration.py | 8 | 8 | 0 | 0 |
+| test_ensemble_pipeline.py | 29 | 29 | 0 | 0 |
+
+**Result:** `111 passed, 16 warnings in 14.23s` (2026-05-06)
 
 ### R6.4 Run Pipeline Scripts
 
 #### R6.4.1 Verify Scripts Work
-- [ ] `scripts/build_features.py --use-midas-bridge`
-- [ ] Training pipeline with new DFM
-- [ ] Ensemble pipeline with mixed-frequency support
+- [x] `scripts/build_features.py --use-midas-bridge`
+- [x] Training pipeline with new DFM
+- [x] Ensemble pipeline with mixed-frequency support
+
+**Results (2026-05-06):**
+- `scripts/build_features.py --vintage-date 1900-01-01 --output-dir /tmp/forecast-labor-features-r6 --use-midas-bridge --bridge-version r6-validation`: passed; 0 feature sets expected for synthetic vintage with no source data.
+- DFM training pipeline synthetic smoke: passed.
+- Mixed-frequency ensemble pipeline synthetic smoke: passed.
 
 ### R6.5 Gate Check: Test Validation
 
 | Criterion | Required | Status |
 |-----------|----------|--------|
-| All MIDAS tests pass | Yes | [ ] |
-| All DFM tests pass | Yes | [ ] |
-| All integration tests pass | Yes | [ ] |
-| Pipeline scripts work | Yes | [ ] |
+| All MIDAS tests pass | Yes | [x] |
+| All DFM tests pass | Yes | [x] |
+| All integration tests pass | Yes | [x] |
+| Pipeline scripts work | Yes | [x] |
+
+**Final suite gate:** `docker compose exec etl pytest -q` passed with `1325 passed, 5 skipped, 217 warnings in 490.61s` (2026-05-06).
 
 **⚠️ DO NOT PROCEED to Phase R7 until all R6 tasks are complete.**
 
@@ -1450,9 +1466,9 @@ docker compose exec etl pytest tests/integration/ tests/models/test_ensemble_pip
 ### R7.1 Run Phase 6.3.1a DFM Validation
 
 #### R7.1.1 Update Validation Tests
-- [ ] Update `tests/backtests/test_dfm_validation.py` for new DFM
-- [ ] Ensure tests use real BLS CES vintage data
-- [ ] Ensure tests use MIDAS Bridge for feature building
+- [x] Update `tests/backtests/test_dfm_validation.py` for new DFM
+- [x] Ensure tests use real BLS CES vintage data
+- [x] Ensure tests use MIDAS Bridge for feature building
 
 **Data Preprocessing Requirements:**
 
@@ -1525,34 +1541,36 @@ def test_statsmodels_vs_scratch_comparison(self, vintage_date, features, target)
 **Note:** This comparison test is for validation during transition only; remove after confirming statsmodels implementation is stable.
 
 #### R7.1.2 Run DFM Validation
-- [ ] Execute validation
+- [x] Execute validation
   ```bash
   docker compose exec etl pytest tests/backtests/test_dfm_validation.py -v -s
   ```
+
+**Initial Result (2026-05-06):** `8 passed, 108 warnings in 183.47s`
+**Corrected Pre-Release Result (2026-05-06):** `10 passed, 173 warnings in 190.28s`
 
 #### R7.1.3 Record Results
 
 **Available Real Vintage Data (Confirmed):**
 - **Total BLS CES Vintages:** 18 directories
-- **Real Data Vintages:** 16 (15 quarterly from 2022-03-01 to 2025-09-01 + 1 direct API 2025-12-02)
-- **Synthetic Vintages:** 2 (2024-01-15, 2025-11-29 — exclude from validation)
+- **Real Data Vintages Validated:** 17
 - **Date Range:** 2022-03-01 to 2025-12-02 (3+ years)
-- **✅ Requirement Met:** 10+ real vintage dates (we have 16)
+- **✅ Requirement Met:** 10+ real vintage dates
 
 **Stability Comparison:**
 | Metric | Old (From Scratch) | New (statsmodels) | Target |
 |--------|--------------------|--------------------|--------|
-| Stability Rate | 0% (0/17) | ? | > 90% |
-| NaN Predictions | Many | ? | 0 |
-| Overflow Errors | Yes | ? | No |
+| Stability Rate | 0% (0/17) | 100% (17/17) | > 90% |
+| NaN Predictions | Many | 0 | 0 |
+| Overflow Errors | Yes | No | No |
 
 **Accuracy Comparison:**
 | Model | Avg sMAPE | Avg RMSE | Recommendation |
 |-------|-----------|----------|----------------|
-| DFM (new) | ? | ? | ? |
-| MIDAS Bridged | ? | ? | ? |
-| XGBoost | ? | ? | ? |
-| Ensemble | ? | ? | ? |
+| DFM (supervised head, pre-release CES-only) | 103.61% | 1042.22 | Exclude until true pre-release public signals are integrated |
+| MIDAS Bridged (pre-release CES-only) | 116.39% | Not recorded in summary | Exclude as CES-only pre-release benchmark |
+| XGBoost (pre-release CES-only) | 91.84% | Not recorded in summary | Exclude as CES-only pre-release benchmark |
+| Mixed-frequency optimized ensemble (pre-release CES-only) | 98.16% | Not recorded in summary | Pipeline works; accuracy gate not met with CES-only features |
 
 #### R7.1.4 Calibration Integration Validation
 
@@ -1576,9 +1594,14 @@ MIDASBridge → DFM/Ensemble → predictions → ConformalPredictor (unchanged) 
 **Gap Addressed:** Current `test_dfm_validation.py` defines `PI_COVERAGE_MIN/MAX` but does NOT exercise calibration. `test_complete_workflow.py` exercises calibration but with pre-aggregated features.
 
 **Tests to Add in `tests/backtests/test_dfm_validation.py`:**
-- [ ] `test_bridge_to_calibration_pipeline` — MIDASBridge → DFM → ConformalPredictor
-- [ ] `test_mixed_frequency_interval_coverage` — Verify 85-95% coverage on real vintages
-- [ ] `test_calibration_with_ragged_edge` — Partial data doesn't break calibration
+- [x] `test_bridge_to_calibration_pipeline` — MIDASBridge → DFM → ConformalPredictor
+- [x] `test_mixed_frequency_interval_coverage` — Verify coverage on real vintages and record pass/fail decision
+- [x] `test_calibration_with_ragged_edge` — Partial data doesn't break calibration
+
+**Corrected Calibration Result (2026-05-06):**
+- Average 90% PI coverage: **100.0%**
+- Interval ECE: **0.100**
+- Decision: intervals are finite but over-conservative; tune DFM interval calibration after point forecasts pass honest pre-release accuracy gates.
 
 **Test Structure:**
 ```python
@@ -1644,31 +1667,44 @@ class TestDFMCalibrationIntegration:
 #### R7.2.1 Evaluate Against Criteria
 | Criterion | Threshold | Result | Pass? |
 |-----------|-----------|--------|-------|
-| Stability | > 90% | ? | ? |
-| sMAPE | < 20% | ? | ? |
-| No NaN/Inf | 100% | ? | ? |
-| Adds ensemble value | Improves combined | ? | ? |
+| Stability | > 90% | 100% (17/17) | Yes |
+| sMAPE | < 20% | 103.61% | No |
+| No NaN/Inf | 100% | 100% | Yes |
+| Adds ensemble value | Improves combined | Average optimized DFM weight 0.305; 11/17 non-zero; optimized ensemble sMAPE 88.10% | No |
 
 #### R7.2.2 Make Final Decision
 - [ ] **If all criteria pass:** ✅ Include DFM in production ensemble
-- [ ] **If criteria fail:** ❌ Exclude DFM, document why, plan future improvements
+- [x] **If criteria fail:** ❌ Exclude DFM, document why, plan future improvements
+
+**Final R7 Decision:** Exclude DFM from the production ensemble until true pre-release public signals are integrated and vintage-honest validation passes the accuracy gate. The implementation remains a stable statsmodels factor extractor paired with a deterministic ridge nowcast head, but corrected CES-only pre-release validation no longer supports production inclusion.
+
+**R7 Review Fix Result (2026-05-06):**
+- Corrected same-release CES leakage by lagging CES sector feature availability one month.
+- DFM average pre-release CES-only sMAPE: **103.61%**.
+- DFM average RMSE: **1042.22**.
+- Vintage-honest DFM+XGBoost optimized ensemble assigned DFM **0.305 average weight** with **11/17 non-zero weights**.
+- Optimized ensemble test sMAPE: **88.10%**.
+- Focused corrected validation: `tests/backtests/test_dfm_validation.py` passed with **10 passed, 173 warnings in 190.28s**.
+- Final full-suite validation after the pre-release timing correction: `docker compose exec etl pytest -q` passed with **1332 passed, 5 skipped, 316 warnings in 466.46s**.
 
 ### R7.3 Mixed-Frequency Pipeline Validation
 
 #### R7.3.1 Run End-to-End Test
-- [ ] Execute mixed-frequency pipeline on 10+ vintages
-- [ ] Verify MIDAS Bridge → DFM → Ensemble flow works
-- [ ] Measure prediction accuracy
+- [x] Execute mixed-frequency pipeline on 10+ vintages
+- [x] Verify MIDAS Bridge → DFM → Ensemble flow works
+- [x] Measure prediction accuracy
+
+**Result:** Real CES mixed-frequency pipeline validated on 17 vintages. After correcting pre-release timing and using optimized weights, average ensemble sMAPE was **98.16%** with average DFM optimized weight **0.186**. The integration works, but CES-only pre-release features do not meet the production accuracy gate.
 
 ### R7.4 Gate Check: Real Data Validation
 
 | Criterion | Required | Status |
 |-----------|----------|--------|
-| DFM validation tests pass | Yes | [ ] |
-| Stability rate recorded | Yes | [ ] |
-| sMAPE recorded | Yes | [ ] |
-| Ensemble decision made | Yes | [ ] |
-| Mixed-frequency pipeline validated | Yes | [ ] |
+| DFM validation tests pass | Yes | [x] |
+| Stability rate recorded | Yes | [x] |
+| sMAPE recorded | Yes | [x] |
+| Ensemble decision made | Yes | [x] |
+| Mixed-frequency pipeline validated | Yes | [x] |
 
 **⚠️ DO NOT PROCEED to Phase R8 until all R7 tasks are complete.**
 
@@ -1679,27 +1715,28 @@ class TestDFMCalibrationIntegration:
 **Purpose:** Update all documentation to reflect new implementation  
 **Estimated Time:** 3-4 hours  
 **Blocking:** Phase R7 complete
+**Status:** COMPLETE ✅ (2026-05-06)
 
 ### R8.1 Update Core Documentation
 
 #### R8.1.1 `docs/planning/IMPLEMENTATION_STATUS.md`
-- [ ] Update Phase 5.3 status (DFM re-implemented)
-- [ ] Update Phase 6.3.1a results (re-validated with new DFM)
-- [ ] Update Phase 6.4.2.1 ensemble decision
-- [ ] Add reference to this refactor plan
-- [ ] Update header to reflect completion
+- [x] Update Phase 5.3 status (DFM re-implemented)
+- [x] Update Phase 6.3.1a results (re-validated with new DFM and corrected pre-release timing)
+- [x] Update Phase 6.4.2.1 ensemble decision
+- [x] Add reference to this refactor plan
+- [x] Update header to reflect completion
 
 #### R8.1.2 `docs/planning/PHASE_6_3_1a_COMPLETION_SUMMARY.md`
-- [ ] Replace old results with new results
-- [ ] Update DFM recommendation (include/exclude)
-- [ ] Update data source notes
+- [x] Replace old results with new results
+- [x] Update DFM recommendation (exclude from production ensemble)
+- [x] Update data source notes
 
 #### R8.1.3 Update Capability Documentation
-- [ ] `docs/5_PILLARS.md` — Verify DFM "Structural Engine" description accurate
-- [ ] `docs/FORECASTING_CAPABILITIES.md` — Update mixed-frequency capability description
-- [ ] `docs/ACCURACY_DESCRIPTION.md` — Update tier descriptions
-- [ ] `docs/ACCURACY_MAP.md` — Update accuracy expectations
-- [ ] `docs/FORECASTING_CAPABILITIES.md` — Document intra-month nowcast update capability
+- [x] `docs/5_PILLARS.md` — Verify DFM "Structural Engine" description accurate
+- [x] `docs/FORECASTING_CAPABILITIES.md` — Update mixed-frequency capability description
+- [x] `docs/ACCURACY_DESCRIPTION.md` — Update tier descriptions
+- [x] `docs/ACCURACY_MAP.md` — Update accuracy expectations
+- [x] `docs/FORECASTING_CAPABILITIES.md` — Document intra-month nowcast update capability
   - `MixedFrequencyPipeline.predict()` supports re-calling with updated `raw_sources`
   - As new daily Treasury or weekly claims data arrives, pipeline can regenerate forecasts
   - Optimal update window: T-48h → T-2h before NFP release (per ACCURACY_MAP.md Section 8)
@@ -1708,31 +1745,37 @@ class TestDFMCalibrationIntegration:
 ### R8.2 Update Phase 5 Documentation
 
 #### R8.2.1 Phase 5 Files
-- [ ] `docs/planning/phase_5/PHASE_5_IMPLEMENTATION_PLAN.md`
-- [ ] `docs/planning/phase_5/PHASE_5_MATHEMATICAL_VALIDATION_COMPLETE.md`
-- [ ] `docs/planning/phase_5/PHASE_5_13_2_COMPLETION_SUMMARY.md`
+- [x] `docs/planning/phase_5/PHASE_5_IMPLEMENTATION_PLAN.md`
+- [x] `docs/planning/phase_5/PHASE_5_MATHEMATICAL_VALIDATION_COMPLETE.md`
+- [x] `docs/planning/phase_5/PHASE_5_13_2_COMPLETION_SUMMARY.md`
 
 ### R8.3 Update Testing Documentation
 
 #### R8.3.1 Testing Docs
-- [ ] `docs/TESTING_MATHEMATICAL_ALGORITHMS.md` — Update DFM examples
-- [ ] `docs/planning/phase_5/PHASE_5_TDD_BLINDSPOT_ANALYSIS.md` — Add lessons learned
+- [x] `docs/TESTING_MATHEMATICAL_ALGORITHMS.md` — Update DFM examples
+- [x] `docs/planning/phase_5/PHASE_5_TDD_BLINDSPOT_ANALYSIS.md` — Add lessons learned
 
 ### R8.4 Update Configuration
 
 #### R8.4.1 Configuration Files
-- [ ] `tests/fixtures/performance_baselines.json` — Update DFM baselines
-- [ ] Any YAML configs referencing DFM
+- [x] `tests/fixtures/performance_baselines.json` — Update DFM baselines
+- [x] Any YAML configs referencing DFM (none found under `configs/`)
 
 ### R8.5 Gate Check: Documentation
 
 | Criterion | Required | Status |
 |-----------|----------|--------|
-| IMPLEMENTATION_STATUS.md updated | Yes | [ ] |
-| PHASE_6_3_1a_COMPLETION_SUMMARY.md updated | Yes | [ ] |
-| Capability docs updated | Yes | [ ] |
-| Phase 5 docs updated | Yes | [ ] |
-| Testing docs updated | Yes | [ ] |
+| IMPLEMENTATION_STATUS.md updated | Yes | [x] |
+| PHASE_6_3_1a_COMPLETION_SUMMARY.md updated | Yes | [x] |
+| Capability docs updated | Yes | [x] |
+| Phase 5 docs updated | Yes | [x] |
+| Testing docs updated | Yes | [x] |
+
+**R8 Documentation Result (2026-05-06):**
+- Core status and Phase 6.3.1a summary now record the corrected DFM exclusion decision.
+- Capability, accuracy, Phase 5, mathematical testing, and performance baseline docs now distinguish stable DFM infrastructure from production ensemble inclusion.
+- No DFM references were found in YAML configs under `configs/`.
+- Validation passed: focused DFM/integration tests `15 passed`, DFM real-data validation `10 passed`, full Docker suite `1332 passed, 5 skipped`.
 
 **⚠️ DO NOT PROCEED to Phase R9 until all R8 tasks are complete.**
 
@@ -1743,59 +1786,76 @@ class TestDFMCalibrationIntegration:
 **Purpose:** Complete final validation and cleanup  
 **Estimated Time:** 2-3 hours  
 **Blocking:** Phase R8 complete
+**Status:** COMPLETE ✅ (2026-05-06)
 
 ### R9.1 Run Full Test Suite
 
 #### R9.1.1 All Model Tests
-- [ ] Run all model tests
+- [x] Run all model tests
   ```bash
   docker compose exec etl pytest tests/models/ -v --tb=short
   ```
-- [ ] Target: All tests pass
+- [x] Target: All tests pass
+
+**Result:** `683 passed, 63 warnings in 51.99s`
 
 #### R9.1.2 All Feature Tests
-- [ ] Run all feature tests
+- [x] Run all feature tests
   ```bash
   docker compose exec etl pytest tests/features/ -v --tb=short
   ```
-- [ ] Target: All tests pass
+- [x] Target: All tests pass
+
+**Result:** `145 passed, 1 warning in 1.82s`
 
 #### R9.1.3 All Integration Tests
-- [ ] Run all integration tests
+- [x] Run all integration tests
   ```bash
   docker compose exec etl pytest tests/integration/ -v --tb=short
   ```
-- [ ] Target: All tests pass
+- [x] Target: All tests pass
+
+**Result:** `83 passed, 17 warnings in 12.97s`
 
 #### R9.1.4 All Backtest Tests
-- [ ] Run all backtest tests
+- [x] Run all backtest tests
   ```bash
   docker compose exec etl pytest tests/backtests/ -v --tb=short
   ```
-- [ ] Target: All tests pass
+- [x] Target: All tests pass
+
+**Result:** `32 passed, 173 warnings in 205.92s`
 
 ### R9.2 Code Quality Check
 
 #### R9.2.1 Linting
-- [ ] Run linting on modified files
+- [x] Run linting on modified files
   ```bash
   docker compose exec etl ruff check models_src/dfm/ models_src/midas/ features/midas/
   docker compose exec etl mypy models_src/dfm/ models_src/midas/ features/midas/ --ignore-missing-imports
   ```
 
+**Result:** ruff passed; mypy passed with `Success: no issues found in 10 source files`.
+
 #### R9.2.2 Code Review
-- [ ] No TODO comments left in production code
-- [ ] All docstrings complete
-- [ ] All type hints present
+- [x] No TODO comments left in production code
+- [x] All docstrings complete
+- [x] All type hints present
 
 ### R9.3 Cleanup
 
 #### R9.3.1 Decide on Deprecated Files
-- [ ] `state_space.py` — Keep/Deprecate/Delete decision implemented
-- [ ] Remove any temporary files
+- [x] `state_space.py` — Keep/Deprecate/Delete decision implemented
+- [x] Remove any temporary files
+
+**Decision:** Keep `models_src/dfm/state_space.py` as a deprecated diagnostics and compatibility module. Its transition/loading builders emit deprecation warnings and remain covered by tests.
+
+**Temporary files:** No workspace `.tmp` or `.bak` files found.
 
 #### R9.3.2 Remove Backup Branch (Optional)
 - [ ] After production validation, can delete `backup/midas-dfm-pre-refactor`
+
+**Decision:** Optional branch deletion skipped; no branch deletion was requested.
 
 ### R9.4 Final Documentation
 
@@ -1804,28 +1864,30 @@ Record final metrics:
 
 | Metric | Before | After |
 |--------|--------|-------|
-| DFM Stability | 0% | ?% |
-| DFM sMAPE | N/A | ?% |
+| DFM Stability | 0% | 100% (17/17 real CES vintages) |
+| DFM sMAPE | N/A | 103.61% under corrected pre-release CES-only timing |
 | MIDAS Bridging | ❌ Not implemented | ✅ Implemented |
 | Mixed-Frequency Pipeline | ❌ Not implemented | ✅ Implemented |
-| DFM in Ensemble | No | ? |
-| All Tests Passing | ?/? | ?/? |
+| DFM in Ensemble | No | No; stable research/diagnostic component only |
+| All Tests Passing | Prior phase gates passing | 1332 passed, 5 skipped |
 
 #### R9.4.2 Mark Plan Complete
-- [ ] Update this plan's status to ✅ COMPLETE
-- [ ] Update IMPLEMENTATION_STATUS.md
+- [x] Update this plan's status to ✅ COMPLETE
+- [x] Update IMPLEMENTATION_STATUS.md
 
 ### R9.5 Gate Check: Final
 
 | Criterion | Required | Status |
 |-----------|----------|--------|
-| All model tests pass | Yes | [ ] |
-| All feature tests pass | Yes | [ ] |
-| All integration tests pass | Yes | [ ] |
-| All backtest tests pass | Yes | [ ] |
-| Linting passes | Yes | [ ] |
-| Cleanup complete | Yes | [ ] |
-| Completion summary created | Yes | [ ] |
+| All model tests pass | Yes | [x] |
+| All feature tests pass | Yes | [x] |
+| All integration tests pass | Yes | [x] |
+| All backtest tests pass | Yes | [x] |
+| Linting passes | Yes | [x] |
+| Cleanup complete | Yes | [x] |
+| Completion summary created | Yes | [x] |
+
+**Final suite gate:** `docker compose exec etl pytest -q` passed with `1332 passed, 5 skipped, 316 warnings in 488.38s`.
 
 ---
 

@@ -292,15 +292,17 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 
 ### 5.3. Dynamic Factor Model (DFM) (Week 5, Day 5 - Week 6, Day 1)
 
-**Goal:** Implement DFM for mixed-frequency nowcasting
+**Goal:** Implement DFM infrastructure for mixed-frequency nowcasting diagnostics
 
 **Update IMPLEMENTATION_STATUS.md:** Line 816 when complete
 
+**Phase 6.3.1a correction (2026-05-06):** The original Phase 5 DFM was later replaced by a statsmodels-backed factor extractor plus deterministic ridge nowcast head. Real CES vintage validation now shows 17/17 stable predictions, but corrected pre-release CES-only accuracy misses the production gate, so DFM remains research/diagnostic until true pre-release public signals are integrated.
+
 #### 5.3.1. DFM Core Implementation
 - [x] **Create:** `models_src/dfm/dfm_model.py`
-  - [x] State-space DFM implementation
-  - [x] EM algorithm for parameter estimation
-  - [x] Kalman filter for nowcasting
+  - [x] statsmodels-backed factor extraction
+  - [x] Deterministic supervised ridge nowcast head
+  - [x] Stable factor projection for prediction
   - [x] Support for mixed frequencies (daily, weekly, monthly)
   - [x] Missing data handling (ragged edge)
   - [x] Inherits from `BaseForecaster`
@@ -354,7 +356,7 @@ Last Updated: 2025-11-19 (Phase 5: 100% - COMPLETE)
 - [x] **Result:** All 13 tests passing, EM algorithm verified correct
 - [x] **Finding:** Unconstrained EM can learn unstable transitions (documented, not blocker)
 
-**✅ VALIDATION COMPLETE:** DFM implementation validated for production use
+**✅ VALIDATION COMPLETE:** DFM mathematical tests pass; production ensemble inclusion is deferred pending pre-release public-signal validation.
 
 ---
 
@@ -1025,15 +1027,14 @@ workflow validates golden baseline structure; full verification requires X-13 se
 **Summary:** Complete workflow integration validated from data → ensemble → calibration → revision → reconciliation. Real MLflow tracking and cryptographic signing tested. All 26 tests passing.
 
 **DFM Integration Test Limitation (Documented):**
-- **Status:** DFM mathematically correct but excluded from this integration test
-- **Reason:** DFM sensitive to synthetic test data characteristics (requires realistic covariance structure)
-- **Evidence:** DFM Phase 5.3 unit tests: 25/25 passing ✅ (validates implementation correctness)
-- **Confidence:** 70-80% DFM will work with real NFP data (EM algorithm validated, Kalman filter correct)
-- **Action:** DFM will be validated with real NFP vintage data in Phase 6 backtesting
-- **Ensemble:** Integration test uses MIDAS + XGBoost (robust with synthetic data, both 100% passing)
-- **Phase 6 Task:** Compare DFM vs MIDAS vs XGBoost on real historical vintages, determine production ensemble composition
+- **Status:** DFM mathematically correct and stable after the R4 statsmodels refactor, but excluded from production ensemble.
+- **Reason:** Corrected Phase 6.3.1a validation lags CES sector features one month to avoid same-release NFP leakage; CES-only pre-release accuracy misses the gate.
+- **Evidence:** Real CES vintage validation: 17/17 stable, DFM sMAPE 103.61%, optimized DFM+XGBoost sMAPE 88.10%.
+- **Action:** Reconsider DFM only after true pre-release public signals are integrated and pass vintage-honest accuracy gates.
+- **Ensemble:** Production candidates remain MIDAS + XGBoost + LightGBM; DFM is research/diagnostic.
+- **Phase 6 Task:** Integrate claims, Treasury withholdings, business formation, strike/weather controls, and prior CES releases before any DFM production inclusion decision.
 
-**Key Insight:** Test data quality matters. DFM unit tests used carefully crafted data (passed). Integration test uses random synthetic data (exposed sensitivity). This is a test limitation, not a model bug. Real NFP data has proper structure DFM expects.
+**Key Insight:** Feature timing matters as much as model stability. The stable DFM infrastructure is useful, but same-release CES components cannot be used as pre-release NFP signals.
 
 **Documentation:** See `docs/planning/codex_analysis_25.md` and `docs/planning/PHASE_5_13_2_COMPLETION_SUMMARY.md` for detailed analysis.
 
@@ -1044,7 +1045,7 @@ workflow validates golden baseline structure; full verification requires X-13 se
 - [ ] **Document:** Performance characteristics in Phase 5 summary
 
 **Status:** **Deferred to Phase 6.3.3** - Comprehensive Performance Validation
-- **Rationale:** Performance measurements need confirmed ensemble composition (DFM validation pending)
+- **Rationale:** Performance measurements need confirmed production ensemble composition (DFM excluded until true pre-release public-signal validation passes)
 - **Rationale:** Real NFP data provides accurate production performance picture
 - **Rationale:** Bottleneck identification more meaningful with realistic workloads
 - **Phase 6 Continuation:** All tasks moved to Phase 6.3.3 with real data and confirmed models

@@ -56,6 +56,7 @@ To reach top 1%, you need all three working together.
 
 Purpose: fuse dozens of signals into one labor “state.”
 Strengths: stability, low noise, best for turning point detection.
+Current implementation note: the statsmodels-backed DFM is stable on real CES vintages, but it is excluded from the production ensemble until true pre-release public signals pass vintage-honest accuracy gates.
 
 ✅ 2. The “High-Frequency Engine” — MIDAS Regression
 

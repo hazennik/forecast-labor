@@ -5,6 +5,8 @@ This reflects realistic, data-driven, statistically valid predictions — not LL
 
 If you build the full system as designed (public signals + private signals + seasonal models + revision modeling + AI automation), this is exactly what it will be able to predict accurately and consistently.
 
+Current Phase 6.3.1a validation note: the DFM implementation is stable on real CES vintages, but it is not part of the production ensemble until true pre-release public signals such as claims, Treasury withholdings, business formation, strikes/weather controls, and prior CES releases pass vintage-honest accuracy gates.
+
 ⸻
 
 ✅ 1. National Job Market Predictions (High Accuracy)
@@ -191,6 +193,8 @@ Your model will produce daily or weekly updated forecasts based on:
 	•	Strike resolutions
 
 These nowcasts strengthen the accuracy just before SN41 task deadlines.
+
+Implementation note: `MixedFrequencyPipeline.predict()` can be re-run with updated `raw_sources` as fresh daily or weekly data arrives. Automated triggering remains future Nowcast Agent scope; the current refactor provides the bridge/pipeline infrastructure.
 
 ⸻
 

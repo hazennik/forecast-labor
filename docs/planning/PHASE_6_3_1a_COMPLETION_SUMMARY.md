@@ -1,50 +1,37 @@
 # Phase 6.3.1a: DFM Validation with Real NFP Data - COMPLETION SUMMARY
 
-**Date:** 2025-12-02  
+**Date:** 2026-05-06  
 **Phase:** 6.3.1a DFM Validation  
-**Status:** ⚠️ COMPLETE - PENDING RE-VALIDATION  
-**Test Results:** 5/5 PASSING (all tests pass - measurements recorded)
-
----
-
-## ⚠️ IMPORTANT: RE-VALIDATION REQUIRED
-
-> **Note:** The results in this document are based on the **"from scratch" custom DFM implementation** 
-> which has fundamental numerical stability issues. The DFM *methodology* is sound, but the 
-> *implementation* was flawed.
->
-> **Action Required:** Re-run Phase 6.3.1a validation after completing the DFM refactor to use 
-> the battle-tested `statsmodels.tsa.statespace.dynamic_factor.DynamicFactor` implementation.
->
-> **See:** `docs/planning/DFM_MIDAS_REFACTOR_PLAN.md` for the comprehensive refactor plan (includes MIDAS Bridge layer).
->
-> **Expected Outcome:** With statsmodels implementation, DFM should achieve >90% stability and 
-> may be included in the production ensemble.
+**Status:** ✅ COMPLETE - REVALIDATED WITH PRE-RELEASE TIMING CORRECTION  
+**Test Results:** 10/10 PASSING (measurements recorded; DFM excluded from production ensemble)
 
 ---
 
 ## Executive Summary
 
-### Current Decision: ❌ EXCLUDE DFM from Production Ensemble *(Pending Re-validation)*
+### Current Decision: ❌ EXCLUDE DFM from Production Ensemble
 
 **Data Source:** Real BLS CES (Current Employment Statistics) API data  
 **Vintages Tested:** 17 quarterly vintages (2022-03-01 to 2025-12-02)  
-**Each Vintage:** 146-188 samples, 14 features, ~12 years of real NFP history  
-**DFM Implementation:** Custom "from scratch" (to be replaced with statsmodels)
+**Feature Timing:** CES sector features lagged one month to avoid same-release NFP leakage  
+**DFM Implementation:** statsmodels factor extraction + deterministic ridge nowcast head
 
-**Key Findings (From-Scratch DFM):**
-1. **Complete Numerical Failure:** DFM produced **0/17 stable predictions** (0% stability)
-2. **NaN/Overflow Errors:** DFM encounters overflow in matrix multiplication with real data
-3. **Accuracy Unmeasurable:** Cannot compute sMAPE due to NaN predictions
+**Corrected Key Findings:**
+1. **Numerical Stability Fixed:** DFM produced stable finite predictions on **17/17 vintages**.
+2. **Same-Release Leakage Removed:** CES sector `mom_change` features are now dated one release later, so same-month sector changes cannot predict same-month total NFP.
+3. **Accuracy Gate Not Met:** Corrected DFM average sMAPE is **103.61%** and RMSE is **1042.22**, above the `<20%` sMAPE gate.
+4. **Optimized Weight Is Not Enough:** DFM receives **0.305 average optimized weight** on DFM+XGBoost validation and non-zero weight in **11/17** vintages, but the optimized ensemble still averages **88.10% sMAPE**.
+5. **Residual Calibration Not Production Ready:** DFM-only 90% intervals cover **100.0%** with interval ECE **0.100**, so intervals are finite but over-conservative.
 
-**Root Cause Identified:**
-- Custom EM algorithm without numerical stabilization
-- Hardcoded Kalman gain (`gain = 0.5`) instead of properly computed
-- No state covariance tracking
-- No regularization for transition matrix
-- Code comment acknowledged: *"In production, would use statsmodels or specialized library"*
+**Validation:** `docker compose exec etl pytest tests/backtests/test_dfm_validation.py -v -s --tb=short` passed with **10 passed, 173 warnings in 190.28s**. Final repository gate `docker compose exec etl pytest -q` passed with **1332 passed, 5 skipped, 316 warnings in 466.46s**.
 
-**Confidence Level:** HIGH that results are due to implementation, not methodology
+**Conclusion:** The DFM implementation is stable, but CES-only pre-release validation is not accurate enough. Keep DFM as a research/diagnostic component until true pre-release public signals (claims, Treasury withholdings, business formation, strikes/weather controls, prior CES releases) are integrated and pass vintage-honest accuracy gates.
+
+---
+
+## Historical Note
+
+The original 2025-12-02 findings described the pre-refactor custom DFM numerical failure. This document now records the corrected post-refactor validation as the current source of truth; the old "pending re-validation" status is superseded.
 
 ---
 
@@ -78,67 +65,61 @@ This simulates vintage-honest backtesting where each model only sees data availa
 
 ---
 
-## Test Results Summary
+## Corrected Test Results Summary
 
 ### Test File
-- **File:** `tests/backtests/test_dfm_validation.py` 
-- **Tests:** 5 comprehensive tests
-- **Data:** Real BLS CES vintage parquet files
+- **File:** `tests/backtests/test_dfm_validation.py`
+- **Tests:** 10 comprehensive tests
+- **Data:** Real BLS CES vintage parquet files with one-month-lagged CES sector feature availability
 
 ### Test Categories
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| DFM Numerical Stability | 2 | ✅ PASS (measurement recorded) |
-| DFM Accuracy Measurement | 1 | ✅ PASS (measurement recorded) |
-| Model Comparison | 1 | ✅ PASS (measurement recorded) |
+| DFM Numerical Stability | 2 | ✅ PASS (17/17 stable) |
+| DFM Accuracy Measurement | 1 | ✅ PASS (measurement recorded; gate not met) |
+| Model Comparison | 1 | ✅ PASS (DFM/MIDAS/XGBoost compared under corrected feature timing) |
+| Calibration Integration | 3 | ✅ PASS (finite intervals; coverage measured) |
+| Pre-Release Leakage Guard | 1 | ✅ PASS (same-release CES sector changes excluded) |
+| Mixed-Frequency Pipeline | 1 | ✅ PASS (optimized ensemble weights used) |
 | Validation Summary Report | 1 | ✅ PASS (report generated) |
 
 ---
 
-## Detailed Findings
+## Detailed Corrected Findings
 
-### 1. DFM Numerical Stability - FAILED
+### 1. DFM Numerical Stability - FIXED
 
-**Result:** DFM is numerically unstable with real NFP data
+**Result:** The statsmodels-backed DFM is numerically stable with real CES vintage data.
 
 | Metric | Result |
 |--------|--------|
 | Vintages tested | 17 |
-| Stable predictions | **0/17 (0%)** |
-| Stability rate | 0% |
-| Primary error | `overflow encountered in matmul` |
-| Secondary error | `invalid value encountered in add` |
+| Stable predictions | **17/17 (100%)** |
+| Stability rate | 100% |
+| NaN/Inf predictions | 0 |
+| Primary historical error | Resolved (`overflow encountered in matmul`) |
 
-**Root Cause:** The DFM's Kalman filter state propagation encounters numerical overflow:
+### 2. DFM Accuracy - GATE NOT MET
 
-```python
-# In dfm_model.py line 504:
-factors[t] = self.transition_ @ factors[t-1]  # overflow here
-
-# Line 511:
-factors[t] += gain * self.loadings_.T @ residual  # invalid value after overflow
-```
-
-### 2. DFM Accuracy - NOT MEASURABLE
-
-Due to 0% stability rate, DFM accuracy metrics cannot be computed:
+With same-release CES sector leakage removed, DFM accuracy is measurable but not production-ready:
 
 | Metric | Result |
 |--------|--------|
-| Average sMAPE | N/A (NaN predictions) |
-| Average RMSE | N/A |
+| Average sMAPE | **103.61%** |
+| Average RMSE | **1042.22** |
 | Meets 20% threshold | NO |
+| 90% PI coverage | **100.0%** |
+| Interval ECE | **0.100** |
 
 ### 3. Model Comparison
 
 | Model | Stability | Avg sMAPE | Status |
 |-------|-----------|-----------|--------|
-| DFM | 0% (0/17) | N/A | ❌ EXCLUDE |
-| MIDAS | 100%* | TBD | ✅ Include |
-| XGBoost | 100%* | TBD | ✅ Include |
-
-*MIDAS and XGBoost produce valid predictions but full metrics require separate testing.
+| DFM | 100% (17/17) | 103.61% | ❌ EXCLUDE until true pre-release signals are integrated |
+| MIDAS | 100% | 116.39% | ❌ EXCLUDE as CES-only pre-release benchmark |
+| XGBoost | 100% | 91.84% | ❌ EXCLUDE as CES-only pre-release benchmark |
+| DFM+XGBoost optimized | 100% | 88.10% | ❌ Accuracy gate not met |
 
 ---
 
@@ -158,24 +139,17 @@ The corrected implementation:
 
 ---
 
-## Root Cause Analysis
+## Corrected Root Cause Analysis
 
-### Why DFM Fails on Real Data
+### Why DFM Remains Excluded
 
-1. **Scale Sensitivity:** Real NFP changes range from -20M (COVID) to +500K. The simplified EM algorithm cannot handle this variance.
+1. **Feature Timing Matters:** CES sector components release with total NFP, so same-month CES sector `mom_change` features are not true pre-release signals for the same NFP release.
 
-2. **Factor Instability:** The Kalman filter's transition matrix multiplication amplifies small errors across 150+ time steps.
+2. **CES-Only Public Data Is Insufficient:** Once same-release leakage is removed, prior CES information alone is too stale to pass the NFP sMAPE gate.
 
-3. **Implementation Simplicity:** The current DFM is a basic implementation without:
-   - Proper state covariance tracking
-   - Numerical stabilization (log-space operations)
-   - Adaptive learning rates for EM
-   - Regularization for transition matrix
+3. **Stability Is No Longer the Blocker:** The statsmodels factor extractor and deterministic ridge nowcast head produce finite predictions on all tested vintages.
 
-4. **Real Data Characteristics:** 
-   - Non-stationarity (employment grows over time)
-   - Outliers (COVID-19 shock in 2020)
-   - Regime changes (recessions, recoveries)
+4. **Calibration Depends on Point Forecast Quality:** DFM intervals are finite but over-conservative. Interval tuning should wait until honest pre-release point forecasts pass accuracy gates.
 
 ---
 
@@ -184,8 +158,8 @@ The corrected implementation:
 ### Immediate (Phase 6+)
 
 1. **✅ EXCLUDE DFM from production ensemble**
-   - Use MIDAS + XGBoost + LightGBM ensemble
-   - DFM adds zero value and introduces failure risk
+   - Keep DFM available for research and diagnostics.
+   - Do not assign production ensemble weight until true pre-release public signals pass vintage-honest gates.
 
 2. **Update configurations:**
    - Remove DFM from model list in `configs/subnets/sn41.yaml`
@@ -193,22 +167,19 @@ The corrected implementation:
 
 ### Future (Post-Phase 6 - Optional)
 
-If DFM functionality is desired:
+If DFM production inclusion is desired:
 
-1. **Use statsmodels implementation:**
-   ```python
-   from statsmodels.tsa.statespace.dynamic_factor import DynamicFactor
-   ```
+1. **Integrate true pre-release public signals:**
+   - Weekly claims
+   - Daily Treasury withholdings
+   - Business formation
+   - Strike/weather controls
+   - Prior CES releases only
 
-2. **Add numerical stabilization:**
-   - Log-transform large values
-   - Use double precision throughout
-   - Add regularization to prevent coefficient explosion
-
-3. **Proper state-space formulation:**
-   - Track full state covariance
-   - Use innovation form of Kalman filter
-   - Implement square-root filter for stability
+2. **Re-run vintage-honest validation:**
+   - Preserve one-month CES sector lagging.
+   - Require sMAPE below the production gate.
+   - Require calibrated intervals before assigning ensemble weight.
 
 ---
 
@@ -248,15 +219,15 @@ docker compose exec etl python scripts/create_historical_vintages.py
 docker compose exec etl pytest tests/backtests/test_dfm_validation.py -v -s
 ```
 
-**Results:** 5/5 tests passing ✅ (measurements recorded, DFM excluded)
+**Results:** 10/10 tests passing ✅ (measurements recorded, DFM excluded)
 
 ---
 
 ## Phase 6.3.1a Checklist
 
 - [x] Test DFM on 10+ actual vintage dates with real mixed-frequency data (17 vintages)
-- [x] Compare DFM vs MIDAS vs XGBoost accuracy (DFM produces NaN, cannot compare)
-- [x] Verify DFM numerical stability (0/17 stable - **FAILED**)
+- [x] Compare DFM vs MIDAS vs XGBoost accuracy under corrected pre-release timing
+- [x] Verify DFM numerical stability (17/17 stable - **PASS**)
 - [x] Determine if DFM should be included in production ensemble → **NO**
 - [x] Document decision with real data evidence
 
@@ -266,11 +237,12 @@ docker compose exec etl pytest tests/backtests/test_dfm_validation.py -v -s
 
 Phase 6.3.1a is **COMPLETE** with real BLS CES data validation confirming that **DFM must be excluded from the production ensemble**. This decision is based on:
 
-1. **0% stability rate** on real NFP data (0/17 vintages stable)
-2. **Numerical overflow** in Kalman filter state propagation
-3. **Cannot compute accuracy** due to NaN predictions
+1. **100% stability** on real CES vintages, proving the implementation is stable.
+2. **103.61% average DFM sMAPE** after removing same-release CES leakage.
+3. **88.10% optimized DFM+XGBoost sMAPE**, still above the production gate.
+4. **100.0% 90% PI coverage** with **0.100 interval ECE**, indicating over-conservative intervals.
 
-The production ensemble will proceed with **MIDAS + XGBoost** (+ LightGBM) as the core forecasting models, excluding DFM until a more robust implementation is available.
+The production ensemble will proceed with **MIDAS + XGBoost + LightGBM candidates** as the core forecasting models. DFM remains a research/diagnostic component until true pre-release public signals are integrated and pass vintage-honest validation.
 
 ---
 

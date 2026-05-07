@@ -225,6 +225,45 @@ class TestMixedFrequencyPipeline:
         assert {"feature", "importance", "source_model"}.issubset(importance.columns)
         assert {"dfm", "xgboost"}.issubset(set(importance["source_model"]))
 
+    def test_optimized_pipeline_can_assign_dfm_nonzero_weight(
+        self,
+        source_configs: dict[str, SourceConfig],
+        raw_sources: dict[str, pd.DataFrame],
+        y_monthly: pd.Series,
+    ) -> None:
+        """Optimized ensemble should give DFM weight when its factor head adds signal."""
+        pipeline = MixedFrequencyPipeline(
+            midas_bridge=MIDASBridge(source_configs=source_configs),
+            dfm=DynamicFactorModel(
+                n_factors=2,
+                max_iter=20,
+                random_state=42,
+                ridge_alphas=(0.01, 0.1, 1.0, 10.0),
+            ),
+            xgboost=XGBoostQuantile(
+                quantiles=[0.5],
+                n_estimators=1,
+                max_depth=1,
+                random_state=42,
+            ),
+            ensemble_config=EnsembleConfig(
+                method=EnsembleMethod.WEIGHTED_AVERAGE,
+                model_names=["dfm", "xgboost"],
+                optimize_weights=True,
+            ),
+            pipeline_config=MixedFrequencyPipelineConfig(
+                confidence_level=0.9,
+                min_interval_width=1.0,
+                residual_scale_floor=5.0,
+            ),
+        )
+
+        pipeline.fit(date(2024, 8, 5), raw_sources, y_monthly)
+
+        assert pipeline.ensemble_weights_ is not None
+        assert sum(pipeline.ensemble_weights_.values()) == pytest.approx(1.0)
+        assert pipeline.ensemble_weights_["dfm"] > 0.05
+
 
 class TestVintageHarnessBridgeCompatibility:
     """Validate MIDASBridge compatibility with VintageHarness outputs."""

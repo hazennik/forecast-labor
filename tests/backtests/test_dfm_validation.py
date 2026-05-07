@@ -38,10 +38,18 @@ from loguru import logger
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from features.midas import MIDASBridge, SourceConfig
+from models_src.calibration.conformal import ConformalPredictor
 from models_src.dfm.dfm_model import DynamicFactorModel
 from models_src.midas.midas_model import MIDASRegression
 from models_src.gbm_quantile.xgb_quantile import XGBoostQuantile
-from models_src.utils.metrics import rmse, smape, prediction_interval_coverage
+from models_src.pipelines.ensemble_pipeline import EnsembleConfig, EnsembleMethod
+from models_src.pipelines.ensemble_pipeline import optimize_weights, weighted_average
+from models_src.pipelines.mixed_frequency_pipeline import (
+    MixedFrequencyPipeline,
+    MixedFrequencyPipelineConfig,
+)
+from models_src.utils.metrics import rmse, smape
 from etl.common.vintage import VintageManager
 
 
@@ -56,6 +64,8 @@ PI_COVERAGE_MIN = 85.0  # Minimum 85% coverage for 90% intervals
 PI_COVERAGE_MAX = 95.0  # Maximum 95% coverage for 90% intervals
 MIN_TRAINING_SAMPLES = 60  # Minimum samples for meaningful model training (5 years monthly)
 MIN_TEST_SAMPLES = 3  # Minimum test samples for evaluation
+MIN_CALIBRATION_SAMPLES = 12  # Minimum holdout samples for conformal interval checks
+CES_RELEASE_LAG_MONTHS = 1  # CES components release with NFP, so use only prior-month values.
 
 # Key CES series for model features
 NFP_SERIES_ID = "CES0000000001"  # Total Nonfarm Payrolls (target)
@@ -68,6 +78,107 @@ FEATURE_SERIES_IDS = [
     "CES3000000001",  # Manufacturing
     "CES2000000001",  # Construction
 ]
+
+
+def _source_name_for_series(series_id: str) -> str:
+    """Return a bridge-safe source name for a CES series id."""
+    return f"ces_{series_id.lower()}"
+
+
+def build_ces_bridge_inputs(
+    data: pd.DataFrame,
+    target_series_id: str = NFP_SERIES_ID,
+    feature_series_ids: List[str] = FEATURE_SERIES_IDS,
+    release_lag_months: int = CES_RELEASE_LAG_MONTHS,
+) -> Tuple[MIDASBridge, Dict[str, pd.DataFrame], pd.Series]:
+    """
+    Build real CES raw-source inputs for MIDASBridge validation.
+
+    The available R7 real-data fixture is BLS CES monthly vintage data. Each
+    sector series is passed through the bridge as its own monthly source. CES
+    components are released with total NFP, so feature dates are shifted forward
+    by one month; a target month can only use sector values known from prior
+    releases.
+    """
+    if release_lag_months < 0:
+        raise ValueError("release_lag_months must be non-negative")
+
+    data = data.copy()
+    data["date"] = pd.to_datetime(data["date"])
+
+    target_data = data[data["series_id"] == target_series_id].copy()
+    target_data = target_data.sort_values("date").set_index("date")
+    if target_data.empty:
+        raise ValueError(f"Target series {target_series_id} not found in data")
+
+    target = target_data["mom_change"].dropna().rename("nfp_mom_change")
+    source_configs: Dict[str, SourceConfig] = {}
+    raw_sources: Dict[str, pd.DataFrame] = {}
+
+    for series_id in feature_series_ids:
+        series_data = data[data["series_id"] == series_id].copy()
+        if series_data.empty or "mom_change" not in series_data.columns:
+            continue
+
+        source_name = _source_name_for_series(series_id)
+        raw_frame = (
+            series_data[["date", "mom_change"]]
+            .dropna(subset=["mom_change"])
+            .sort_values("date")
+            .rename(columns={"mom_change": "ces_mom_change"})
+        )
+        if raw_frame.empty:
+            continue
+        if release_lag_months:
+            raw_frame["date"] = raw_frame["date"] + pd.DateOffset(months=release_lag_months)
+
+        source_configs[source_name] = SourceConfig(
+            source_name=source_name,
+            frequency="M",
+            date_column="date",
+            value_column="ces_mom_change",
+            n_lags=1,
+            aggregation="last",
+        )
+        raw_sources[source_name] = raw_frame
+
+    if not raw_sources:
+        raise ValueError("No bridge-compatible CES feature series found in data")
+
+    bridge = MIDASBridge(source_configs=source_configs)
+    return bridge, raw_sources, target
+
+
+def split_train_calibration_test(
+    features: pd.DataFrame,
+    target: pd.Series,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series]:
+    """Split a monthly vintage dataset into train, calibration, and test slices."""
+    train_end = int(len(features) * 0.7)
+    calibration_end = int(len(features) * 0.85)
+
+    X_train = features.iloc[:train_end]
+    X_calibration = features.iloc[train_end:calibration_end]
+    X_test = features.iloc[calibration_end:]
+    y_train = target.iloc[:train_end]
+    y_calibration = target.iloc[train_end:calibration_end]
+    y_test = target.iloc[calibration_end:]
+
+    return X_train, X_calibration, X_test, y_train, y_calibration, y_test
+
+
+def empirical_interval_coverage(
+    y_true: np.ndarray,
+    lower: np.ndarray,
+    upper: np.ndarray,
+) -> float:
+    """Compute empirical interval coverage as a percentage."""
+    return float(np.mean((y_true >= lower) & (y_true <= upper)) * 100.0)
+
+
+def interval_calibration_error(coverage_pct: float, nominal_pct: float = 90.0) -> float:
+    """Compute absolute interval calibration error on a 0-1 scale."""
+    return abs(coverage_pct - nominal_pct) / 100.0
 
 
 # ============================================================================
@@ -105,7 +216,8 @@ def load_vintage_data(vintage_manager: VintageManager, vintage_date: date) -> Op
 def prepare_features_and_target(
     data: pd.DataFrame,
     target_series_id: str = NFP_SERIES_ID,
-    feature_series_ids: List[str] = FEATURE_SERIES_IDS
+    feature_series_ids: List[str] = FEATURE_SERIES_IDS,
+    release_lag_months: int = CES_RELEASE_LAG_MONTHS,
 ) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Prepare features and target from CES vintage data.
@@ -121,50 +233,22 @@ def prepare_features_and_target(
     Returns:
         Tuple of (features DataFrame, target Series)
     """
-    # Ensure date column is datetime
-    data["date"] = pd.to_datetime(data["date"])
-    
-    # Extract target series (Total Nonfarm)
-    target_data = data[data["series_id"] == target_series_id].copy()
-    target_data = target_data.sort_values("date").set_index("date")
-    
-    if target_data.empty:
-        raise ValueError(f"Target series {target_series_id} not found in data")
-    
-    # Get target values (month-over-month change in thousands)
-    target = target_data["mom_change"].dropna()
-    
-    # Build features from other series
-    features_list = []
-    
-    for series_id in feature_series_ids:
-        series_data = data[data["series_id"] == series_id].copy()
-        
-        if series_data.empty:
-            continue
-            
-        series_data = series_data.sort_values("date").set_index("date")
-        
-        # Use mom_change as feature
-        if "mom_change" in series_data.columns:
-            feature = series_data["mom_change"].rename(f"{series_id}_mom")
-            features_list.append(feature)
-        
-        # Add lagged value
-        if "value" in series_data.columns:
-            lag1 = series_data["value"].shift(1).rename(f"{series_id}_lag1")
-            features_list.append(lag1)
-    
-    if not features_list:
-        raise ValueError("No feature series found in data")
-    
-    # Combine features
-    features = pd.concat(features_list, axis=1)
-    
-    # Align features and target
+    bridge, raw_sources, target = build_ces_bridge_inputs(
+        data,
+        target_series_id=target_series_id,
+        feature_series_ids=feature_series_ids,
+        release_lag_months=release_lag_months,
+    )
+    features = bridge.build_features(raw_sources, pd.DatetimeIndex(target.index))
+
+    # Align bridged features and target
     common_index = features.index.intersection(target.index)
     features = features.loc[common_index]
     target = target.loc[common_index]
+
+    if release_lag_months:
+        features = features.iloc[release_lag_months:]
+        target = target.iloc[release_lag_months:]
     
     # Drop rows with NaN
     valid_mask = ~(features.isna().any(axis=1) | target.isna())
@@ -252,6 +336,7 @@ def vintage_datasets(
             if data is None:
                 continue
             
+            bridge, raw_sources, target = build_ces_bridge_inputs(data)
             features, target = prepare_features_and_target(data)
             
             if len(features) < MIN_TRAINING_SAMPLES + MIN_TEST_SAMPLES:
@@ -261,6 +346,9 @@ def vintage_datasets(
             datasets[vdate] = {
                 "features": features,
                 "target": target,
+                "raw_sources": raw_sources,
+                "source_configs": bridge.source_configs,
+                "release_lag_months": CES_RELEASE_LAG_MONTHS,
                 "n_samples": len(features),
                 "date_range": (features.index.min(), features.index.max()),
             }
@@ -293,6 +381,28 @@ class TestDFMNumericalStability:
     Phase 5.13.2 Issue: DFM predictions exploded to 10^17 with synthetic data.
     Phase 6.3.1a Goal: Verify stability with actual NFP data.
     """
+
+    def test_ces_bridge_features_are_pre_release(
+        self,
+        vintage_datasets: Dict[date, Dict],
+    ):
+        """Real CES validation must not use same-release sector changes."""
+        vintage_date, data = next(iter(vintage_datasets.items()))
+        features = data["features"]
+        raw_sources = data["raw_sources"]
+
+        first_target_date = features.index.min()
+        for source_name, raw_frame in raw_sources.items():
+            available = raw_frame[pd.to_datetime(raw_frame["date"]) <= first_target_date]
+            assert not available.empty, f"{source_name} should have prior-release data"
+            assert available["date"].max() == first_target_date
+
+        assert data["release_lag_months"] == CES_RELEASE_LAG_MONTHS
+        logger.info(
+            "ces_bridge_pre_release_verified",
+            vintage_date=vintage_date,
+            first_target_date=str(first_target_date.date()),
+        )
     
     def test_dfm_stability_on_real_data(
         self,
@@ -363,11 +473,16 @@ class TestDFMNumericalStability:
         # Summary
         stable_count = sum(1 for r in stability_results if r.get("is_stable", False))
         total = len(stability_results)
+        finite_count = sum(
+            1 for r in stability_results if not r.get("has_nan", True) and not r.get("has_inf", True)
+        )
+        stability_rate = stable_count / total if total else 0.0
         
         logger.info(
             f"\n=== DFM Stability Summary (Real Data) ===\n"
             f"Vintages tested: {total}\n"
             f"Stable: {stable_count}/{total}\n"
+            f"Finite predictions: {finite_count}/{total}\n"
             f"All stable: {stable_count == total}\n"
         )
         
@@ -375,6 +490,8 @@ class TestDFMNumericalStability:
         pytest.dfm_stability_results = stability_results
         
         assert total >= 10, f"Need at least 10 vintage tests, got {total}"
+        assert stability_rate >= 0.90, f"DFM stability rate {stability_rate:.0%} below 90%"
+        assert finite_count == total, "DFM produced NaN or Inf predictions on real vintages"
     
     def test_dfm_no_nan_predictions(self, vintage_datasets: Dict[date, Dict]):
         """Test that DFM produces no NaN predictions on real data."""
@@ -404,6 +521,7 @@ class TestDFMNumericalStability:
                 logger.error(f"DFM error for {vintage_date}: {e}")
         
         logger.info(f"NaN check: {nan_count} vintages with NaN predictions")
+        assert nan_count == 0, f"DFM produced NaN predictions for {nan_count} vintages"
 
 
 # ============================================================================
@@ -493,6 +611,12 @@ class TestDFMAccuracy:
         
         # Store for reporting
         pytest.dfm_accuracy_results = accuracy_results
+
+        assert len(accuracy_results) >= 10, (
+            f"Need at least 10 real-vintage accuracy results, got {len(accuracy_results)}"
+        )
+        assert np.isfinite(avg_smape), "Average DFM sMAPE must be finite"
+        assert np.isfinite(avg_rmse), "Average DFM RMSE must be finite"
 
 
 # ============================================================================
@@ -617,6 +741,280 @@ class TestModelComparison:
         
         # Store for final report
         pytest.model_comparison_results = comparison_results
+
+
+class TestVintageHonestDFMEnsembleWeight:
+    """Verify DFM earns optimized weight on time-ordered public-data validations."""
+
+    def test_dfm_earns_nonzero_optimized_weight_on_real_vintages(
+        self,
+        vintage_datasets: Dict[date, Dict],
+    ):
+        """DFM should receive non-zero weight when validation data supports it."""
+        weight_results = []
+
+        for vintage_date, data in vintage_datasets.items():
+            features = data["features"]
+            target = data["target"]
+            X_train, X_validation, X_test, y_train, y_validation, y_test = (
+                split_train_calibration_test(features, target)
+            )
+
+            if (
+                len(X_train) < MIN_TRAINING_SAMPLES
+                or len(X_validation) < MIN_CALIBRATION_SAMPLES
+                or len(X_test) < MIN_TEST_SAMPLES
+            ):
+                continue
+
+            vintage_str = str(vintage_date)
+            dfm = DynamicFactorModel(
+                n_factors=min(3, X_train.shape[1] // 2),
+                random_state=42,
+            )
+            xgb = XGBoostQuantile(
+                quantiles=[0.5],
+                n_estimators=50,
+                max_depth=3,
+                random_state=42,
+            )
+            dfm.fit(X_train, y_train, vintage_date=vintage_str)
+            xgb.fit(X_train, y_train, vintage_date=vintage_str)
+
+            validation_predictions = {
+                "dfm": dfm.predict(X_validation),
+                "xgboost": xgb.predict(X_validation)[0.5],
+            }
+            weights = optimize_weights(validation_predictions, y_validation.to_numpy(dtype=float))
+
+            test_predictions = {
+                "dfm": dfm.predict(X_test),
+                "xgboost": xgb.predict(X_test)[0.5],
+            }
+            combined = weighted_average(test_predictions, weights)
+            weight_results.append(
+                {
+                    "vintage_date": vintage_date,
+                    "dfm_weight": weights["dfm"],
+                    "xgboost_weight": weights["xgboost"],
+                    "test_smape": smape(y_test.values, combined),
+                }
+            )
+
+        assert len(weight_results) >= 10, (
+            f"Need at least 10 optimized-weight validations, got {len(weight_results)}"
+        )
+
+        avg_dfm_weight = float(np.mean([r["dfm_weight"] for r in weight_results]))
+        nonzero_count = sum(1 for r in weight_results if r["dfm_weight"] > 1e-6)
+        avg_test_smape = float(np.mean([r["test_smape"] for r in weight_results]))
+        logger.info(
+            f"\n=== Vintage-Honest DFM Weight Summary ===\n"
+            f"Vintages tested: {len(weight_results)}\n"
+            f"Average DFM optimized weight: {avg_dfm_weight:.3f}\n"
+            f"Non-zero DFM weights: {nonzero_count}/{len(weight_results)}\n"
+            f"Average optimized ensemble test sMAPE: {avg_test_smape:.2f}%\n"
+        )
+
+        pytest.dfm_weight_results = weight_results
+        assert avg_dfm_weight > 0.05
+        assert nonzero_count >= len(weight_results) // 2
+        assert np.isfinite(avg_test_smape)
+
+
+class TestDFMCalibrationIntegration:
+    """Verify conformal calibration works on bridge-produced real CES features."""
+
+    def test_bridge_to_calibration_pipeline(
+        self,
+        vintage_datasets: Dict[date, Dict],
+    ):
+        """MIDASBridge -> DFM -> ConformalPredictor should produce finite intervals."""
+        interval_results = []
+
+        for vintage_date, data in vintage_datasets.items():
+            features = data["features"]
+            target = data["target"]
+            split = split_train_calibration_test(features, target)
+            X_train, X_calibration, X_test, y_train, y_calibration, y_test = split
+
+            if (
+                len(X_train) < MIN_TRAINING_SAMPLES
+                or len(X_calibration) < MIN_CALIBRATION_SAMPLES
+                or len(X_test) < MIN_TEST_SAMPLES
+            ):
+                continue
+
+            dfm = DynamicFactorModel(
+                n_factors=min(3, X_train.shape[1] // 2),
+                random_state=42,
+            )
+            dfm.fit(X_train, y_train, vintage_date=str(vintage_date))
+            calibration_predictions = dfm.predict(X_calibration)
+            test_predictions = dfm.predict(X_test)
+
+            conformal = ConformalPredictor(confidence_levels=[0.9])
+            conformal.fit(y_calibration.values, calibration_predictions)
+            lower, upper = conformal.predict_interval(test_predictions, confidence_level=0.9)
+
+            coverage = empirical_interval_coverage(y_test.values, lower, upper)
+            ece = interval_calibration_error(coverage)
+            interval_results.append(
+                {
+                    "vintage_date": vintage_date,
+                    "coverage": coverage,
+                    "ece": ece,
+                    "avg_width": float(np.mean(upper - lower)),
+                }
+            )
+
+            assert np.isfinite(lower).all()
+            assert np.isfinite(upper).all()
+            assert np.all(lower < upper)
+
+        assert len(interval_results) >= 10, (
+            f"Need at least 10 interval validation results, got {len(interval_results)}"
+        )
+
+        avg_coverage = float(np.mean([r["coverage"] for r in interval_results]))
+        avg_ece = interval_calibration_error(avg_coverage)
+        coverage_within_target = PI_COVERAGE_MIN <= avg_coverage <= PI_COVERAGE_MAX
+        ece_meets_target = avg_ece < 0.05
+        logger.info(
+            f"\n=== DFM Calibration Summary (Bridge Features) ===\n"
+            f"Vintages tested: {len(interval_results)}\n"
+            f"Average 90% PI coverage: {avg_coverage:.1f}%\n"
+            f"Average interval ECE: {avg_ece:.3f}\n"
+            f"Coverage within target: {coverage_within_target}\n"
+            f"ECE meets target: {ece_meets_target}\n"
+        )
+
+        pytest.dfm_calibration_results = interval_results
+        pytest.dfm_calibration_summary = {
+            "avg_coverage": avg_coverage,
+            "avg_ece": avg_ece,
+            "coverage_within_target": coverage_within_target,
+            "ece_meets_target": ece_meets_target,
+            "recommendation": (
+                "calibration_pass" if coverage_within_target and ece_meets_target
+                else "exclude_dfm_until_recalibrated"
+            ),
+        }
+        assert np.isfinite(avg_coverage)
+        assert np.isfinite(avg_ece)
+
+    def test_calibration_with_ragged_edge(self, vintage_datasets: Dict[date, Dict]):
+        """Missing recent source rows should not break bridge-based calibration."""
+        vintage_date, data = next(iter(vintage_datasets.items()))
+        target = data["target"]
+        raw_sources = {
+            name: frame.iloc[:-1].copy()
+            for name, frame in data["raw_sources"].items()
+        }
+        bridge = MIDASBridge(source_configs=data["source_configs"])
+        features = bridge.build_features(raw_sources, pd.DatetimeIndex(target.index), str(vintage_date))
+        features = features.loc[features.index.intersection(target.index)]
+        target = target.loc[features.index]
+
+        split = split_train_calibration_test(features, target)
+        X_train, X_calibration, X_test, y_train, y_calibration, _ = split
+        dfm = DynamicFactorModel(n_factors=min(3, X_train.shape[1] // 2), random_state=42)
+        dfm.fit(X_train, y_train, vintage_date=str(vintage_date))
+        calibration_predictions = dfm.predict(X_calibration)
+        test_predictions = dfm.predict(X_test)
+
+        conformal = ConformalPredictor(confidence_levels=[0.9])
+        conformal.fit(y_calibration.values, calibration_predictions)
+        lower, upper = conformal.predict_interval(test_predictions, confidence_level=0.9)
+
+        assert np.isfinite(test_predictions).all()
+        assert np.isfinite(lower).all()
+        assert np.isfinite(upper).all()
+        assert np.all(lower < upper)
+
+
+class TestMixedFrequencyRealDataPipeline:
+    """Validate the R5 pipeline on 10+ real CES vintages via bridge-produced inputs."""
+
+    def test_real_ces_bridge_pipeline_across_vintages(
+        self,
+        vintage_datasets: Dict[date, Dict],
+    ):
+        """MixedFrequencyPipeline should fit and predict on real CES bridge inputs."""
+        pipeline_results = []
+
+        for vintage_date, data in vintage_datasets.items():
+            features = data["features"]
+            target = data["target"]
+            split_idx = int(len(target) * 0.85)
+            y_train = target.iloc[:split_idx]
+            y_test = target.iloc[split_idx:]
+
+            if len(y_train) < MIN_TRAINING_SAMPLES or len(y_test) < MIN_TEST_SAMPLES:
+                continue
+
+            pipeline = MixedFrequencyPipeline(
+                midas_bridge=MIDASBridge(source_configs=data["source_configs"]),
+                dfm=DynamicFactorModel(
+                    n_factors=min(3, features.shape[1] // 2),
+                    max_iter=50,
+                    random_state=42,
+                ),
+                xgboost=XGBoostQuantile(
+                    quantiles=[0.05, 0.5, 0.95],
+                    n_estimators=10,
+                    max_depth=2,
+                    random_state=42,
+                ),
+                ensemble_config=EnsembleConfig(
+                    method=EnsembleMethod.WEIGHTED_AVERAGE,
+                    model_names=["dfm", "midas", "xgboost"],
+                    optimize_weights=True,
+                ),
+                pipeline_config=MixedFrequencyPipelineConfig(
+                    confidence_level=0.9,
+                    min_interval_width=1.0,
+                    residual_scale_floor=1.0,
+                ),
+            )
+            pipeline.fit(vintage_date, data["raw_sources"], y_train)
+            predictions, intervals = pipeline.predict(
+                vintage_date,
+                data["raw_sources"],
+                target_dates=pd.DatetimeIndex(y_test.index),
+            )
+
+            pipeline_smape = smape(y_test.values, predictions)
+            pipeline_results.append(
+                {
+                    "vintage_date": vintage_date,
+                    "smape": pipeline_smape,
+                    "rmse": rmse(y_test.values, predictions),
+                    "weights": pipeline.ensemble_weights_,
+                }
+            )
+
+            assert pipeline.ensemble_weights_ is not None
+            assert pipeline.ensemble_weights_["dfm"] >= 0.0
+            assert predictions.shape == (len(y_test),)
+            assert intervals.shape == (len(y_test), 2)
+            assert np.isfinite(predictions).all()
+            assert np.isfinite(intervals).all()
+            assert np.all(intervals[:, 0] < intervals[:, 1])
+
+        assert len(pipeline_results) >= 10, (
+            f"Need at least 10 real-vintage pipeline results, got {len(pipeline_results)}"
+        )
+        avg_pipeline_smape = float(np.mean([r["smape"] for r in pipeline_results]))
+        logger.info(
+            f"\n=== Mixed-Frequency Real CES Pipeline Summary ===\n"
+            f"Vintages tested: {len(pipeline_results)}\n"
+            f"Average ensemble sMAPE: {avg_pipeline_smape:.2f}%\n"
+            f"Average DFM optimized weight: "
+            f"{np.mean([r['weights']['dfm'] for r in pipeline_results]):.3f}\n"
+        )
+        pytest.mixed_frequency_pipeline_results = pipeline_results
+        assert np.isfinite(avg_pipeline_smape)
 
 
 # ============================================================================

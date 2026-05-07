@@ -35,12 +35,13 @@ Accuracy: good to very good
 Tools: payroll microdata, job postings, daily tax data, machine learning
 Models kept private
 
-Tier 1 — Elite quant-grade hybrid systems (DFM + MIDAS + ML + revisions)
+Tier 1 — Elite quant-grade hybrid systems (MIDAS + ML + revisions, with DFM retained as a diagnostic until pre-release validation passes)
 
 Accuracy: top 1–5% globally
 Tools:
 	•	Daily Treasury tax micro-signals
 	•	Mixed-frequency MIDAS
+	•	Diagnostic DFM factors once true pre-release public signals pass gates
 	•	State reconciliation
 	•	Revision modeling
 	•	Conformal calibration

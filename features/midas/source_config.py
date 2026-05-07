@@ -42,7 +42,9 @@ class SourceConfig:
         if self.n_lags <= 0:
             raise ValueError(f"n_lags must be positive, got {self.n_lags}")
         if self.aggregation not in {"last", "mean", "sum"}:
-            raise ValueError(f"aggregation must be last/mean/sum, got {self.aggregation}")
+            raise ValueError(
+                f"aggregation must be last/mean/sum, got {self.aggregation}"
+            )
         if self.frequency == "M" and self.n_lags != 1:
             raise ValueError("monthly source configs must use n_lags=1")
 
