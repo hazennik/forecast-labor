@@ -274,9 +274,11 @@ class BacktestReportGenerator:
             )
 
         gates = accuracy_gates.get("gates", [])
+        selected_model = accuracy_gates.get("selected_model")
         table = [
             {
                 "Gate": gate.get("name", "unknown"),
+                "Model": gate.get("model_name", "portfolio"),
                 "Observed": gate.get("observed", "n/a"),
                 "Threshold": gate.get("threshold", "n/a"),
                 "Status": "PASS" if gate.get("passed", False) else "FAIL",
@@ -284,10 +286,12 @@ class BacktestReportGenerator:
             for gate in gates
         ]
         failed = [gate for gate in gates if not gate.get("passed", False)]
+        items = [f"Selected model: {selected_model}"] if selected_model else []
+        items.extend([f"{len(failed)} failing gate(s)."] if failed else ["All provided gates passed."])
         return ReportSection(
             title="Accuracy Gates",
             summary="Deployment gate validation against configured accuracy targets.",
-            items=[f"{len(failed)} failing gate(s)."] if failed else ["All provided gates passed."],
+            items=items,
             table=table,
         )
 
