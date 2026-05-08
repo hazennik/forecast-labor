@@ -6,6 +6,11 @@ from __future__ import annotations
 from argparse import ArgumentParser
 from pathlib import Path
 import json
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from backtests.performance import BenchmarkConfig, measure_real_model_baselines
 from backtests.performance.baselines import DEFAULT_BASELINE_PATH, update_performance_baseline_file
