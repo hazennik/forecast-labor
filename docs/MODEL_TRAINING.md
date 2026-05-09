@@ -22,6 +22,59 @@ Current DFM validation status:
 Do not use same-release CES sector components to forecast same-month NFP before
 the NFP release. Feature timing is a data-leakage boundary, not a tuning detail.
 
+## Post-Phase 6 Training Baseline
+
+This section records the Phase 6 validation evidence that should guide training
+runs after the infrastructure, reporting, scenario, lineage, and quality-gate
+phases were completed.
+
+Current production training scope:
+
+- Train and evaluate MIDAS, XGBoost, and LightGBM as the production candidate
+  ensemble.
+- Include the revision model for first-to-final revision workflows after the
+  first BLS print is available.
+- Keep DFM in diagnostic and research runs only. It is stable on real CES
+  vintages, but the corrected pre-release CES-only sMAPE remains far outside the
+  production accuracy gate.
+- Treat MinT reconciliation as a post-model coherence step for state, sector, or
+  other hierarchical outputs. Reconciliation must not materially degrade base
+  forecast accuracy.
+
+Validated Phase 6 runtime baselines from `tests/fixtures/performance_baselines.json`:
+
+- DFM: training 0.156561 seconds, prediction 0.002809 seconds, memory 11.664 MB,
+  production inclusion `false`.
+- MIDAS: training 0.120821 seconds, prediction 0.000244 seconds, memory 0.125 MB.
+- XGBoost: training 0.234230 seconds, prediction 0.011881 seconds, memory 6.965 MB.
+- LightGBM: training 0.203134 seconds, prediction 0.016490 seconds, memory 8.910 MB.
+- Revision: training 0.007708 seconds, prediction 0.001038 seconds, memory 0.001 MB.
+- Full production candidate pipeline: training 0.565893 seconds, prediction
+  0.029653 seconds, memory 16.001 MB.
+
+These baselines are regression-detection targets for deterministic real model
+classes, not a substitute for vintage-honest accuracy evaluation. A production
+promotion still requires the accuracy, calibration, coherence, revision, and
+stability gates listed below.
+
+Before promoting a trained bundle, run the Phase 6 validation tools with the
+candidate payloads produced by the training job:
+
+```bash
+docker compose exec etl python scripts/validate_accuracy_gates.py --input-file <candidate_scores.json>
+docker compose exec etl python scripts/validate_performance_baselines.py --baseline tests/fixtures/performance_baselines.json
+docker compose exec etl python scripts/validate_feature_lineage.py --input-file <model_lineage.json>
+docker compose exec etl python scripts/run_scenario_tests.py --input-file <scenario_payload.json>
+```
+
+The guide intentionally separates two decisions:
+
+- Runtime readiness: the Phase 6 performance baseline shows the current model
+  stack is well inside local SLA limits.
+- Forecast readiness: production selection still depends on vintage-honest
+  accuracy gates and calibrated probability output for the specific release
+  window.
+
 ## Training Workflow
 
 1. Generate or load a vintage-honest feature set.

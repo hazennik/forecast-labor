@@ -1075,13 +1075,14 @@ workflow validates golden baseline structure; full verification requires X-13 se
 
 **Goal:** Complete all Phase 5 documentation requirements
 
-**Status:** COMPLETE - Phase 5 documentation now covers current model training workflows, model selection, hyperparameter sensitivity, feature registry database usage, and forecasting capabilities.
+**Status:** COMPLETE - Phase 5 documentation now covers current model training workflows, model selection, hyperparameter sensitivity, feature registry database usage, forecasting capabilities, and the post-Phase-6 model training baseline.
 
 **Decision:** Phase 5.14 is complete with current Phase 5 evidence and explicitly documents what remains Phase 6 empirical validation.
 - **Rationale:** The guide records the current production decision without inventing backtest results
 - Model selection decision tree reflects current candidates: MIDAS + XGBoost/LightGBM, with DFM diagnostic-only
 - Hyperparameter sensitivity guidance uses implemented model APIs and conservative tuning ranges
 - Phase 6 will add empirical performance results to backtest reports rather than block Phase 5 documentation
+- Post-Phase-6 refresh records the validated runtime baselines and Phase 6 verification commands while keeping accuracy promotion gated by vintage-honest results
 
 **Update IMPLEMENTATION_STATUS.md:** Lines 2053-2058 when complete
 
@@ -1095,6 +1096,7 @@ workflow validates golden baseline structure; full verification requires X-13 se
   - [x] MLflow experiment tracking guide
   - [x] Hyperparameter tuning workflow
   - [x] Troubleshooting common issues
+- [x] **Post-Phase-6 refresh:** Add validated runtime baselines, current production training scope, Phase 6 validation commands, and the runtime-vs-forecast readiness distinction
 
 #### 5.14.2. Model Selection Decision Tree
 - [x] **Add to:** `docs/MODEL_TRAINING.md`

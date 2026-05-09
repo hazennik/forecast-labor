@@ -1,6 +1,31 @@
 # Implementation Status
 
-Last Updated: 2026-05-08 (Phase 6.5 COMPLETE ✅ | Repo-wide ruff/black clean | Full Docker suite passing: 1393 passed, 4 skipped)
+Last Updated: 2026-05-08 (Phase 5.14.1 Post-Phase-6 Refresh COMPLETE ✅ | Full Docker suite passing: 1393 passed, 4 skipped)
+
+## ✅ PHASE 5.14.1 POST-PHASE-6 REFRESH COMPLETE: Model Training Guide (2026-05-08)
+
+**Status:** COMPLETE - model training guide refreshed with validated Phase 6 runtime baselines and promotion gates  
+**Completion:** Phase 5.14.1 post-Phase-6 refresh 100% ✅  
+**Breaking Changes:** NONE - documentation-only update
+
+### Completed This Session
+
+- ✅ Examined current project status and recent commits before continuing development.
+- ✅ Confirmed Phase 6.5 was complete and the next action was the post-Phase-6 documentation refresh.
+- ✅ Refreshed `docs/MODEL_TRAINING.md` with the current post-Phase-6 production training scope.
+- ✅ Added validated Phase 6 runtime baselines from `tests/fixtures/performance_baselines.json`.
+- ✅ Documented the distinction between runtime readiness and forecast readiness.
+- ✅ Added the Phase 6 validation commands required before promoting a trained bundle.
+- ✅ Updated `docs/planning/phase_5/PHASE_5_IMPLEMENTATION_PLAN.md` to mark the post-Phase-6 `5.14.1` refresh complete.
+
+### Validation
+
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1393 passed, 4 skipped, 320 warnings in 490.89s**
+
+### Next Action
+
+Proceed to **Phase 5.14.2 Post-Phase-6 Refresh: Model Selection Decision Tree**, using the completed Phase 6 selection, scenario, lineage, performance, and quality-gate results.
 
 ## ✅ PHASE 6.5 COMPLETE: Infrastructure & Quality Gates (2026-05-08)
 
