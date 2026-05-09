@@ -1,6 +1,31 @@
 # Implementation Status
 
-Last Updated: 2026-05-08 (Phase 5.14.1 Post-Phase-6 Refresh COMPLETE ✅ | Full Docker suite passing: 1393 passed, 4 skipped)
+Last Updated: 2026-05-09 (Phase 5.14.2 Post-Phase-6 Refresh COMPLETE ✅ | Full Docker suite passing: 1393 passed, 4 skipped)
+
+## ✅ PHASE 5.14.2 POST-PHASE-6 REFRESH COMPLETE: Model Selection Decision Tree (2026-05-09)
+
+**Status:** COMPLETE - model selection decision tree refreshed with validated Phase 6 gate workflow and DFM exclusion evidence  
+**Completion:** Phase 5.14.2 post-Phase-6 refresh 100% ✅  
+**Breaking Changes:** NONE - documentation-only update
+
+### Completed This Session
+
+- ✅ Examined current project status and recent commits before continuing development.
+- ✅ Confirmed Phase 5.14.1 post-Phase-6 refresh was complete and the next action was Phase 5.14.2.
+- ✅ Refreshed `docs/MODEL_TRAINING.md` model selection decision tree with the Phase 6.4.2 gate validator workflow.
+- ✅ Documented the current production candidate set: **MIDAS + XGBoost + LightGBM**.
+- ✅ Preserved the Phase 6.3.1a DFM decision: stable on real CES vintages but diagnostic/research only until true pre-release signals pass vintage-honest gates.
+- ✅ Added promotion/no-promotion decision rules for candidate payloads, probability coherence, calibration, reconciliation, revision, turning-point, state-level, and SN41 probability stability gates.
+- ✅ Updated `docs/planning/phase_5/PHASE_5_IMPLEMENTATION_PLAN.md` to mark the post-Phase-6 `5.14.2` refresh complete.
+
+### Validation
+
+- ✅ `docker compose up -d etl && docker compose exec etl pytest -q`
+- ✅ Result: **1393 passed, 4 skipped, 320 warnings in 502.08s**
+
+### Next Action
+
+Proceed to **Phase 5.14.3 Post-Phase-6 Refresh: Hyperparameter Sensitivity**, using the completed Phase 6 runtime baselines, model selection gates, and DFM validation results.
 
 ## ✅ PHASE 5.14.1 POST-PHASE-6 REFRESH COMPLETE: Model Training Guide (2026-05-08)
 

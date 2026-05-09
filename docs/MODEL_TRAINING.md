@@ -118,37 +118,96 @@ The guide intentionally separates two decisions:
 ## Model Selection Decision Tree
 
 Use this decision tree before training or selecting a model for a forecast path.
+It incorporates the Phase 6.4.2 selection gates implemented in
+`backtests/selection.py` and the corrected Phase 6.3.1a DFM validation.
 
-**Need a production NFP candidate today?**
-Use MIDAS plus XGBoost and/or LightGBM. Calibrate intervals and evaluate with
-expanding-window validation.
+### Step 1: Define the Forecast Path
 
-**Need mixed-frequency daily or weekly signals?**
-Use `MIDASBridge` to align raw sources to monthly targets. Then train
-`MIDASBridgedRegression` or the `MixedFrequencyPipeline`.
+**Pre-release NFP nowcast**
 
-**Need smooth bridge equations with interpretable lag decay?**
-Use `MIDASRegression` or `MIDASBridgedRegression`. Prefer this when signal timing
-and lag weights matter more than nonlinear interactions.
+Train and compare `midas`, `xgboost`, and `lightgbm` candidate payloads. This is
+the current production candidate set. Each candidate must include vintage-honest
+actuals, predictions, 90% intervals when available, and probability vectors when
+building subnet payloads.
 
-**Need nonlinear interactions or quantile intervals?**
-Use `XGBoostQuantile` or `LightGBMQuantile`. These are the strongest Phase 5
-production candidates for flexible public-signal nowcasting and probability
-interval construction.
+**Post-release revision forecast**
 
-**Need latent factor diagnostics?**
-Use `DynamicFactorModel` only as a diagnostic or research model until Phase 6
-pre-release validation passes. The class is stable, but current CES-only
-pre-release accuracy is below the production gate.
-
-**Need revision forecasts?**
 Use `RevisionForecaster` after the first BLS print is available. Revision targets
 are `final_value - preliminary_value`; positive predictions indicate expected
-upward revisions.
+upward revisions. Gate the revision path on revision MAE and direction accuracy
+before combining it with a nowcast workflow.
 
-**Need state-to-national or sector-to-total coherence?**
-Use `MinTReconciler`. Default to `mint_shrink` for noisy forecast-error
-covariances, and verify coherence error remains below the gate.
+**State, sector, or other hierarchical forecast**
+
+Train the best eligible base forecast first, then apply `MinTReconciler`.
+Default to `mint_shrink` for noisy forecast-error covariance estimates. The
+reconciled output must pass the hierarchical coherence gate and must not
+materially degrade base forecast accuracy.
+
+### Step 2: Pick Candidate Model Classes
+
+**Mixed-frequency daily or weekly signals**
+
+Use `MIDASBridge` to align raw sources to monthly targets. Then train
+`MIDASBridgedRegression` or the `MixedFrequencyPipeline`. Prefer MIDAS when
+release timing, lag decay, and interpretability matter more than nonlinear
+feature interactions.
+
+**Nonlinear public-signal interactions or quantile intervals**
+
+Use `XGBoostQuantile` or `LightGBMQuantile`. These remain production candidates
+for flexible public-signal nowcasting and interval construction. They should be
+evaluated alongside MIDAS rather than selected by runtime speed alone.
+
+**Latent factor diagnostics**
+
+Use `DynamicFactorModel` only as a research or diagnostic model. Phase 6.3.1a
+validated that DFM is numerically stable on 17/17 real CES vintages, but the
+corrected pre-release CES-only sMAPE is 103.61% and the optimized DFM+XGBoost
+ensemble sMAPE is 88.10%. DFM must remain excluded from production selection
+until true pre-release public signals pass vintage-honest accuracy gates.
+
+### Step 3: Apply the Phase 6.4.2 Gates
+
+Evaluate candidate payloads with:
+
+```bash
+docker compose exec etl python scripts/validate_accuracy_gates.py --input-file <candidate_scores.json>
+```
+
+The validator ranks eligible candidates with a deterministic lower-is-better
+selection score. A candidate is ineligible if any critical gate fails. The
+portfolio also fails if the expected production candidates are missing.
+
+Hard production-selection gates:
+
+- sMAPE must be below the deployment threshold.
+- RMSE must be below the deployment threshold.
+- Forecast magnitudes must stay below the hard stability limit.
+- 90% prediction interval coverage must remain within the accepted range when
+  intervals are supplied.
+- Probability vectors must sum to one within tolerance for subnet payloads.
+- ECE must remain below the calibration threshold when binary event outcomes are
+  supplied.
+- Reconciliation errors must remain within the coherence threshold when
+  hierarchical outputs are supplied.
+- Revision MAE and revision direction accuracy must pass for revision workflows.
+- Turning-point and state-level gates must pass when those payloads are supplied.
+- SN41 probability histories must remain stable enough to avoid noisy submission
+  swings.
+
+### Step 4: Make the Selection
+
+If at least one production candidate passes all critical gates, select the
+highest-ranked eligible candidate from the Phase 6.4.2 report. If no candidate
+passes, do not promote a bundle; return to feature coverage, calibration,
+hyperparameter tuning, or ensemble construction before attempting subnet
+submission.
+
+Use runtime baselines only as regression checks. The current deterministic
+runtime baseline is well inside local SLA limits, but fast runtime does not make
+a model deployable when vintage-honest accuracy, calibration, or coherence gates
+fail.
 
 ## Cross-Validation Strategy
 

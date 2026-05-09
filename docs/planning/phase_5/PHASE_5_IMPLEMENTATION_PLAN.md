@@ -1075,14 +1075,14 @@ workflow validates golden baseline structure; full verification requires X-13 se
 
 **Goal:** Complete all Phase 5 documentation requirements
 
-**Status:** COMPLETE - Phase 5 documentation now covers current model training workflows, model selection, hyperparameter sensitivity, feature registry database usage, forecasting capabilities, and the post-Phase-6 model training baseline.
+**Status:** COMPLETE - Phase 5 documentation now covers current model training workflows, model selection, hyperparameter sensitivity, feature registry database usage, forecasting capabilities, the post-Phase-6 model training baseline, and the post-Phase-6 model selection decision tree.
 
 **Decision:** Phase 5.14 is complete with current Phase 5 evidence and explicitly documents what remains Phase 6 empirical validation.
 - **Rationale:** The guide records the current production decision without inventing backtest results
 - Model selection decision tree reflects current candidates: MIDAS + XGBoost/LightGBM, with DFM diagnostic-only
 - Hyperparameter sensitivity guidance uses implemented model APIs and conservative tuning ranges
 - Phase 6 will add empirical performance results to backtest reports rather than block Phase 5 documentation
-- Post-Phase-6 refresh records the validated runtime baselines and Phase 6 verification commands while keeping accuracy promotion gated by vintage-honest results
+- Post-Phase-6 refresh records the validated runtime baselines, Phase 6 verification commands, and Phase 6.4.2 model-selection gate workflow while keeping accuracy promotion gated by vintage-honest results
 
 **Update IMPLEMENTATION_STATUS.md:** Lines 2053-2058 when complete
 
@@ -1106,6 +1106,7 @@ workflow validates golden baseline structure; full verification requires X-13 se
   - [x] When to use Revision model (post-release adjustments)
   - [x] Performance vs accuracy tradeoffs
   - [x] Data requirements for each model
+- [x] **Post-Phase-6 refresh:** Incorporate Phase 6.4.2 gate validator, DFM exclusion evidence, candidate coverage requirements, and promotion/no-promotion decision rules
 
 #### 5.14.3. Hyperparameter Sensitivity
 - [x] **Add to:** `docs/MODEL_TRAINING.md`
