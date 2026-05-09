@@ -8,59 +8,54 @@ Usage:
 """
 
 import sys
-import time
-from typing import List, Dict, Any
+from typing import Dict
 
 import requests
 from loguru import logger
 
 
 SERVICES = {
-    "postgres": {
-        "name": "PostgreSQL",
-        "port": 5432,
-        "health_check": "connection"
-    },
+    "postgres": {"name": "PostgreSQL", "port": 5432, "health_check": "connection"},
     "minio": {
         "name": "MinIO",
         "port": 9000,
-        "health_endpoint": "http://localhost:9000/minio/health/live"
+        "health_endpoint": "http://localhost:9000/minio/health/live",
     },
     "mlflow": {
         "name": "MLflow",
         "port": 5050,  # External port (mapped from container's 5000)
-        "health_endpoint": "http://localhost:5050/health"
+        "health_endpoint": "http://localhost:5050/health",
     },
     "prefect": {
         "name": "Prefect",
         "port": 4200,
-        "health_endpoint": "http://localhost:4200/api/health"
-    }
+        "health_endpoint": "http://localhost:4200/api/health",
+    },
 }
 
 
 def check_service_http(service_name: str, endpoint: str, timeout: int = 5) -> bool:
     """
     Check service health via HTTP endpoint.
-    
+
     Args:
         service_name: Name of service
         endpoint: HTTP endpoint to check
         timeout: Request timeout in seconds
-        
+
     Returns:
         True if healthy
     """
     try:
         response = requests.get(endpoint, timeout=timeout)
-        
+
         if response.status_code == 200:
             logger.info(f"✅ {service_name}: Healthy")
             return True
         else:
             logger.error(f"❌ {service_name}: Unhealthy (status {response.status_code})")
             return False
-            
+
     except requests.exceptions.ConnectionError:
         logger.error(f"❌ {service_name}: Connection failed")
         return False
@@ -77,7 +72,7 @@ def check_postgres(timeout: int = 5) -> bool:
     try:
         import psycopg2
         import os
-        
+
         # Use environment variables matching docker-compose.yml
         conn = psycopg2.connect(
             host=os.getenv("POSTGRES_HOST", "localhost"),
@@ -85,13 +80,13 @@ def check_postgres(timeout: int = 5) -> bool:
             database=os.getenv("POSTGRES_DB", "forecast_labor"),
             user=os.getenv("POSTGRES_USER", "forecast_user"),
             password=os.getenv("POSTGRES_PASSWORD", "forecast_pass_change_me"),
-            connect_timeout=timeout
+            connect_timeout=timeout,
         )
         conn.close()
-        
+
         logger.info("✅ PostgreSQL: Healthy")
         return True
-        
+
     except Exception as e:
         logger.error(f"❌ PostgreSQL: {e}")
         return False
@@ -100,28 +95,25 @@ def check_postgres(timeout: int = 5) -> bool:
 def check_all_services() -> Dict[str, bool]:
     """
     Check all infrastructure services.
-    
+
     Returns:
         Dictionary of service -> health status
     """
     results = {}
-    
+
     logger.info("Checking infrastructure health...")
-    
+
     # Check PostgreSQL
     results["postgres"] = check_postgres()
-    
+
     # Check HTTP services
     for service_id, config in SERVICES.items():
         if service_id == "postgres":
             continue  # Already checked
-        
+
         if "health_endpoint" in config:
-            results[service_id] = check_service_http(
-                config["name"],
-                config["health_endpoint"]
-            )
-    
+            results[service_id] = check_service_http(config["name"], config["health_endpoint"])
+
     return results
 
 
@@ -130,18 +122,18 @@ def main():
     logger.info("=" * 60)
     logger.info("Infrastructure Health Check")
     logger.info("=" * 60)
-    
+
     results = check_all_services()
-    
+
     # Summary
     total = len(results)
     healthy = sum(1 for v in results.values() if v)
     unhealthy = total - healthy
-    
+
     logger.info("=" * 60)
     logger.info(f"Health Check Summary: {healthy}/{total} services healthy")
     logger.info("=" * 60)
-    
+
     if unhealthy > 0:
         logger.error(f"❌ {unhealthy} service(s) unhealthy")
         logger.error("Run 'make up' to start services")
@@ -153,4 +145,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

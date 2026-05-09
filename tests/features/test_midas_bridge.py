@@ -132,9 +132,7 @@ class TestMIDASBridge:
         weighted_features = weighted.build_features(raw_sources, target_dates)
         unweighted_features = unweighted.build_features(raw_sources, target_dates)
 
-        treasury_cols = [
-            col for col in weighted_features.columns if col.startswith("treasury_")
-        ]
+        treasury_cols = [col for col in weighted_features.columns if col.startswith("treasury_")]
         assert not np.allclose(
             weighted_features[treasury_cols].to_numpy(),
             unweighted_features[treasury_cols].to_numpy(),

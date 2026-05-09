@@ -43,9 +43,7 @@ class MIDASBridgedRegression(BaseForecaster):
     ) -> None:
         """Initialize the bridged MIDAS forecaster."""
         super().__init__(random_state=random_state)
-        self.source_configs = (
-            dict(source_configs) if source_configs is not None else None
-        )
+        self.source_configs = dict(source_configs) if source_configs is not None else None
         self.almon_degree = almon_degree
         self.horizon = horizon
         self.include_intercept = include_intercept
@@ -83,15 +81,11 @@ class MIDASBridgedRegression(BaseForecaster):
             almon_poly_degree=self.almon_degree,
             apply_almon_weights=True,
         )
-        features = self.bridge_.build_features(
-            X, pd.DatetimeIndex(y.index), vintage_date
-        )
+        features = self.bridge_.build_features(X, pd.DatetimeIndex(y.index), vintage_date)
         y_aligned = y.reindex(features.index)
 
         if y_aligned.isna().any():
-            raise ValueError(
-                "y contains missing values after alignment to target dates"
-            )
+            raise ValueError("y contains missing values after alignment to target dates")
 
         self.model_ = MIDASRegression(
             n_lags=features.shape[1],
@@ -132,9 +126,7 @@ class MIDASBridgedRegression(BaseForecaster):
             Prediction array with one value per target date.
         """
         if self.model_ is None or self.bridge_ is None:
-            raise ValueError(
-                "Model must be fitted before prediction. Call fit() first."
-            )
+            raise ValueError("Model must be fitted before prediction. Call fit() first.")
         if target_dates is None:
             raise ValueError("target_dates must be provided for raw-source prediction")
 

@@ -12,15 +12,16 @@ This module provides:
 # This must be the very first code executed
 import sys
 from pathlib import Path
+
 _project_root = Path(__file__).parent.parent.absolute()
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 import os
 import tempfile
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Dict, Any, Generator
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 import numpy as np
 import pandas as pd
@@ -37,6 +38,7 @@ from sqlalchemy.orm import sessionmaker
 # =====================
 # DIRECTORY FIXTURES
 # =====================
+
 
 @pytest.fixture(scope="session")
 def project_root() -> Path:
@@ -71,11 +73,12 @@ def temp_dir() -> Generator[Path, None, None]:
 # TIME & DATE FIXTURES
 # =====================
 
+
 @pytest.fixture
 def test_vintage_date() -> date:
     """
     Pinned vintage date for deterministic testing.
-    
+
     This date is used for all CI/CD tests to ensure reproducibility.
     All tests using vintage data should use this fixture.
     """
@@ -110,11 +113,12 @@ def date_range_daily() -> pd.DatetimeIndex:
 # DATABASE FIXTURES
 # =====================
 
+
 @pytest.fixture(scope="session")
 def test_db_url() -> str:
     """
     Test database URL.
-    
+
     Uses environment variable if set, otherwise uses in-memory SQLite.
     For integration tests, set TEST_DATABASE_URL to a test Postgres instance.
     """
@@ -143,14 +147,16 @@ def db_session(db_engine):
 # STORAGE FIXTURES
 # =====================
 
+
 @pytest.fixture
 def mock_storage_client() -> Mock:
     """
     Mock StorageClient for testing without MinIO/S3.
-    
+
     Simulates storage operations without actual network calls.
     """
     from etl.common.storage import StorageClient
+
     client = Mock(spec=StorageClient)
     client.upload_file.return_value = True
     client.download_file.return_value = True
@@ -174,10 +180,12 @@ def mock_minio_client() -> Mock:
 # ETL FIXTURES
 # =====================
 
+
 @pytest.fixture
 def etl_config(temp_dir: Path):
     """Create a test ETL configuration."""
     from etl.common.base import ETLConfig
+
     return ETLConfig(
         source_name="test_source",
         raw_data_path=temp_dir / "raw",
@@ -195,6 +203,7 @@ def etl_config(temp_dir: Path):
 def sample_ingestion_metadata(test_vintage_date: date):
     """Create sample ingestion metadata for testing."""
     from etl.common.base import IngestionMetadata
+
     return IngestionMetadata(
         source="test_source",
         vintage_date=test_vintage_date,
@@ -209,61 +218,67 @@ def sample_ingestion_metadata(test_vintage_date: date):
 # DATA FIXTURES
 # =====================
 
+
 @pytest.fixture
 def sample_time_series_df(date_range_monthly: pd.DatetimeIndex) -> pd.DataFrame:
     """
     Generate a sample time series DataFrame for testing.
-    
+
     Includes:
     - Date index
     - Value column with realistic properties
     - Trend, seasonality, noise components
     """
     n = len(date_range_monthly)
-    
+
     # Generate realistic time series components
     trend = pd.Series(range(n)) * 100 + 50000  # Linear trend
-    seasonal = pd.Series([
-        100 * (i % 12 - 6) for i in range(n)  # Seasonal component
-    ])
+    seasonal = pd.Series([100 * (i % 12 - 6) for i in range(n)])  # Seasonal component
     noise = pd.Series(np.random.normal(0, 500, n))  # Random noise
-    
-    df = pd.DataFrame({
-        "date": date_range_monthly,
-        "value": trend + seasonal + noise,
-        "series_id": "TEST_SERIES_01",
-    })
+
+    df = pd.DataFrame(
+        {
+            "date": date_range_monthly,
+            "value": trend + seasonal + noise,
+            "series_id": "TEST_SERIES_01",
+        }
+    )
     df.set_index("date", inplace=True)
-    
+
     return df
 
 
 @pytest.fixture
 def sample_claims_data(date_range_weekly: pd.DatetimeIndex) -> pd.DataFrame:
     """Generate sample unemployment claims data."""
-    return pd.DataFrame({
-        "date": date_range_weekly,
-        "state": "US",
-        "initial_claims": np.random.randint(200000, 400000, len(date_range_weekly)),
-        "continued_claims": np.random.randint(1500000, 2500000, len(date_range_weekly)),
-    })
+    return pd.DataFrame(
+        {
+            "date": date_range_weekly,
+            "state": "US",
+            "initial_claims": np.random.randint(200000, 400000, len(date_range_weekly)),
+            "continued_claims": np.random.randint(1500000, 2500000, len(date_range_weekly)),
+        }
+    )
 
 
 @pytest.fixture
 def sample_ces_data(date_range_monthly: pd.DatetimeIndex) -> pd.DataFrame:
     """Generate sample CES (employment) data."""
     base_value = 150000
-    return pd.DataFrame({
-        "date": date_range_monthly,
-        "series_id": "CES0000000001",
-        "value": base_value + np.random.randint(-50, 50, len(date_range_monthly)),
-        "preliminary": False,
-    })
+    return pd.DataFrame(
+        {
+            "date": date_range_monthly,
+            "series_id": "CES0000000001",
+            "value": base_value + np.random.randint(-50, 50, len(date_range_monthly)),
+            "preliminary": False,
+        }
+    )
 
 
 # =====================
 # HTTP/API FIXTURES
 # =====================
+
 
 @pytest.fixture
 def mock_http_response() -> Mock:
@@ -288,6 +303,7 @@ def mock_requests_session(mock_http_response: Mock) -> Mock:
 # =====================
 # SEASONAL ADJUSTMENT FIXTURES
 # =====================
+
 
 @pytest.fixture
 def sample_x13_spec() -> str:
@@ -331,7 +347,7 @@ def sample_x13_output() -> Dict[str, Any]:
 def golden_m_statistics() -> Dict[str, float]:
     """
     Golden M-statistics baseline for regression testing.
-    
+
     These values are recorded from a known-good seasonal adjustment run
     and used to detect quality degradation.
     """
@@ -354,6 +370,7 @@ def golden_m_statistics() -> Dict[str, float]:
 # VALIDATION FIXTURES
 # =====================
 
+
 @pytest.fixture
 def sample_validation_schema() -> Dict[str, Any]:
     """Generate a sample validation schema."""
@@ -374,30 +391,34 @@ def sample_validation_schema() -> Dict[str, Any]:
 # FEATURE ENGINEERING FIXTURES
 # =====================
 
+
 @pytest.fixture
 def sample_features_df(date_range_monthly: pd.DatetimeIndex) -> pd.DataFrame:
     """Generate sample feature data for model testing."""
     n = len(date_range_monthly)
-    return pd.DataFrame({
-        "date": date_range_monthly,
-        "lag_1": np.random.randn(n),
-        "lag_3": np.random.randn(n),
-        "lag_12": np.random.randn(n),
-        "ma_3": np.random.randn(n),
-        "ma_12": np.random.randn(n),
-        "diff_1": np.random.randn(n),
-    }).set_index("date")
+    return pd.DataFrame(
+        {
+            "date": date_range_monthly,
+            "lag_1": np.random.randn(n),
+            "lag_3": np.random.randn(n),
+            "lag_12": np.random.randn(n),
+            "ma_3": np.random.randn(n),
+            "ma_12": np.random.randn(n),
+            "diff_1": np.random.randn(n),
+        }
+    ).set_index("date")
 
 
 # =====================
 # MOCK ENVIRONMENT FIXTURES
 # =====================
 
+
 @pytest.fixture
 def mock_env_vars(monkeypatch) -> Dict[str, str]:
     """
     Set up mock environment variables for testing.
-    
+
     Returns the dict of env vars set, allowing tests to verify them.
     """
     env_vars = {
@@ -415,16 +436,17 @@ def mock_env_vars(monkeypatch) -> Dict[str, str]:
         "ACTIVE_SUBNET": "test_subnet",
         "BLS_API_KEY": "test_bls_key",
     }
-    
+
     for key, value in env_vars.items():
         monkeypatch.setenv(key, value)
-    
+
     return env_vars
 
 
 # =====================
 # UTILITIES
 # =====================
+
 
 def assert_dataframe_equal(
     df1: pd.DataFrame,
@@ -435,7 +457,7 @@ def assert_dataframe_equal(
 ) -> None:
     """
     Assert that two DataFrames are equal with better error messages.
-    
+
     Args:
         df1: First DataFrame
         df2: Second DataFrame
@@ -480,4 +502,3 @@ __all__ = [
     "assert_dataframe_equal",
     "assert_series_equal",
 ]
-

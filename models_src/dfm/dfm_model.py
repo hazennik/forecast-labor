@@ -76,9 +76,7 @@ class DynamicFactorModel(BaseForecaster):
             implementation=self.IMPLEMENTATION,
         )
 
-    def fit(
-        self, X: pd.DataFrame, y: pd.Series, vintage_date: str
-    ) -> "DynamicFactorModel":
+    def fit(self, X: pd.DataFrame, y: pd.Series, vintage_date: str) -> "DynamicFactorModel":
         """Fit the statsmodels DynamicFactor model and target regression."""
         self._validate_fit_inputs(X, y, vintage_date)
 
@@ -120,9 +118,7 @@ class DynamicFactorModel(BaseForecaster):
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """Generate predictions for a feature matrix with training-time columns."""
         if not self.is_fitted:
-            raise ValueError(
-                "Model must be fitted before prediction. Call fit() first."
-            )
+            raise ValueError("Model must be fitted before prediction. Call fit() first.")
 
         if list(X.columns) != self.feature_names_:
             raise ValueError(
@@ -239,22 +235,16 @@ class DynamicFactorModel(BaseForecaster):
         logger.info("dfm_model_loaded", path=str(path), model_id=model.model_id)
         return model
 
-    def _validate_fit_inputs(
-        self, X: pd.DataFrame, y: pd.Series, vintage_date: str
-    ) -> None:
+    def _validate_fit_inputs(self, X: pd.DataFrame, y: pd.Series, vintage_date: str) -> None:
         """Validate fit inputs before estimation."""
         if len(X) != len(y):
-            raise ValueError(
-                f"X and y must have same length. Got X: {len(X)}, y: {len(y)}"
-            )
+            raise ValueError(f"X and y must have same length. Got X: {len(X)}, y: {len(y)}")
         if len(X) < 5:
             raise ValueError("DynamicFactorModel requires at least 5 observations")
         if X.empty or X.shape[1] == 0:
             raise ValueError("X must contain at least one feature column")
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", vintage_date):
-            raise ValueError(
-                f"vintage_date must be in YYYY-MM-DD format, got '{vintage_date}'"
-            )
+            raise ValueError(f"vintage_date must be in YYYY-MM-DD format, got '{vintage_date}'")
 
     def _preprocess_features(self, X: pd.DataFrame, fit: bool) -> np.ndarray:
         """Clean, standardize, and winsorize feature data."""
@@ -304,9 +294,7 @@ class DynamicFactorModel(BaseForecaster):
             if self.y_std_ == 0.0 or not np.isfinite(self.y_std_):
                 self.y_std_ = 1.0
 
-        return ((target.to_numpy(dtype=float) - self.y_mean_) / self.y_std_).astype(
-            float
-        )
+        return ((target.to_numpy(dtype=float) - self.y_mean_) / self.y_std_).astype(float)
 
     def _fit_dynamic_factor(self, X_scaled: np.ndarray) -> None:
         """Fit statsmodels DynamicFactor and extract serializable artifacts."""
@@ -331,9 +319,7 @@ class DynamicFactorModel(BaseForecaster):
         results = model.fit(disp=False, maxiter=self.max_iter, pgtol=self.tol)
 
         raw_factors = np.asarray(results.factors.filtered, dtype=float).T
-        raw_loadings = self._extract_loadings(
-            results, n_features, self.internal_n_factors_
-        )
+        raw_loadings = self._extract_loadings(results, n_features, self.internal_n_factors_)
         raw_transition = self._extract_transition(results, self.internal_n_factors_)
 
         self.factors_ = self._pad_columns(raw_factors, n_samples)
@@ -375,18 +361,14 @@ class DynamicFactorModel(BaseForecaster):
             return 1
         return max(1, min(self.n_factors, n_features - 1))
 
-    def _extract_loadings(
-        self, results: Any, n_features: int, n_factors: int
-    ) -> np.ndarray:
+    def _extract_loadings(self, results: Any, n_features: int, n_factors: int) -> np.ndarray:
         """Extract the observation/loading matrix from statsmodels results."""
         try:
             design = np.asarray(results.model.ssm["design"], dtype=float)
             if design.ndim == 3:
                 design = design[:, :, 0]
             loadings = design[:, :n_factors]
-            if loadings.shape == (n_features, n_factors) and np.any(
-                np.abs(loadings) > 0
-            ):
+            if loadings.shape == (n_features, n_factors) and np.any(np.abs(loadings) > 0):
                 return loadings
         except Exception as exc:
             logger.debug("dfm_design_extraction_failed", error=str(exc))
@@ -457,9 +439,7 @@ class DynamicFactorModel(BaseForecaster):
         explained = float(np.sum(singular_values[:retained] ** 2) / total)
         return max(0.0, min(1.0, explained))
 
-    def _train_prediction_model(
-        self, y_scaled: np.ndarray, X_scaled: np.ndarray
-    ) -> None:
+    def _train_prediction_model(self, y_scaled: np.ndarray, X_scaled: np.ndarray) -> None:
         """Train a regularized supervised nowcast head on DFM factors."""
         design = self._build_supervised_design(self.factors_, X_scaled)
         alpha = self._select_ridge_alpha(design, y_scaled)
@@ -469,9 +449,7 @@ class DynamicFactorModel(BaseForecaster):
         self.prediction_intercept_ = intercept
         self.selected_ridge_alpha_ = alpha
 
-    def _build_supervised_design(
-        self, factors: np.ndarray, X_scaled: np.ndarray
-    ) -> np.ndarray:
+    def _build_supervised_design(self, factors: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
         """Combine DFM factors with standardized bridge features for nowcasting."""
         if not self.include_direct_features:
             return np.asarray(factors, dtype=float)
@@ -501,9 +479,7 @@ class DynamicFactorModel(BaseForecaster):
                 best_mse = mse
                 best_alpha = float(alpha)
 
-        logger.info(
-            "dfm_ridge_alpha_selected", alpha=best_alpha, validation_mse=best_mse
-        )
+        logger.info("dfm_ridge_alpha_selected", alpha=best_alpha, validation_mse=best_mse)
         return best_alpha
 
     def _fit_ridge_head(

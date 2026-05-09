@@ -4,9 +4,7 @@ Tests for feature registry.
 Tests feature metadata tracking, versioning, database logging, and lineage.
 """
 
-import pandas as pd
 import pytest
-from datetime import datetime
 from unittest.mock import Mock, patch
 
 
@@ -140,18 +138,18 @@ class TestFeatureRegistry:
 
         # Test backward compatibility with deprecated use_database parameter
         # Should use in-memory when no db_config provided
-        with patch('features.registry.DatabaseBackend') as mock_backend_class:
+        with patch("features.registry.DatabaseBackend") as mock_backend_class:
             mock_backend = Mock()
             mock_backend_class.return_value = mock_backend
-            mock_backend.register_feature.return_value = 'mock-uuid'
-            
+            mock_backend.register_feature.return_value = "mock-uuid"
+
             # Using deprecated parameter but with db_config
-            registry = FeatureRegistry(use_database=True, db_config={'host': 'localhost'})
-            
+            registry = FeatureRegistry(use_database=True, db_config={"host": "localhost"})
+
             feature_id = registry.register({"name": "test_feature", "source": "ces"})
-            
+
             # Should register via database backend
-            assert feature_id == 'mock-uuid'
+            assert feature_id == "mock-uuid"
             mock_backend.register_feature.assert_called_once()
 
     def test_feature_lineage_tracking(self):
@@ -293,7 +291,7 @@ class TestFeatureMetadata:
         # Missing required field should raise TypeError (dataclass requirement)
         with pytest.raises(TypeError):
             FeatureMetadata(source="ces")  # Missing name
-        
+
         # Empty name should raise ValueError in __post_init__
         with pytest.raises(ValueError, match="Feature name is required"):
             FeatureMetadata(name="")  # Empty name not allowed
@@ -326,4 +324,3 @@ class TestFeatureMetadata:
         metadata = FeatureMetadata.from_dict(data)
 
         assert metadata.name == "test_feature"
-

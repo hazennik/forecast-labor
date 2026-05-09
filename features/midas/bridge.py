@@ -126,17 +126,12 @@ class MIDASBridge:
         if isinstance(raw_source, pd.Series):
             series = raw_source.copy()
             if not isinstance(series.index, pd.DatetimeIndex):
-                raise ValueError(
-                    f"{config.source_name} series must use a DatetimeIndex"
-                )
+                raise ValueError(f"{config.source_name} series must use a DatetimeIndex")
         elif isinstance(raw_source, pd.DataFrame):
-            missing_columns = {config.date_column, config.value_column} - set(
-                raw_source.columns
-            )
+            missing_columns = {config.date_column, config.value_column} - set(raw_source.columns)
             if missing_columns:
                 raise ValueError(
-                    f"{config.source_name} missing required columns: "
-                    f"{sorted(missing_columns)}"
+                    f"{config.source_name} missing required columns: " f"{sorted(missing_columns)}"
                 )
             frame = raw_source[[config.date_column, config.value_column]].copy()
             frame[config.date_column] = pd.to_datetime(frame[config.date_column])
@@ -156,9 +151,7 @@ class MIDASBridge:
 
         return series
 
-    def _apply_vintage_cutoff(
-        self, series: pd.Series, vintage_date: Optional[str]
-    ) -> pd.Series:
+    def _apply_vintage_cutoff(self, series: pd.Series, vintage_date: Optional[str]) -> pd.Series:
         """Drop observations after the vintage date, when provided."""
         if vintage_date is None:
             return series
@@ -174,9 +167,7 @@ class MIDASBridge:
     ) -> pd.DataFrame:
         """Build model feature columns for one source."""
         if config.frequency == "M":
-            aligned = align_series_to_dates(
-                series, target_dates, method=config.aggregation
-            )
+            aligned = align_series_to_dates(series, target_dates, method=config.aggregation)
             return pd.DataFrame(
                 {f"{config.source_name}_{config.value_column}": aligned},
                 index=target_dates,
@@ -254,9 +245,7 @@ class MIDASBridge:
 
             config = self.source_configs[source_name]
             if not isinstance(source_frame, pd.DataFrame):
-                logger.warning(
-                    "midas_bridge_state_source_not_dataframe", source=source_name
-                )
+                logger.warning("midas_bridge_state_source_not_dataframe", source=source_name)
                 continue
 
             required_columns = {config.date_column, config.value_column}

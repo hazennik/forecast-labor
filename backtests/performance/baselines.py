@@ -91,9 +91,7 @@ def generate_benchmark_dataset(config: BenchmarkConfig) -> Tuple[pd.DataFrame, p
     for feature_idx in range(config.n_features):
         loading = 0.25 + feature_idx / (config.n_features * 4.0)
         features[f"feature_{feature_idx}"] = (
-            loading * common_factor
-            + (1.0 - loading / 2.0) * cycle
-            + noise[:, feature_idx]
+            loading * common_factor + (1.0 - loading / 2.0) * cycle + noise[:, feature_idx]
         )
 
     X = pd.DataFrame(features, index=dates)
@@ -148,7 +146,9 @@ def measure_real_model_baselines(
             learning_rate=0.05,
             random_state=benchmark_config.random_state,
         ),
-        "revision": lambda: RevisionForecaster(alpha=1.0, random_state=benchmark_config.random_state),
+        "revision": lambda: RevisionForecaster(
+            alpha=1.0, random_state=benchmark_config.random_state
+        ),
     }
 
     measured: Dict[str, Any] = {}
@@ -266,7 +266,9 @@ def _build_full_pipeline_baseline(real_models: Mapping[str, Mapping[str, Any]]) 
     """Aggregate candidate model measurements into a full-pipeline baseline."""
     candidate_names = ("midas", "xgboost", "lightgbm", "revision")
     training_time = sum(float(real_models[name]["training_time_sec"]) for name in candidate_names)
-    prediction_time = sum(float(real_models[name]["prediction_time_sec"]) for name in candidate_names)
+    prediction_time = sum(
+        float(real_models[name]["prediction_time_sec"]) for name in candidate_names
+    )
     memory_mb = sum(float(real_models[name]["memory_mb"]) for name in candidate_names)
     n_test_samples = int(real_models["midas"]["n_test_samples"])
     throughput = n_test_samples / prediction_time if prediction_time > 0 else float("inf")

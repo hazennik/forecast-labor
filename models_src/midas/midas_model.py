@@ -106,16 +106,12 @@ class MIDASRegression(BaseForecaster):
             raise ValueError(f"n_lags must be positive, got {self.n_lags}")
 
         if self.almon_degree < 0:
-            raise ValueError(
-                f"almon_degree must be non-negative, got {self.almon_degree}"
-            )
+            raise ValueError(f"almon_degree must be non-negative, got {self.almon_degree}")
 
         if self.horizon <= 0:
             raise ValueError(f"horizon must be positive, got {self.horizon}")
 
-    def fit(
-        self, X: pd.DataFrame, y: pd.Series, vintage_date: str
-    ) -> "MIDASRegression":
+    def fit(self, X: pd.DataFrame, y: pd.Series, vintage_date: str) -> "MIDASRegression":
         """
         Train MIDAS regression model via NLS estimation.
 
@@ -141,9 +137,7 @@ class MIDASRegression(BaseForecaster):
             raise ValueError("X and y cannot be empty")
 
         if len(X) != len(y):
-            raise ValueError(
-                f"X and y must have same length. Got X={len(X)}, y={len(y)}"
-            )
+            raise ValueError(f"X and y must have same length. Got X={len(X)}, y={len(y)}")
 
         # Store metadata
         self.vintage_date_ = vintage_date
@@ -175,9 +169,7 @@ class MIDASRegression(BaseForecaster):
             extra={
                 "model_id": self.model_id,
                 "training_loss": self.training_loss_,
-                "n_coefficients": len(self.coefficients_)
-                if self.coefficients_ is not None
-                else 0,
+                "n_coefficients": len(self.coefficients_) if self.coefficients_ is not None else 0,
                 "intercept": self.intercept_,
             },
         )
@@ -206,11 +198,7 @@ class MIDASRegression(BaseForecaster):
 
         # Initial parameter guess
         # [intercept (if included), beta_1, ..., beta_p, theta_1, ..., theta_k]
-        n_params = (
-            (1 if self.include_intercept else 0)
-            + n_predictors
-            + (self.almon_degree + 1)
-        )
+        n_params = (1 if self.include_intercept else 0) + n_predictors + (self.almon_degree + 1)
 
         initial_params = np.zeros(n_params)
         if self.include_intercept:
@@ -347,16 +335,12 @@ class MIDASRegression(BaseForecaster):
         """
         # Check if fitted
         if self.coefficients_ is None or self.almon_weights_ is None:
-            raise ValueError(
-                "Model must be fitted before prediction. Call fit() first."
-            )
+            raise ValueError("Model must be fitted before prediction. Call fit() first.")
 
         # Validate features
         if X.shape[1] != self.n_features_:
             expected = self.n_features_
-            raise ValueError(
-                f"Feature mismatch. Expected {expected} features, got {X.shape[1]}"
-            )
+            raise ValueError(f"Feature mismatch. Expected {expected} features, got {X.shape[1]}")
 
         logger.debug(
             "midas_predict_started",

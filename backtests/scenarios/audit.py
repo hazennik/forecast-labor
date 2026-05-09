@@ -299,8 +299,12 @@ def _evaluate_one_scenario(
     shocked_features = dict(baseline_features)
     for shock in scenario.shocks:
         if shock.feature_name not in shocked_features:
-            raise ValueError(f"scenario {scenario.name} references missing feature {shock.feature_name}")
-        shocked_features[shock.feature_name] = _apply_shock(shocked_features[shock.feature_name], shock)
+            raise ValueError(
+                f"scenario {scenario.name} references missing feature {shock.feature_name}"
+            )
+        shocked_features[shock.feature_name] = _apply_shock(
+            shocked_features[shock.feature_name], shock
+        )
 
     forecast_delta = 0.0
     missing_sensitivities = []

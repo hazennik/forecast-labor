@@ -27,4 +27,3 @@ __all__ = [
     "compute_employment_weights",
     "compute_population_weights",
 ]
-

@@ -158,7 +158,9 @@ class MixedFrequencyPipeline:
             vintage_date.isoformat(),
         )
         features = features.reindex(columns=self.feature_names_)
-        predictions = self._predict_components(raw_sources, features, pd.DatetimeIndex(prediction_dates))
+        predictions = self._predict_components(
+            raw_sources, features, pd.DatetimeIndex(prediction_dates)
+        )
         validate_predictions_dict(predictions, self.ensemble_config.model_names)
         point_forecast = weighted_average(predictions, self.ensemble_weights_)
         intervals = self._build_prediction_intervals(features, point_forecast)

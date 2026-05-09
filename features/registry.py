@@ -26,7 +26,7 @@ Storage Options:
 
 from typing import Dict, List, Optional, Any, Literal
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, date
+from datetime import datetime
 import uuid
 import json
 import os
@@ -36,10 +36,13 @@ try:
     import psycopg2
     from psycopg2 import sql
     from psycopg2.extras import RealDictCursor
+
     PSYCOPG2_AVAILABLE = True
 except ImportError:
     PSYCOPG2_AVAILABLE = False
-    logger.warning("psycopg2 not available. Database backend will not work. Install with: pip install psycopg2-binary")
+    logger.warning(
+        "psycopg2 not available. Database backend will not work. Install with: pip install psycopg2-binary"
+    )
 
 
 @dataclass
@@ -104,14 +107,14 @@ class FeatureMetadata:
 class DatabaseBackend:
     """
     PostgreSQL backend for feature registry persistence.
-    
+
     This class handles all database operations for the feature registry,
     including CRUD operations, lineage tracking, and versioning.
-    
+
     Attributes:
         _conn: PostgreSQL connection
         _cursor: Database cursor for queries
-    
+
     Examples:
         >>> backend = DatabaseBackend(
         ...     host="localhost",
@@ -124,7 +127,7 @@ class DatabaseBackend:
         ...     "source": "bls_ces"
         ... })
     """
-    
+
     def __init__(
         self,
         host: str = "localhost",
@@ -135,14 +138,14 @@ class DatabaseBackend:
     ):
         """
         Initialize database backend with connection parameters.
-        
+
         Args:
             host: Database host
             port: Database port
             database: Database name
             user: Database user
             password: Database password
-        
+
         Raises:
             ImportError: If psycopg2 is not installed
             Exception: If database connection fails
@@ -152,7 +155,7 @@ class DatabaseBackend:
                 "psycopg2 is required for database backend. "
                 "Install with: pip install psycopg2-binary"
             )
-        
+
         try:
             self._conn = psycopg2.connect(
                 host=host,
@@ -163,14 +166,14 @@ class DatabaseBackend:
             )
             self._conn.autocommit = False  # Use transactions
             self._search_cache: Dict[tuple, List[Dict[str, Any]]] = {}
-            
+
             logger.info(
                 "database_backend_connected",
                 host=host,
                 database=database,
                 user=user,
             )
-        
+
         except Exception as e:
             logger.error(
                 "database_connection_failed",
@@ -185,10 +188,10 @@ class DatabaseBackend:
     def conn(self):
         """Backward-compatible access to the database connection."""
         return self._conn
-    
+
     def close(self) -> None:
         """Close database connection."""
-        if hasattr(self, '_conn') and self._conn:
+        if hasattr(self, "_conn") and self._conn:
             self._conn.close()
             logger.info("database_connection_closed")
 
@@ -211,19 +214,19 @@ class DatabaseBackend:
     ) -> Dict[str, Any]:
         """Create a JSON-like feature row for cache and API responses."""
         row = dict(feature)
-        row['feature_id'] = str(feature_id)
-        if row.get('vintage_date') and hasattr(row['vintage_date'], 'isoformat'):
-            row['vintage_date'] = row['vintage_date'].isoformat()
-        if not row.get('display_name'):
-            row['display_name'] = row.get('name')
-        if 'current_version' not in row:
-            row['current_version'] = 1
-        if 'data_type' not in row:
-            row['data_type'] = row.get('data_type', 'float64')
-        if 'status' not in row:
-            row['status'] = row.get('status', 'active')
-        if 'is_synthetic' not in row:
-            row['is_synthetic'] = row.get('is_synthetic', False)
+        row["feature_id"] = str(feature_id)
+        if row.get("vintage_date") and hasattr(row["vintage_date"], "isoformat"):
+            row["vintage_date"] = row["vintage_date"].isoformat()
+        if not row.get("display_name"):
+            row["display_name"] = row.get("name")
+        if "current_version" not in row:
+            row["current_version"] = 1
+        if "data_type" not in row:
+            row["data_type"] = row.get("data_type", "float64")
+        if "status" not in row:
+            row["status"] = row.get("status", "active")
+        if "is_synthetic" not in row:
+            row["is_synthetic"] = row.get("is_synthetic", False)
         return row
 
     def _update_search_cache(self, feature: Dict[str, Any]) -> None:
@@ -235,24 +238,25 @@ class DatabaseBackend:
             cached_features[:] = [
                 cached_feature
                 for cached_feature in cached_features
-                if cached_feature.get('feature_id') != feature.get('feature_id')
+                if cached_feature.get("feature_id") != feature.get("feature_id")
             ]
             cached_features.append(dict(feature))
-    
+
     def register_feature(self, feature_data: Dict[str, Any]) -> str:
         """
         Register a new feature to the database.
-        
+
         Args:
             feature_data: Feature metadata dictionary
-        
+
         Returns:
             Feature ID (UUID as string)
         """
         with self._conn.cursor() as cur:
             try:
                 # Insert into feature_metadata
-                insert_query = sql.SQL("""
+                insert_query = sql.SQL(
+                    """
                     INSERT INTO features.feature_metadata (
                         name, display_name, description, source, frequency,
                         vintage_date, data_type, unit, seasonal_adjustment,
@@ -273,153 +277,192 @@ class DatabaseBackend:
                         tags = EXCLUDED.tags,
                         updated_at = CURRENT_TIMESTAMP
                     RETURNING feature_id
-                """)
-                
-                cur.execute(insert_query, (
-                    feature_data.get('name'),
-                    feature_data.get('display_name', feature_data.get('name')),
-                    feature_data.get('description'),
-                    feature_data.get('source'),
-                    feature_data.get('frequency'),
-                    feature_data.get('vintage_date'),
-                    feature_data.get('data_type', 'float64'),
-                    feature_data.get('unit'),
-                    feature_data.get('seasonal_adjustment'),
-                    1,  # current_version starts at 1
-                    feature_data.get('status', 'active'),
-                    feature_data.get('is_synthetic', False),
-                    json.dumps(feature_data.get('metadata', {})),
-                ))
-                
+                """
+                )
+
+                cur.execute(
+                    insert_query,
+                    (
+                        feature_data.get("name"),
+                        feature_data.get("display_name", feature_data.get("name")),
+                        feature_data.get("description"),
+                        feature_data.get("source"),
+                        feature_data.get("frequency"),
+                        feature_data.get("vintage_date"),
+                        feature_data.get("data_type", "float64"),
+                        feature_data.get("unit"),
+                        feature_data.get("seasonal_adjustment"),
+                        1,  # current_version starts at 1
+                        feature_data.get("status", "active"),
+                        feature_data.get("is_synthetic", False),
+                        json.dumps(feature_data.get("metadata", {})),
+                    ),
+                )
+
                 feature_id = cur.fetchone()[0]
-                
+
                 # Insert lineage if depends_on is provided
-                depends_on = feature_data.get('depends_on') or feature_data.get('parent_features', [])
+                depends_on = feature_data.get("depends_on") or feature_data.get(
+                    "parent_features", []
+                )
                 if depends_on:
-                    transformations = feature_data.get('transformations') or []
+                    transformations = feature_data.get("transformations") or []
                     default_transform = {
-                        'type': feature_data.get('transform', 'custom'),
-                        'params': feature_data.get('transform_params', {}),
+                        "type": feature_data.get("transform", "custom"),
+                        "params": feature_data.get("transform_params", {}),
                     }
                     allowed_transform_types = {
-                        'diff', 'log', 'log_diff', 'pct_change', 'midas_lag',
-                        'seasonal_adj', 'detrend', 'standardize', 'normalize',
-                        'rolling_mean', 'rolling_std', 'ewm', 'aggregation',
-                        'custom',
+                        "diff",
+                        "log",
+                        "log_diff",
+                        "pct_change",
+                        "midas_lag",
+                        "seasonal_adj",
+                        "detrend",
+                        "standardize",
+                        "normalize",
+                        "rolling_mean",
+                        "rolling_std",
+                        "ewm",
+                        "aggregation",
+                        "custom",
                     }
                     for index, parent_id in enumerate(depends_on):
-                        transform = transformations[index] if index < len(transformations) else default_transform
-                        transform_type = transform.get('type', default_transform['type'])
-                        if transform_type == 'lag':
-                            transform_type = 'midas_lag'
+                        transform = (
+                            transformations[index]
+                            if index < len(transformations)
+                            else default_transform
+                        )
+                        transform_type = transform.get("type", default_transform["type"])
+                        if transform_type == "lag":
+                            transform_type = "midas_lag"
                         elif transform_type not in allowed_transform_types:
-                            transform_type = 'custom'
-                        lineage_query = sql.SQL("""
+                            transform_type = "custom"
+                        lineage_query = sql.SQL(
+                            """
                             INSERT INTO features.feature_transforms (
                                 feature_id, transform_type, transform_params, parent_feature_id
                             ) VALUES (%s, %s, %s, %s)
-                        """)
-                        cur.execute(lineage_query, (
-                            feature_id,
-                            transform_type,
-                            json.dumps(transform.get('params', default_transform['params'])),
-                            parent_id,
-                        ))
-                
+                        """
+                        )
+                        cur.execute(
+                            lineage_query,
+                            (
+                                feature_id,
+                                transform_type,
+                                json.dumps(transform.get("params", default_transform["params"])),
+                                parent_id,
+                            ),
+                        )
+
                 # Create initial version
-                version_query = sql.SQL("""
+                version_query = sql.SQL(
+                    """
                     INSERT INTO features.feature_versions (
                         feature_id, version, checksum, change_description
                     ) VALUES (%s, %s, %s, %s)
                     ON CONFLICT (feature_id, version) DO NOTHING
-                """)
-                cur.execute(version_query, (
-                    feature_id,
-                    1,
-                    feature_data.get('checksum', ''),
-                    'Initial version',
-                ))
-                
+                """
+                )
+                cur.execute(
+                    version_query,
+                    (
+                        feature_id,
+                        1,
+                        feature_data.get("checksum", ""),
+                        "Initial version",
+                    ),
+                )
+
                 self._conn.commit()
                 cached_feature = self._normalize_feature_row(feature_data, feature_id)
                 self._update_search_cache(cached_feature)
-                
+
                 logger.info(
                     "feature_registered_to_database",
                     feature_id=feature_id,
-                    feature_name=feature_data.get('name'),
+                    feature_name=feature_data.get("name"),
                 )
-                
+
                 return str(feature_id)
-            
+
             except Exception as e:
                 self._conn.rollback()
                 logger.error(
                     "feature_registration_failed",
-                    feature_name=feature_data.get('name'),
+                    feature_name=feature_data.get("name"),
                     error=str(e),
                     exc_info=True,
                 )
                 raise
-    
+
     def get_feature(self, feature_id: str) -> Dict[str, Any]:
         """
         Get feature metadata by ID.
-        
+
         Args:
             feature_id: Feature UUID
-        
+
         Returns:
             Feature metadata dictionary
-        
+
         Raises:
             KeyError: If feature not found
         """
         with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
-            query = sql.SQL("""
+            query = sql.SQL(
+                """
                 SELECT * FROM features.feature_metadata
                 WHERE feature_id = %s
-            """)
-            
+            """
+            )
+
             cur.execute(query, (feature_id,))
             row = cur.fetchone()
-            
+
             if not row:
                 raise KeyError(f"Feature ID not found: {feature_id}")
-            
+
             # Convert to regular dict and handle types
             feature = dict(row)
-            feature['feature_id'] = str(feature['feature_id'])
-            if feature.get('vintage_date'):
-                feature['vintage_date'] = feature['vintage_date'].isoformat()
-            if feature.get('tags'):
-                feature['tags'] = json.loads(feature['tags']) if isinstance(feature['tags'], str) else feature['tags']
+            feature["feature_id"] = str(feature["feature_id"])
+            if feature.get("vintage_date"):
+                feature["vintage_date"] = feature["vintage_date"].isoformat()
+            if feature.get("tags"):
+                feature["tags"] = (
+                    json.loads(feature["tags"])
+                    if isinstance(feature["tags"], str)
+                    else feature["tags"]
+                )
 
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT parent_feature_id, transform_type, transform_params
                 FROM features.feature_transforms
                 WHERE feature_id = %s
                 ORDER BY applied_at ASC
-            """, (feature_id,))
+            """,
+                (feature_id,),
+            )
             transform_rows = cur.fetchall()
             if transform_rows:
-                feature['parent_features'] = [
-                    str(row['parent_feature_id']) for row in transform_rows
+                feature["parent_features"] = [
+                    str(row["parent_feature_id"]) for row in transform_rows
                 ]
-                feature['transformations'] = [
+                feature["transformations"] = [
                     {
-                        'type': row['transform_type'],
-                        'params': (
-                            json.loads(row['transform_params'])
-                            if isinstance(row['transform_params'], str)
-                            else row['transform_params']
+                        "type": row["transform_type"],
+                        "params": (
+                            json.loads(row["transform_params"])
+                            if isinstance(row["transform_params"], str)
+                            else row["transform_params"]
                         ),
                     }
                     for row in transform_rows
                 ]
-            
+
             return feature
-    
+
     def list_features(
         self,
         limit: Optional[int] = None,
@@ -428,12 +471,12 @@ class DatabaseBackend:
     ) -> List[Dict[str, Any]]:
         """
         List features with optional filtering and pagination.
-        
+
         Args:
             limit: Maximum number of results
             offset: Number of results to skip
             **filters: Field filters (e.g., source='bls_ces', status='active')
-        
+
         Returns:
             List of feature dictionaries
         """
@@ -445,40 +488,44 @@ class DatabaseBackend:
             # Build query with filters
             query_parts = ["SELECT * FROM features.feature_metadata"]
             params = []
-            
+
             if filters:
                 where_clauses = []
                 for key, value in filters.items():
                     where_clauses.append(f"{key} = %s")
                     params.append(value)
                 query_parts.append("WHERE " + " AND ".join(where_clauses))
-            
+
             if not filters:
                 query_parts.append("ORDER BY created_at DESC")
-            
+
             if limit:
                 query_parts.append(f"LIMIT {limit}")
             if offset:
                 query_parts.append(f"OFFSET {offset}")
-            
+
             query = " ".join(query_parts)
             cur.execute(query, params)
-            
+
             rows = cur.fetchall()
             features = []
-            
+
             for row in rows:
                 feature = dict(row)
-                feature['feature_id'] = str(feature['feature_id'])
-                if feature.get('vintage_date'):
-                    feature['vintage_date'] = feature['vintage_date'].isoformat()
-                if feature.get('tags'):
-                    feature['tags'] = json.loads(feature['tags']) if isinstance(feature['tags'], str) else feature['tags']
+                feature["feature_id"] = str(feature["feature_id"])
+                if feature.get("vintage_date"):
+                    feature["vintage_date"] = feature["vintage_date"].isoformat()
+                if feature.get("tags"):
+                    feature["tags"] = (
+                        json.loads(feature["tags"])
+                        if isinstance(feature["tags"], str)
+                        else feature["tags"]
+                    )
                 features.append(feature)
 
             if filters and limit is None and offset is None:
                 self._search_cache[cache_key] = [dict(feature) for feature in features]
-            
+
             return features
 
     def search_features(self, **filters) -> List[Dict[str, Any]]:
@@ -489,48 +536,48 @@ class DatabaseBackend:
         use the database backend directly.
         """
         return self.list_features(**filters)
-    
+
     def update_feature(self, feature_id: str, updates: Dict[str, Any]) -> None:
         """
         Update feature metadata.
-        
+
         Args:
             feature_id: Feature UUID
             updates: Dictionary of fields to update
         """
         if not updates:
             return
-        
+
         with self._conn.cursor() as cur:
             try:
                 # Build UPDATE query
                 set_clauses = []
                 params = []
-                
+
                 for key, value in updates.items():
                     set_clauses.append(f"{key} = %s")
-                    if key == 'tags' and isinstance(value, dict):
+                    if key == "tags" and isinstance(value, dict):
                         params.append(json.dumps(value))
                     else:
                         params.append(value)
-                
+
                 # Always update updated_at
                 set_clauses.append("updated_at = NOW()")
                 params.append(feature_id)
-                
+
                 query = sql.SQL(
                     f"UPDATE features.feature_metadata SET {', '.join(set_clauses)} WHERE feature_id = %s"
                 )
-                
+
                 cur.execute(query, params)
                 self._conn.commit()
-                
+
                 logger.info(
                     "feature_updated_in_database",
                     feature_id=feature_id,
                     updated_fields=list(updates.keys()),
                 )
-            
+
             except Exception as e:
                 self._conn.rollback()
                 logger.error(
@@ -540,27 +587,29 @@ class DatabaseBackend:
                     exc_info=True,
                 )
                 raise
-    
+
     def delete_feature(self, feature_id: str) -> None:
         """
         Delete a feature from the database.
-        
+
         Args:
             feature_id: Feature UUID
         """
         with self._conn.cursor() as cur:
             try:
-                query = sql.SQL("""
+                query = sql.SQL(
+                    """
                     DELETE FROM features.feature_metadata
                     WHERE feature_id = %s
-                """)
-                
+                """
+                )
+
                 cur.execute(query, (feature_id,))
                 self._conn.commit()
                 self._search_cache.clear()
-                
+
                 logger.info("feature_deleted_from_database", feature_id=feature_id)
-            
+
             except Exception as e:
                 self._conn.rollback()
                 logger.error(
@@ -570,61 +619,65 @@ class DatabaseBackend:
                     exc_info=True,
                 )
                 raise
-    
+
     def get_lineage(self, feature_id: str) -> List[Dict[str, Any]]:
         """
         Get feature lineage using recursive query.
-        
+
         Args:
             feature_id: Feature UUID
-        
+
         Returns:
             List of lineage dictionaries with depth
         """
         with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Use the database function
-            query = sql.SQL("""
+            query = sql.SQL(
+                """
                 SELECT * FROM features.get_feature_lineage(%s)
-            """)
-            
+            """
+            )
+
             cur.execute(query, (feature_id,))
             rows = cur.fetchall()
-            
+
             lineage = []
             for row in rows:
                 item = dict(row)
-                item['feature_id'] = str(item['feature_id'])
+                item["feature_id"] = str(item["feature_id"])
                 lineage.append(item)
-            
+
             return lineage
-    
+
     def get_descendants(self, feature_id: str) -> List[Dict[str, Any]]:
         """
         Get features derived from this feature.
-        
+
         Args:
             feature_id: Feature UUID
-        
+
         Returns:
             List of descendant feature dictionaries
         """
         with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Use the database function
-            query = sql.SQL("""
+            query = sql.SQL(
+                """
                 SELECT * FROM features.get_feature_descendants(%s)
-            """)
-            
+            """
+            )
+
             cur.execute(query, (feature_id,))
             rows = cur.fetchall()
-            
+
             descendants = []
             for row in rows:
                 item = dict(row)
-                item['feature_id'] = str(item['feature_id'])
+                item["feature_id"] = str(item["feature_id"])
                 descendants.append(item)
-            
+
             return descendants
-    
+
     def create_version(
         self,
         feature_id: str,
@@ -634,63 +687,74 @@ class DatabaseBackend:
     ) -> str:
         """
         Create a new version of a feature.
-        
+
         Args:
             feature_id: Feature UUID
             checksum: SHA256 checksum of feature data
             row_count: Number of rows in feature data
             change_description: Description of changes
-        
+
         Returns:
             Version ID
         """
         with self._conn.cursor() as cur:
             try:
                 # Get current max version
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT COALESCE(MAX(version), 0) + 1
                     FROM features.feature_versions
                     WHERE feature_id = %s
-                """, (feature_id,))
-                
+                """,
+                    (feature_id,),
+                )
+
                 new_version = cur.fetchone()[0]
-                
+
                 # Insert new version
-                query = sql.SQL("""
+                query = sql.SQL(
+                    """
                     INSERT INTO features.feature_versions (
                         feature_id, version, checksum, row_count, change_description
                     ) VALUES (%s, %s, %s, %s, %s)
                     RETURNING version_id
-                """)
-                
-                cur.execute(query, (
-                    feature_id,
-                    new_version,
-                    checksum,
-                    row_count,
-                    change_description,
-                ))
-                
+                """
+                )
+
+                cur.execute(
+                    query,
+                    (
+                        feature_id,
+                        new_version,
+                        checksum,
+                        row_count,
+                        change_description,
+                    ),
+                )
+
                 version_id = cur.fetchone()[0]
-                
+
                 # Update current_version in metadata
-                cur.execute("""
+                cur.execute(
+                    """
                     UPDATE features.feature_metadata
                     SET current_version = %s
                     WHERE feature_id = %s
-                """, (new_version, feature_id))
-                
+                """,
+                    (new_version, feature_id),
+                )
+
                 self._conn.commit()
-                
+
                 logger.info(
                     "feature_version_created",
                     feature_id=feature_id,
                     version=new_version,
                     version_id=version_id,
                 )
-                
+
                 return str(version_id)
-            
+
             except Exception as e:
                 self._conn.rollback()
                 logger.error(
@@ -700,45 +764,47 @@ class DatabaseBackend:
                     exc_info=True,
                 )
                 raise
-    
+
     def get_versions(self, feature_id: str) -> List[Dict[str, Any]]:
         """
         Get all versions of a feature.
-        
+
         Args:
             feature_id: Feature UUID
-        
+
         Returns:
             List of version dictionaries
         """
         with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
-            query = sql.SQL("""
+            query = sql.SQL(
+                """
                 SELECT * FROM features.feature_versions
                 WHERE feature_id = %s
                 ORDER BY version DESC
-            """)
-            
+            """
+            )
+
             cur.execute(query, (feature_id,))
             rows = cur.fetchall()
-            
+
             versions = []
             for row in rows:
                 version = dict(row)
-                version['version_id'] = str(version['version_id'])
-                version['feature_id'] = str(version['feature_id'])
+                version["version_id"] = str(version["version_id"])
+                version["feature_id"] = str(version["feature_id"])
                 versions.append(version)
-            
+
             return versions
 
 
 class FeatureRegistry:
     """
     Registry for tracking feature metadata with pluggable backend.
-    
+
     Supports two backends:
     - 'memory': In-memory storage (default, for testing/dev)
     - 'database': PostgreSQL persistence (for production)
-    
+
     Provides:
     - Feature registration and retrieval
     - Version management
@@ -749,12 +815,12 @@ class FeatureRegistry:
     Backend Storage:
     - backend='memory': In-memory dictionary (default)
     - backend='database': PostgreSQL database
-    
+
     Examples:
         # In-memory (default, for testing)
         >>> registry = FeatureRegistry()
         >>> feature_id = registry.register({'name': 'test_feature'})
-        
+
         # Database (for production)
         >>> registry = FeatureRegistry(
         ...     backend='database',
@@ -765,7 +831,7 @@ class FeatureRegistry:
 
     def __init__(
         self,
-        backend: Literal['memory', 'database'] = 'memory',
+        backend: Literal["memory", "database"] = "memory",
         db_config: Optional[Dict[str, Any]] = None,
         use_database: bool = False,  # Deprecated, for backward compatibility
     ):
@@ -776,34 +842,30 @@ class FeatureRegistry:
             backend: Storage backend ('memory' or 'database')
             db_config: Database configuration (required if backend='database')
             use_database: DEPRECATED. Use backend='database' instead.
-        
+
         Raises:
             ValueError: If backend='database' but db_config not provided
             ImportError: If backend='database' but psycopg2 not installed
         """
         # Handle deprecated use_database parameter
-        if use_database and backend == 'memory':
-            backend = 'database'
-            logger.warning(
-                "use_database parameter is deprecated. Use backend='database' instead."
-            )
-        
+        if use_database and backend == "memory":
+            backend = "database"
+            logger.warning("use_database parameter is deprecated. Use backend='database' instead.")
+
         self.backend = backend
         self._features: Dict[str, FeatureMetadata] = {}
         self._db_backend: Optional[DatabaseBackend] = None
-        
+
         # Initialize appropriate backend
-        if backend == 'database':
+        if backend == "database":
             if not db_config:
-                raise ValueError(
-                    "db_config is required when backend='database'"
-                )
-            
+                raise ValueError("db_config is required when backend='database'")
+
             self._db_backend = DatabaseBackend(**db_config)
             logger.info(
                 "feature_registry_initialized",
                 backend="database",
-                db_config={k: v for k, v in db_config.items() if k != 'password'},
+                db_config={k: v for k, v in db_config.items() if k != "password"},
             )
         else:
             logger.info("feature_registry_initialized", backend="memory")
@@ -826,7 +888,7 @@ class FeatureRegistry:
             ...     'frequency': 'monthly'
             ... })
         """
-        if self.backend == 'database' and self._db_backend:
+        if self.backend == "database" and self._db_backend:
             # Use database backend
             return self._db_backend.register_feature(feature_data)
         else:
@@ -834,7 +896,7 @@ class FeatureRegistry:
             metadata = FeatureMetadata(**feature_data)
             feature_id = str(uuid.uuid4())
             self._features[feature_id] = metadata
-            
+
             logger.info(
                 "feature_registered",
                 feature_id=feature_id,
@@ -842,7 +904,7 @@ class FeatureRegistry:
                 version=metadata.version,
                 backend="memory",
             )
-            
+
             return feature_id
 
     def get(self, feature_id: str) -> Dict[str, Any]:
@@ -858,7 +920,7 @@ class FeatureRegistry:
         Raises:
             KeyError: If feature ID not found
         """
-        if self.backend == 'database' and self._db_backend:
+        if self.backend == "database" and self._db_backend:
             return self._db_backend.get_feature(feature_id)
         else:
             if feature_id not in self._features:
@@ -873,9 +935,9 @@ class FeatureRegistry:
             List of feature metadata dictionaries
         """
         # Delegate to database backend if available
-        if self.backend == 'database' and self._db_backend:
+        if self.backend == "database" and self._db_backend:
             return self._db_backend.list_features()
-        
+
         # In-memory list all
         return [metadata.to_dict() for metadata in self._features.values()]
 
@@ -894,11 +956,13 @@ class FeatureRegistry:
             >>> daily_features = registry.search(frequency='daily')
         """
         # Delegate to database backend if available
-        if self.backend == 'database' and self._db_backend:
+        if self.backend == "database" and self._db_backend:
             results = self._db_backend.list_features(**filters)
-            logger.info("feature_search", backend="database", filters=filters, result_count=len(results))
+            logger.info(
+                "feature_search", backend="database", filters=filters, result_count=len(results)
+            )
             return results
-        
+
         # In-memory search
         results = []
 
@@ -930,18 +994,23 @@ class FeatureRegistry:
             List of feature versions (sorted by version)
         """
         # Delegate to database backend if available
-        if self.backend == 'database' and self._db_backend:
+        if self.backend == "database" and self._db_backend:
             # Search for all features with this name
             features = self._db_backend.list_features(name=feature_name)
             # Normalize version field: database has 'current_version' (int), in-memory has 'version' (str)
             for feature in features:
-                if 'version' not in feature and 'current_version' in feature:
-                    feature['version'] = f"{feature['current_version']}.0.0"
+                if "version" not in feature and "current_version" in feature:
+                    feature["version"] = f"{feature['current_version']}.0.0"
             # Sort by version
             features.sort(key=lambda x: x.get("version", "1.0.0") if x.get("version") else "1.0.0")
-            logger.info("feature_versions_retrieved", backend="database", feature_name=feature_name, count=len(features))
+            logger.info(
+                "feature_versions_retrieved",
+                backend="database",
+                feature_name=feature_name,
+                count=len(features),
+            )
             return features
-        
+
         # In-memory search
         versions = []
 
@@ -954,7 +1023,12 @@ class FeatureRegistry:
         # Sort by version (simple string sort works for semantic versioning)
         versions.sort(key=lambda x: x["version"])
 
-        logger.info("feature_versions_retrieved", backend="memory", feature_name=feature_name, count=len(versions))
+        logger.info(
+            "feature_versions_retrieved",
+            backend="memory",
+            feature_name=feature_name,
+            count=len(versions),
+        )
 
         return versions
 
@@ -989,12 +1063,12 @@ class FeatureRegistry:
             List of feature IDs this feature depends on
         """
         # Delegate to database backend if available
-        if self.backend == 'database' and self._db_backend:
+        if self.backend == "database" and self._db_backend:
             try:
                 # Database backend returns List[Dict[str, Any]] with full lineage info
                 lineage_dicts = self._db_backend.get_lineage(feature_id)
                 # Extract just the feature IDs
-                lineage_ids = [item['feature_id'] for item in lineage_dicts]
+                lineage_ids = [item["feature_id"] for item in lineage_dicts]
                 logger.info(
                     "feature_lineage_retrieved",
                     backend="database",
@@ -1005,7 +1079,7 @@ class FeatureRegistry:
             except Exception as e:
                 logger.error("feature_lineage_failed", feature_id=feature_id, error=str(e))
                 raise KeyError(f"Feature ID not found: {feature_id}") from e
-        
+
         # In-memory lookup
         if feature_id not in self._features:
             raise KeyError(f"Feature ID not found: {feature_id}")
@@ -1032,7 +1106,7 @@ class FeatureRegistry:
         Raises:
             KeyError: If feature ID not found
         """
-        if self.backend == 'database' and self._db_backend:
+        if self.backend == "database" and self._db_backend:
             self._db_backend.update_feature(feature_id, updates)
         else:
             if feature_id not in self._features:
@@ -1048,7 +1122,9 @@ class FeatureRegistry:
             # Update timestamp
             metadata.updated_at = datetime.now().isoformat()
 
-            logger.info("feature_updated", feature_id=feature_id, updated_fields=list(updates.keys()))
+            logger.info(
+                "feature_updated", feature_id=feature_id, updated_fields=list(updates.keys())
+            )
 
     def delete(self, feature_id: str) -> None:
         """
@@ -1060,7 +1136,7 @@ class FeatureRegistry:
         Raises:
             KeyError: If feature ID not found
         """
-        if self.backend == 'database' and self._db_backend:
+        if self.backend == "database" and self._db_backend:
             self._db_backend.delete_feature(feature_id)
         else:
             if feature_id not in self._features:
@@ -1080,8 +1156,10 @@ class FeatureRegistry:
         Returns:
             List of feature IDs
         """
-        if self.backend == 'database' and self._db_backend:
-            feature_ids = [self._db_backend.register_feature(feature_data) for feature_data in features]
+        if self.backend == "database" and self._db_backend:
+            feature_ids = [
+                self._db_backend.register_feature(feature_data) for feature_data in features
+            ]
         else:
             feature_ids = []
             new_features = {}
@@ -1140,7 +1218,7 @@ class FeatureRegistry:
 def get_registry_config_from_env() -> Dict[str, Any]:
     """
     Get feature registry configuration from environment variables.
-    
+
     Environment Variables:
         FEATURE_REGISTRY_BACKEND: 'memory' or 'database' (default: 'memory')
         POSTGRES_HOST: Database host (default: 'localhost')
@@ -1148,41 +1226,41 @@ def get_registry_config_from_env() -> Dict[str, Any]:
         POSTGRES_DB: Database name (default: 'forecast_labor')
         POSTGRES_USER: Database user (default: 'forecast_labor')
         POSTGRES_PASSWORD: Database password (default: 'forecast_labor')
-    
+
     Returns:
         Dictionary with 'backend' and optional 'db_config' keys
-        
+
     Example:
         >>> # Use in-memory (default)
         >>> config = get_registry_config_from_env()
         >>> registry = FeatureRegistry(**config)
-        
+
         >>> # Use database (set FEATURE_REGISTRY_BACKEND=database)
         >>> config = get_registry_config_from_env()
         >>> registry = FeatureRegistry(**config)
     """
-    backend = os.getenv('FEATURE_REGISTRY_BACKEND', 'memory')
-    
-    config: Dict[str, Any] = {'backend': backend}
-    
-    if backend == 'database':
-        config['db_config'] = {
-            'host': os.getenv('POSTGRES_HOST', 'localhost'),
-            'port': int(os.getenv('POSTGRES_PORT', '5432')),
-            'database': os.getenv('POSTGRES_DB', 'forecast_labor'),
-            'user': os.getenv('POSTGRES_USER', 'forecast_labor'),
-            'password': os.getenv('POSTGRES_PASSWORD', 'forecast_labor'),
+    backend = os.getenv("FEATURE_REGISTRY_BACKEND", "memory")
+
+    config: Dict[str, Any] = {"backend": backend}
+
+    if backend == "database":
+        config["db_config"] = {
+            "host": os.getenv("POSTGRES_HOST", "localhost"),
+            "port": int(os.getenv("POSTGRES_PORT", "5432")),
+            "database": os.getenv("POSTGRES_DB", "forecast_labor"),
+            "user": os.getenv("POSTGRES_USER", "forecast_labor"),
+            "password": os.getenv("POSTGRES_PASSWORD", "forecast_labor"),
         }
-        
+
         logger.info(
             "registry_config_from_env",
             backend="database",
-            host=config['db_config']['host'],
-            database=config['db_config']['database']
+            host=config["db_config"]["host"],
+            database=config["db_config"]["database"],
         )
     else:
         logger.debug("registry_config_from_env", backend="memory")
-    
+
     return config
 
 
@@ -1190,18 +1268,18 @@ def get_registry_config_from_env() -> Dict[str, Any]:
 def get_global_registry() -> FeatureRegistry:
     """
     Get global feature registry singleton.
-    
+
     The registry backend is configured via environment variables:
     - FEATURE_REGISTRY_BACKEND: 'memory' (default) or 'database'
     - POSTGRES_*: Database connection parameters (if backend='database')
-    
+
     Returns:
         Global FeatureRegistry instance
-        
+
     Example:
         >>> # Development (in-memory)
         >>> registry = get_global_registry()  # Uses memory backend
-        
+
         >>> # Production (database)
         >>> os.environ['FEATURE_REGISTRY_BACKEND'] = 'database'
         >>> registry = get_global_registry()  # Uses PostgreSQL backend
@@ -1213,4 +1291,3 @@ def get_global_registry() -> FeatureRegistry:
         _GLOBAL_REGISTRY = FeatureRegistry(**config)
 
     return _GLOBAL_REGISTRY
-

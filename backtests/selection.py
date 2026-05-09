@@ -214,10 +214,15 @@ def evaluate_model_selection(
             )
         )
 
-    scores = [_score_candidate(name, payload, active_thresholds, excluded) for name, payload in candidates.items()]
+    scores = [
+        _score_candidate(name, payload, active_thresholds, excluded)
+        for name, payload in candidates.items()
+    ]
     ranked_scores = _rank_scores(scores)
     all_gates = report_gates + [gate for score in ranked_scores for gate in score.gates]
-    eligible_scores = [score for score in ranked_scores if score.eligible and score.model_name not in excluded]
+    eligible_scores = [
+        score for score in ranked_scores if score.eligible and score.model_name not in excluded
+    ]
     selected_model = eligible_scores[0].model_name if eligible_scores else None
 
     if selected_model is None:
@@ -247,16 +252,12 @@ def evaluate_model_selection(
         (score for score in ranked_scores if score.model_name == selected_model),
         None,
     )
-    selected_has_critical_failure = (
-        selected_score is not None
-        and any(
-            gate.severity == AccuracyGateSeverity.CRITICAL and not gate.passed
-            for gate in selected_score.gates
-        )
+    selected_has_critical_failure = selected_score is not None and any(
+        gate.severity == AccuracyGateSeverity.CRITICAL and not gate.passed
+        for gate in selected_score.gates
     )
     portfolio_has_critical_failure = any(
-        gate.severity == AccuracyGateSeverity.CRITICAL and not gate.passed
-        for gate in report_gates
+        gate.severity == AccuracyGateSeverity.CRITICAL and not gate.passed for gate in report_gates
     )
     passed = (
         selected_model is not None
@@ -449,7 +450,9 @@ def _score_candidate(
     binary_actuals = payload.get("binary_actuals")
     if binary_actuals is not None and probabilities is not None:
         probability_matrix = np.asarray(probabilities, dtype=float)
-        event_probs = probability_matrix[:, -1] if probability_matrix.ndim == 2 else probability_matrix
+        event_probs = (
+            probability_matrix[:, -1] if probability_matrix.ndim == 2 else probability_matrix
+        )
         metrics["ece"] = expected_calibration_error(binary_actuals, event_probs)
         gates.append(
             _gate(
@@ -485,7 +488,8 @@ def _score_candidate(
             _gate(
                 "revision_direction_accuracy",
                 model_name,
-                metrics["revision_direction_accuracy"] >= thresholds.min_revision_direction_accuracy,
+                metrics["revision_direction_accuracy"]
+                >= thresholds.min_revision_direction_accuracy,
                 metrics["revision_direction_accuracy"],
                 f">= {thresholds.min_revision_direction_accuracy}",
                 "Revision direction accuracy gate",
@@ -545,7 +549,9 @@ def _score_candidate(
             )
         )
 
-    eligible = not any(gate.severity == AccuracyGateSeverity.CRITICAL and not gate.passed for gate in gates)
+    eligible = not any(
+        gate.severity == AccuracyGateSeverity.CRITICAL and not gate.passed for gate in gates
+    )
     if model_name in excluded_models:
         eligible = False
 
@@ -560,7 +566,9 @@ def _score_candidate(
 
 def _rank_scores(scores: Sequence[ModelCandidateScore]) -> List[ModelCandidateScore]:
     """Rank candidates by eligibility and selection score."""
-    ordered = sorted(scores, key=lambda score: (not score.eligible, score.selection_score, score.model_name))
+    ordered = sorted(
+        scores, key=lambda score: (not score.eligible, score.selection_score, score.model_name)
+    )
     return [
         ModelCandidateScore(
             model_name=score.model_name,
@@ -599,7 +607,9 @@ def _state_mae(
         actual_array = np.asarray(list(actual_values), dtype=float)
         predicted_array = np.asarray(list(state_predictions[state]), dtype=float)
         if actual_array.shape != predicted_array.shape or actual_array.size == 0:
-            raise ValueError(f"{state}: state actuals and predictions must be non-empty matching arrays")
+            raise ValueError(
+                f"{state}: state actuals and predictions must be non-empty matching arrays"
+            )
         values[state] = round(float(np.mean(np.abs(actual_array - predicted_array))), 6)
     return values
 

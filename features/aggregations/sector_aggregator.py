@@ -10,7 +10,6 @@ Supports:
 
 from typing import Literal, Optional
 import pandas as pd
-import numpy as np
 from loguru import logger
 
 
@@ -139,9 +138,7 @@ class SectorAggregator:
         # Group by date and sum weighted values
         grouped = merged.groupby(date_col)["weighted_value"].sum()
 
-        return pd.Series(
-            grouped.values, index=grouped.index, name=f"total_{value_col}_weighted"
-        )
+        return pd.Series(grouped.values, index=grouped.index, name=f"total_{value_col}_weighted")
 
 
 def aggregate_all_sectors(
@@ -167,4 +164,3 @@ def aggregate_all_sectors(
     """
     aggregator = SectorAggregator(agg_method="sum")
     return aggregator.aggregate(sector_data, value_col, date_col, sector_col)
-

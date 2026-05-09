@@ -1,0 +1,12 @@
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-ignore = [
+  "E402",  # Scripts/tests intentionally bootstrap project imports with sys.path.
+  "E501",  # Black handles wrapping; long literals/doc strings are reviewed separately.
+  "E722",  # Legacy tests use broad exception probes; clean these in a dedicated pass.
+]

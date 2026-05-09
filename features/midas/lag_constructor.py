@@ -102,9 +102,7 @@ class MIDASLagConstructor:
                 f"almon_poly_degree must be non-negative, got {self.almon_poly_degree}"
             )
 
-    def construct_lags(
-        self, series: pd.Series, target_dates: pd.DatetimeIndex
-    ) -> pd.DataFrame:
+    def construct_lags(self, series: pd.Series, target_dates: pd.DatetimeIndex) -> pd.DataFrame:
         """
         Construct MIDAS lag features.
 
@@ -157,9 +155,7 @@ class MIDASLagConstructor:
 
         return result
 
-    def _build_lag_matrix(
-        self, series: pd.Series, target_dates: pd.DatetimeIndex
-    ) -> np.ndarray:
+    def _build_lag_matrix(self, series: pd.Series, target_dates: pd.DatetimeIndex) -> np.ndarray:
         """
         Build raw lag matrix (before weighting).
 
@@ -261,9 +257,7 @@ def get_frequency_ratio(source_freq: str, target_freq: str) -> int:
 
     key = (source_freq, target_freq)
     if key not in ratios:
-        raise ValueError(
-            f"Unsupported frequency combination: {source_freq} → {target_freq}"
-        )
+        raise ValueError(f"Unsupported frequency combination: {source_freq} → {target_freq}")
 
     return ratios[key]
 

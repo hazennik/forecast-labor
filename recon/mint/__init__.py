@@ -28,4 +28,3 @@ __all__ = [
     "compute_wls_weights",
     "compute_precision_matrix",
 ]
-

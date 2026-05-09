@@ -65,27 +65,23 @@ def raw_sources(target_dates: pd.DatetimeIndex) -> dict[str, pd.DataFrame]:
     monthly_dates = pd.date_range("2022-09-01", "2024-08-01", freq="MS")
 
     daily_signal = (
-        100.0
-        + 0.04 * np.arange(len(daily_dates))
-        + np.sin(np.arange(len(daily_dates)) / 12.0)
+        100.0 + 0.04 * np.arange(len(daily_dates)) + np.sin(np.arange(len(daily_dates)) / 12.0)
     )
-    weekly_signal = 220_000.0 - 15.0 * np.arange(len(weekly_dates)) + 100.0 * np.cos(
-        np.arange(len(weekly_dates)) / 5.0
+    weekly_signal = (
+        220_000.0
+        - 15.0 * np.arange(len(weekly_dates))
+        + 100.0 * np.cos(np.arange(len(weekly_dates)) / 5.0)
     )
-    monthly_signal = 150_000.0 + 80.0 * np.arange(len(monthly_dates)) + 10.0 * np.sin(
-        np.arange(len(monthly_dates)) / 3.0
+    monthly_signal = (
+        150_000.0
+        + 80.0 * np.arange(len(monthly_dates))
+        + 10.0 * np.sin(np.arange(len(monthly_dates)) / 3.0)
     )
 
     return {
-        "treasury": pd.DataFrame(
-            {"date": daily_dates, "daily_withholding": daily_signal}
-        ),
-        "claims": pd.DataFrame(
-            {"report_date": weekly_dates, "initial_claims": weekly_signal}
-        ),
-        "ces": pd.DataFrame(
-            {"date": monthly_dates, "all_employees": monthly_signal}
-        ),
+        "treasury": pd.DataFrame({"date": daily_dates, "daily_withholding": daily_signal}),
+        "claims": pd.DataFrame({"report_date": weekly_dates, "initial_claims": weekly_signal}),
+        "ces": pd.DataFrame({"date": monthly_dates, "all_employees": monthly_signal}),
     }
 
 
@@ -198,12 +194,8 @@ class TestMixedFrequencyPipeline:
         t48_sources = {**raw_sources, "treasury": raw_sources["treasury"].iloc[:-4]}
         t24_sources = {**raw_sources, "treasury": raw_sources["treasury"].iloc[:-3]}
 
-        _, intervals_t48 = pipeline.predict(
-            date(2024, 8, 3), t48_sources, target_dates=target_date
-        )
-        _, intervals_t24 = pipeline.predict(
-            date(2024, 8, 4), t24_sources, target_dates=target_date
-        )
+        _, intervals_t48 = pipeline.predict(date(2024, 8, 3), t48_sources, target_dates=target_date)
+        _, intervals_t24 = pipeline.predict(date(2024, 8, 4), t24_sources, target_dates=target_date)
 
         width_t48 = intervals_t48[0, 1] - intervals_t48[0, 0]
         width_t24 = intervals_t24[0, 1] - intervals_t24[0, 0]

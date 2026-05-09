@@ -151,7 +151,9 @@ class BacktestReportGenerator:
         paths["pdf"].write_bytes(report.pdf)
         paths["json"].write_text(json.dumps(report.to_dict(), indent=2) + "\n", encoding="utf-8")
 
-        logger.info("backtest_report_written", paths={key: str(path) for key, path in paths.items()})
+        logger.info(
+            "backtest_report_written", paths={key: str(path) for key, path in paths.items()}
+        )
         return paths
 
     def _executive_summary_section(
@@ -163,7 +165,9 @@ class BacktestReportGenerator:
         """Build executive summary section."""
         performance_passed = _passed(performance_report)
         health_payloads = list(health_reports or [])
-        health_failures = sum(1 for report in health_payloads if not bool(report.get("passed", True)))
+        health_failures = sum(
+            1 for report in health_payloads if not bool(report.get("passed", True))
+        )
         accuracy_passed = _passed(accuracy_gates)
 
         items = [
@@ -287,7 +291,9 @@ class BacktestReportGenerator:
         ]
         failed = [gate for gate in gates if not gate.get("passed", False)]
         items = [f"Selected model: {selected_model}"] if selected_model else []
-        items.extend([f"{len(failed)} failing gate(s)."] if failed else ["All provided gates passed."])
+        items.extend(
+            [f"{len(failed)} failing gate(s)."] if failed else ["All provided gates passed."]
+        )
         return ReportSection(
             title="Accuracy Gates",
             summary="Deployment gate validation against configured accuracy targets.",
@@ -321,7 +327,9 @@ class BacktestReportGenerator:
                 lines.append("| " + " | ".join(headers) + " |")
                 lines.append("| " + " | ".join("---" for _ in headers) + " |")
                 for row in section.table:
-                    lines.append("| " + " | ".join(str(row.get(header, "")) for header in headers) + " |")
+                    lines.append(
+                        "| " + " | ".join(str(row.get(header, "")) for header in headers) + " |"
+                    )
                 lines.append("")
         return "\n".join(lines).rstrip() + "\n"
 
@@ -337,7 +345,7 @@ class BacktestReportGenerator:
             "<!doctype html>",
             "<html>",
             "<head>",
-            "  <meta charset=\"utf-8\">",
+            '  <meta charset="utf-8">',
             f"  <title>{escape(title)}</title>",
             "  <style>body{font-family:Arial,sans-serif;margin:2rem;line-height:1.45}"
             "table{border-collapse:collapse;margin:1rem 0;width:100%}"
@@ -346,12 +354,14 @@ class BacktestReportGenerator:
             "</head>",
             "<body>",
             f"<h1>{escape(title)}</h1>",
-            f"<p class=\"meta\">Generated: <code>{escape(generated_at)}</code></p>",
+            f'<p class="meta">Generated: <code>{escape(generated_at)}</code></p>',
         ]
         if metadata:
             body.append("<h2>Metadata</h2><ul>")
             for key, value in metadata.items():
-                body.append(f"<li><code>{escape(str(key))}</code>: <code>{escape(str(value))}</code></li>")
+                body.append(
+                    f"<li><code>{escape(str(key))}</code>: <code>{escape(str(value))}</code></li>"
+                )
             body.append("</ul>")
 
         for section in sections:
@@ -369,7 +379,9 @@ class BacktestReportGenerator:
                 body.append("</tr></thead><tbody>")
                 for row in section.table:
                     body.append("<tr>")
-                    body.extend(f"<td>{escape(str(row.get(header, '')))}</td>" for header in headers)
+                    body.extend(
+                        f"<td>{escape(str(row.get(header, '')))}</td>" for header in headers
+                    )
                     body.append("</tr>")
                 body.append("</tbody></table>")
 
@@ -422,8 +434,7 @@ class BacktestReportGenerator:
             )
             content = _pdf_content_stream(page_lines)
             objects.append(
-                f"<< /Length {len(content.encode('latin-1'))} >>\n"
-                f"stream\n{content}\nendstream"
+                f"<< /Length {len(content.encode('latin-1'))} >>\n" f"stream\n{content}\nendstream"
             )
         objects.append("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
 

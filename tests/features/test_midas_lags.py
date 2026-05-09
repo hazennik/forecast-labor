@@ -12,7 +12,6 @@ Key features to test:
 import numpy as np
 import pandas as pd
 import pytest
-from datetime import datetime, timedelta
 
 
 class TestMIDASLagConstructor:
@@ -59,8 +58,8 @@ class TestMIDASLagConstructor:
         # Invalid source frequency
         with pytest.raises(ValueError, match="source_freq must be"):
             MIDASLagConstructor(source_freq="M", target_freq="D", n_lags=10)
-        
-        # Invalid target frequency  
+
+        # Invalid target frequency
         with pytest.raises(ValueError, match="target_freq must be"):
             MIDASLagConstructor(source_freq="D", target_freq="Q", n_lags=10)
 
@@ -68,9 +67,7 @@ class TestMIDASLagConstructor:
         """Test alignment of daily data to monthly frequency."""
         from features.midas.lag_constructor import MIDASLagConstructor
 
-        constructor = MIDASLagConstructor(
-            source_freq="D", target_freq="M", n_lags=20
-        )
+        constructor = MIDASLagConstructor(source_freq="D", target_freq="M", n_lags=20)
         result = constructor.construct_lags(daily_series, monthly_dates)
 
         # Check output shape: (n_months, n_lags)
@@ -84,9 +81,7 @@ class TestMIDASLagConstructor:
         """Test alignment of weekly data to monthly frequency."""
         from features.midas.lag_constructor import MIDASLagConstructor
 
-        constructor = MIDASLagConstructor(
-            source_freq="W", target_freq="M", n_lags=4
-        )
+        constructor = MIDASLagConstructor(source_freq="W", target_freq="M", n_lags=4)
         result = constructor.construct_lags(weekly_series, monthly_dates)
 
         # Check output shape: (n_months, n_lags)
@@ -153,9 +148,7 @@ class TestMIDASLagConstructor:
 
         monthly_dates = pd.date_range("2024-01-01", periods=3, freq="MS")
 
-        constructor = MIDASLagConstructor(
-            source_freq="D", target_freq="M", n_lags=20
-        )
+        constructor = MIDASLagConstructor(source_freq="D", target_freq="M", n_lags=20)
         result = constructor.construct_lags(series, monthly_dates)
 
         # Should handle gracefully (fill with last available value or NaN)
@@ -202,9 +195,7 @@ class TestMIDASLagConstructor:
         """Test that lag columns are named appropriately."""
         from features.midas.lag_constructor import MIDASLagConstructor
 
-        constructor = MIDASLagConstructor(
-            source_freq="D", target_freq="M", n_lags=5
-        )
+        constructor = MIDASLagConstructor(source_freq="D", target_freq="M", n_lags=5)
         result = constructor.construct_lags(daily_series, monthly_dates)
 
         # Columns are named with default prefix "lag" + "_lag_0", etc.
@@ -252,12 +243,8 @@ class TestMIDASLagConstructor:
         from features.midas.lag_constructor import MIDASLagConstructor
 
         # Very short series
-        short_series = pd.Series(
-            [1, 2, 3], index=pd.date_range("2024-01-01", periods=3, freq="D")
-        )
-        constructor = MIDASLagConstructor(
-            source_freq="D", target_freq="M", n_lags=20
-        )
+        short_series = pd.Series([1, 2, 3], index=pd.date_range("2024-01-01", periods=3, freq="D"))
+        constructor = MIDASLagConstructor(source_freq="D", target_freq="M", n_lags=20)
 
         # Should handle gracefully (fill with NaN or raise warning)
         result = constructor.construct_lags(short_series, monthly_dates)
@@ -290,21 +277,15 @@ class TestMIDASUtilities:
         from features.midas.lag_constructor import infer_series_frequency
 
         # Daily series
-        daily = pd.Series(
-            range(30), index=pd.date_range("2024-01-01", periods=30, freq="D")
-        )
+        daily = pd.Series(range(30), index=pd.date_range("2024-01-01", periods=30, freq="D"))
         assert infer_series_frequency(daily) == "D"
 
         # Weekly series
-        weekly = pd.Series(
-            range(4), index=pd.date_range("2024-01-01", periods=4, freq="W")
-        )
+        weekly = pd.Series(range(4), index=pd.date_range("2024-01-01", periods=4, freq="W"))
         assert infer_series_frequency(weekly) == "W"
 
         # Monthly series
-        monthly = pd.Series(
-            range(12), index=pd.date_range("2024-01-01", periods=12, freq="MS")
-        )
+        monthly = pd.Series(range(12), index=pd.date_range("2024-01-01", periods=12, freq="MS"))
         assert infer_series_frequency(monthly) in ["M", "MS"]
 
     def test_align_to_target_dates(self):
@@ -312,9 +293,7 @@ class TestMIDASUtilities:
         from features.midas.lag_constructor import align_series_to_dates
 
         # Daily series
-        daily = pd.Series(
-            range(90), index=pd.date_range("2024-01-01", periods=90, freq="D")
-        )
+        daily = pd.Series(range(90), index=pd.date_range("2024-01-01", periods=90, freq="D"))
         target_dates = pd.date_range("2024-01-01", periods=3, freq="MS")
 
         aligned = align_series_to_dates(daily, target_dates, method="last")

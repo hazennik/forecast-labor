@@ -9,6 +9,7 @@ import sys
 import numpy as np
 import pytest
 
+
 def _performance_module() -> Any:
     """Import production backtest performance utilities after test collection."""
     project_root = Path(__file__).resolve().parents[1]

@@ -15,4 +15,3 @@ __all__ = [
     "VintageReconstructionError",
     "ReconstructedState",
 ]
-

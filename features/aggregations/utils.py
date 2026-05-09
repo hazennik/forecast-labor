@@ -8,7 +8,6 @@ Utilities for:
 """
 
 import pandas as pd
-import numpy as np
 from loguru import logger
 
 
@@ -134,4 +133,3 @@ def normalize_weights(weights: pd.Series) -> pd.Series:
     )
 
     return normalized
-

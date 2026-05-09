@@ -11,7 +11,6 @@ All aggregations must preserve coherence (sum of parts = total).
 import numpy as np
 import pandas as pd
 import pytest
-from datetime import datetime
 
 
 class TestStateAggregator:
@@ -30,15 +29,9 @@ class TestStateAggregator:
                     {
                         "date": date,
                         "state": state,
-                        "employment": np.random.RandomState(42).randint(
-                            1_000_000, 20_000_000
-                        ),
-                        "unemployment": np.random.RandomState(42).randint(
-                            50_000, 1_000_000
-                        ),
-                        "labor_force": np.random.RandomState(42).randint(
-                            1_100_000, 21_000_000
-                        ),
+                        "employment": np.random.RandomState(42).randint(1_000_000, 20_000_000),
+                        "unemployment": np.random.RandomState(42).randint(50_000, 1_000_000),
+                        "labor_force": np.random.RandomState(42).randint(1_100_000, 21_000_000),
                     }
                 )
 
@@ -77,9 +70,9 @@ class TestStateAggregator:
 
         # Verify sums are correct
         for date in national.index:
-            state_total = state_employment_data[
-                state_employment_data["date"] == date
-            ]["employment"].sum()
+            state_total = state_employment_data[state_employment_data["date"] == date][
+                "employment"
+            ].sum()
             assert np.isclose(national.loc[date], state_total)
 
     def test_weighted_aggregation(self, state_employment_data, state_populations):
@@ -111,9 +104,9 @@ class TestStateAggregator:
 
         # Manually sum states for each date
         for date in national.index:
-            manual_sum = state_employment_data[
-                state_employment_data["date"] == date
-            ]["employment"].sum()
+            manual_sum = state_employment_data[state_employment_data["date"] == date][
+                "employment"
+            ].sum()
             # Should be coherent (sum of states = national)
             assert np.isclose(national.loc[date], manual_sum, rtol=1e-6)
 
@@ -186,9 +179,7 @@ class TestSectorAggregator:
                     {
                         "date": date,
                         "sector": sector,
-                        "employment": np.random.RandomState(42).randint(
-                            500_000, 5_000_000
-                        ),
+                        "employment": np.random.RandomState(42).randint(500_000, 5_000_000),
                     }
                 )
 
@@ -219,9 +210,9 @@ class TestSectorAggregator:
 
         # Verify sums
         for date in total_nonfarm.index:
-            sector_total = sector_employment_data[
-                sector_employment_data["date"] == date
-            ]["employment"].sum()
+            sector_total = sector_employment_data[sector_employment_data["date"] == date][
+                "employment"
+            ].sum()
             assert np.isclose(total_nonfarm.loc[date], sector_total)
 
     def test_weighted_aggregation(self, sector_employment_data):
@@ -268,9 +259,9 @@ class TestSectorAggregator:
 
         # Manually compute totals
         for date in total.index:
-            manual_sum = sector_employment_data[
-                sector_employment_data["date"] == date
-            ]["employment"].sum()
+            manual_sum = sector_employment_data[sector_employment_data["date"] == date][
+                "employment"
+            ].sum()
             assert np.isclose(total.loc[date], manual_sum, rtol=1e-6)
 
     def test_subset_sectors(self, sector_employment_data):
@@ -333,9 +324,7 @@ class TestHierarchicalCoherence:
         )
 
         # Should pass coherence check
-        is_coherent = validate_coherence(
-            data, total_col="total", component_cols=["part1", "part2"]
-        )
+        is_coherent = validate_coherence(data, total_col="total", component_cols=["part1", "part2"])
         assert is_coherent is True
 
     def test_incoherence_detection(self):
@@ -354,9 +343,7 @@ class TestHierarchicalCoherence:
         )
 
         # Should fail coherence check
-        is_coherent = validate_coherence(
-            data, total_col="total", component_cols=["part1", "part2"]
-        )
+        is_coherent = validate_coherence(data, total_col="total", component_cols=["part1", "part2"])
         assert is_coherent is False
 
 
@@ -392,4 +379,3 @@ class TestAggregationUtilities:
         assert np.isclose(weights.sum(), 1.0)
         # State3 should have largest weight
         assert weights["state3"] == weights.max()
-

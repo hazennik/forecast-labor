@@ -1,6 +1,62 @@
 # Implementation Status
 
-Last Updated: 2026-05-08 (Phase 6.4.4 COMPLETE ✅ | Feature registry lineage validation implemented | Full Docker suite passing: 1389 passed, 5 skipped)
+Last Updated: 2026-05-08 (Phase 6.5 COMPLETE ✅ | Repo-wide ruff/black clean | Full Docker suite passing: 1393 passed, 4 skipped)
+
+## ✅ PHASE 6.5 COMPLETE: Infrastructure & Quality Gates (2026-05-08)
+
+**Status:** COMPLETE - real X-13-backed CI quality gate enabled for golden seasonal diagnostics  
+**Completion:** Phase 6.5 100% ✅  
+**Breaking Changes:** NONE - CI quality gate, diagnostics verification, documentation, and tests only
+
+### Completed This Session
+
+- ✅ Examined current project status and recent commits before continuing development.
+- ✅ Continued from completed Phase 6.4.4 into Phase 6.5 without advancing past one phase.
+- ✅ Replaced structure-only `scripts/record_golden_diagnostics.py --verify` behavior with full current diagnostics computation and baseline comparison.
+- ✅ Added deterministic synthetic fallback generation for reproducible CI diagnostics.
+- ✅ Added `--force-synthetic` for CI-only X-13 verification where production vintages are unavailable.
+- ✅ Added committed CI X-13 baseline at `tests/fixtures/golden_baselines/golden_seasonal_diagnostics_ci.json`.
+- ✅ Updated `.github/workflows/test.yml` to build the X-13 Docker image, verify the `x13as` binary, and run the golden diagnostics gate inside Docker.
+- ✅ Added `.github/workflows/publish-x13-image.yml` to publish X-13 images to GitHub Container Registry from `main` or manual dispatch.
+- ✅ Updated `docs/CI_X13_SETUP.md` with Phase 6.5 operational workflow and CI-vs-production baseline separation.
+- ✅ Mounted `.github` read-only in the ETL Docker service so workflow contract tests run inside Docker.
+- ✅ Completed follow-up repository-wide lint cleanup:
+  - Added `pyproject.toml` with 100-character Black/Ruff line length aligned to project standards.
+  - Applied Ruff auto-fixes across the repository.
+  - Applied Black formatting across the repository.
+  - Preserved compatibility for intentional script/test import bootstrapping through lint configuration.
+
+### Quality Gate Coverage
+
+- ✅ CI gate runs real X-13ARIMA-SEATS, not JSON structure-only validation.
+- ✅ Fresh M1-M11 and X-13 Q-statistics are computed before comparison.
+- ✅ Current diagnostics are compared against committed baselines with tolerance bands.
+- ✅ Production verification remains available against the real 2025-11-29 baseline.
+- ✅ CI verification uses deterministic synthetic series because production vintages under `data/` are gitignored and unavailable in GitHub Actions.
+- ✅ Missing baselines, failed current diagnostics, or M/Q threshold failures exit non-zero.
+
+### Validation
+
+- ✅ `docker compose exec etl python scripts/record_golden_diagnostics.py --vintage-date 2025-11-29 --verify`
+- ✅ Result: production baseline verification passed with **39/39 checks**
+- ✅ `docker compose exec etl python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --verify --force-synthetic --output-file tests/fixtures/golden_baselines/golden_seasonal_diagnostics_ci.json`
+- ✅ Result: CI baseline verification passed with **39/39 checks**
+- ✅ `docker compose exec etl pytest tests/seasonal/test_golden_diagnostics.py -v --tb=short`
+- ✅ Result: **23 passed, 1 warning in 61.22s**
+- ✅ `docker compose exec etl pytest tests/seasonal tests/test_feature_lineage_validation.py tests/test_scenario_testing.py tests/test_model_selection_gates.py tests/test_backtest_report_generator.py tests/test_performance_validation.py tests/test_model_health_monitor.py tests/test_performance_baselines.py tests/backtests/ -v --tb=short`
+- ✅ Result: **216 passed, 4 skipped, 192 warnings in 337.37s**
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1393 passed, 4 skipped, 320 warnings in 510.13s**
+- ✅ `docker compose exec etl ruff check .`
+- ✅ Result: **passed**
+- ✅ `docker compose exec etl black --check .`
+- ✅ Result: **passed (212 files would be left unchanged)**
+- ✅ `docker compose exec etl pytest -q` (after lint cleanup)
+- ✅ Result: **1393 passed, 4 skipped, 320 warnings in 487.49s**
+
+### Next Action
+
+Proceed to **Post-Phase 6 documentation refresh**, starting with `Phase 5.14.1 Model Training Guide` using the validated Phase 6 results.
 
 ## ✅ PHASE 6.4.4 COMPLETE: Feature Registry Lineage Integration (2026-05-08)
 
@@ -4054,12 +4110,14 @@ Comprehensive backtesting of all forecasting models on historical vintages to va
 **Estimated Time:** 4-8 hours  
 **Blocking:** Can run in parallel with Core Backtesting (6.2-6.4)
 
-- **6.5.1 X-13 CI Service Integration** (Codex Analysis 22 - Finding 1, Codex Analysis 20 - Issue 4)
-  - Publish X-13 Docker image to GitHub Container Registry
-  - Enable X-13 service in GitHub Actions workflow
-  - Update golden diagnostics tests to use real X-13 in CI
-  - Full M-statistics and Q-statistics validation in CI (not just structure)
-  - Documentation: `docs/CI_X13_SETUP.md` (already complete)
+- **6.5.1 X-13 CI Service Integration** ✅ **COMPLETE** (2026-05-08) (Codex Analysis 22 - Finding 1, Codex Analysis 20 - Issue 4)
+  - ✅ Publish X-13 Docker image to GitHub Container Registry workflow added (`.github/workflows/publish-x13-image.yml`)
+  - ✅ Enable X-13 Docker-backed quality gate in GitHub Actions workflow
+  - ✅ Update golden diagnostics tests to validate real X-13 CI workflow wiring
+  - ✅ Full M-statistics and Q-statistics validation implemented in `--verify` (not just structure)
+  - ✅ Documentation updated: `docs/CI_X13_SETUP.md`
+  - ✅ CI baseline added: `tests/fixtures/golden_baselines/golden_seasonal_diagnostics_ci.json`
+  - ✅ Full Docker suite passing: 1393 passed, 4 skipped
   - **Reference:** Lines 1841-1844, Lines 150-156, Lines 237-247, Line 479
 
 ---

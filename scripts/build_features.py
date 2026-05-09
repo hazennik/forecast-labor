@@ -19,8 +19,7 @@ Usage:
 import argparse
 import hashlib
 from pathlib import Path
-from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Dict, Optional
 import pandas as pd
 import sys
 from loguru import logger
@@ -40,7 +39,7 @@ from features.aggregations.sector_aggregator import SectorAggregator
 from features.registry import FeatureRegistry, get_registry_config_from_env
 from etl.common.storage import StorageClient
 from etl.common.vintage import VintageManager
-from etl.common.vintage_validator import validate_vintage_is_production, log_vintage_provenance
+from etl.common.vintage_validator import validate_vintage_is_production
 
 
 class FeatureBuilder:
@@ -53,7 +52,7 @@ class FeatureBuilder:
     def __init__(self, vintage_date: str, output_dir: Path):
         """
         Initialize feature builder.
-        
+
         The feature registry backend is configured via environment variables:
         - FEATURE_REGISTRY_BACKEND: 'memory' (default) or 'database'
         - POSTGRES_*: Database connection parameters (if backend='database')
@@ -69,7 +68,7 @@ class FeatureBuilder:
         # Initialize registry with environment-based configuration
         registry_config = get_registry_config_from_env()
         self.registry = FeatureRegistry(**registry_config)
-        
+
         self.storage = StorageClient()
         self.vintage_mgr = VintageManager(base_path=Path("data/vintages"))
 
@@ -77,7 +76,7 @@ class FeatureBuilder:
             "feature_builder_initialized",
             vintage_date=vintage_date,
             output_dir=str(output_dir),
-            registry_backend=registry_config['backend'],
+            registry_backend=registry_config["backend"],
         )
 
     def build_all(self) -> Dict[str, pd.DataFrame]:
@@ -133,15 +132,19 @@ class FeatureBuilder:
             if treasury_df is not None and not treasury_df.empty:
                 # Extract value column as Series
                 # Treasury ETL typically has 'withholding_amount' or similar
-                value_cols = [c for c in treasury_df.columns if 'withhold' in c.lower() or 'amount' in c.lower()]
+                value_cols = [
+                    c
+                    for c in treasury_df.columns
+                    if "withhold" in c.lower() or "amount" in c.lower()
+                ]
                 if not value_cols:
-                    value_cols = treasury_df.select_dtypes(include=['number']).columns.tolist()
-                
+                    value_cols = treasury_df.select_dtypes(include=["number"]).columns.tolist()
+
                 if value_cols:
                     treasury_series = treasury_df[value_cols[0]]
-                    if 'date' in treasury_df.columns:
-                        treasury_series.index = pd.to_datetime(treasury_df['date'])
-                    
+                    if "date" in treasury_df.columns:
+                        treasury_series.index = pd.to_datetime(treasury_df["date"])
+
                     # Create MIDAS lags for monthly NFP forecasting
                     constructor = MIDASLagConstructor(
                         source_freq="D",
@@ -177,15 +180,17 @@ class FeatureBuilder:
             claims_df = self._load_vintage_data("ui_claims")
             if claims_df is not None and not claims_df.empty:
                 # Extract claims value column
-                value_cols = [c for c in claims_df.columns if 'claim' in c.lower() or 'initial' in c.lower()]
+                value_cols = [
+                    c for c in claims_df.columns if "claim" in c.lower() or "initial" in c.lower()
+                ]
                 if not value_cols:
-                    value_cols = claims_df.select_dtypes(include=['number']).columns.tolist()
-                
+                    value_cols = claims_df.select_dtypes(include=["number"]).columns.tolist()
+
                 if value_cols:
                     claims_series = claims_df[value_cols[0]]
-                    if 'date' in claims_df.columns:
-                        claims_series.index = pd.to_datetime(claims_df['date'])
-                    
+                    if "date" in claims_df.columns:
+                        claims_series.index = pd.to_datetime(claims_df["date"])
+
                     constructor = MIDASLagConstructor(
                         source_freq="W",
                         target_freq="M",
@@ -274,16 +279,22 @@ class FeatureBuilder:
             treasury_df = self._load_vintage_data("treasury_withholdings")
             if treasury_df is not None and not treasury_df.empty:
                 # Extract value column
-                value_cols = [c for c in treasury_df.columns if 'withhold' in c.lower() or 'amount' in c.lower()]
+                value_cols = [
+                    c
+                    for c in treasury_df.columns
+                    if "withhold" in c.lower() or "amount" in c.lower()
+                ]
                 if not value_cols:
-                    value_cols = treasury_df.select_dtypes(include=['number']).columns.tolist()
-                
+                    value_cols = treasury_df.select_dtypes(include=["number"]).columns.tolist()
+
                 if value_cols:
                     treasury_series = treasury_df[value_cols[0]]
-                    if 'date' in treasury_df.columns:
-                        treasury_series.index = pd.to_datetime(treasury_df['date'])
-                    
-                    converter = FrequencyConverter(source_freq="D", target_freq="W", agg_method="mean")
+                    if "date" in treasury_df.columns:
+                        treasury_series.index = pd.to_datetime(treasury_df["date"])
+
+                    converter = FrequencyConverter(
+                        source_freq="D", target_freq="W", agg_method="mean"
+                    )
                     weekly_treasury = converter.convert(treasury_series)
 
                     features["treasury_weekly"] = weekly_treasury.to_frame()
@@ -311,27 +322,31 @@ class FeatureBuilder:
             ces_df = self._load_vintage_data("bls_ces")  # Correct DataSource enum value
             if ces_df is not None and not ces_df.empty:
                 # Filter to Total Nonfarm (CES0000000001) or first series if not available
-                if 'series_id' in ces_df.columns:
+                if "series_id" in ces_df.columns:
                     # Try to get Total Nonfarm series
-                    nfp_series_id = 'CES0000000001'
-                    if nfp_series_id in ces_df['series_id'].values:
-                        ces_df = ces_df[ces_df['series_id'] == nfp_series_id].copy()
+                    nfp_series_id = "CES0000000001"
+                    if nfp_series_id in ces_df["series_id"].values:
+                        ces_df = ces_df[ces_df["series_id"] == nfp_series_id].copy()
                     else:
                         # Use first series as fallback
-                        first_series_id = ces_df['series_id'].iloc[0]
-                        ces_df = ces_df[ces_df['series_id'] == first_series_id].copy()
+                        first_series_id = ces_df["series_id"].iloc[0]
+                        ces_df = ces_df[ces_df["series_id"] == first_series_id].copy()
                         logger.warning(f"Total Nonfarm series not found, using {first_series_id}")
-                
+
                 # Extract employment column
-                value_cols = [c for c in ces_df.columns if 'employ' in c.lower() or 'payroll' in c.lower() or c == 'value']
+                value_cols = [
+                    c
+                    for c in ces_df.columns
+                    if "employ" in c.lower() or "payroll" in c.lower() or c == "value"
+                ]
                 if not value_cols:
-                    value_cols = ces_df.select_dtypes(include=['number']).columns.tolist()
-                
+                    value_cols = ces_df.select_dtypes(include=["number"]).columns.tolist()
+
                 if value_cols:
                     ces_series = ces_df[value_cols[0]].copy()
-                    if 'date' in ces_df.columns:
-                        ces_series.index = pd.to_datetime(ces_df['date'])
-                    
+                    if "date" in ces_df.columns:
+                        ces_series.index = pd.to_datetime(ces_df["date"])
+
                     adjusted = apply_calendar_adjustment(ces_series, method="business_days")
 
                     features["ces_calendar_adjusted"] = adjusted.to_frame()
@@ -359,15 +374,19 @@ class FeatureBuilder:
             treasury_df = self._load_vintage_data("treasury_withholdings")
             if treasury_df is not None and not treasury_df.empty:
                 # Extract value column
-                value_cols = [c for c in treasury_df.columns if 'withhold' in c.lower() or 'amount' in c.lower()]
+                value_cols = [
+                    c
+                    for c in treasury_df.columns
+                    if "withhold" in c.lower() or "amount" in c.lower()
+                ]
                 if not value_cols:
-                    value_cols = treasury_df.select_dtypes(include=['number']).columns.tolist()
-                
+                    value_cols = treasury_df.select_dtypes(include=["number"]).columns.tolist()
+
                 if value_cols:
                     treasury_series = treasury_df[value_cols[0]]
-                    if 'date' in treasury_df.columns:
-                        treasury_series.index = pd.to_datetime(treasury_df['date'])
-                    
+                    if "date" in treasury_df.columns:
+                        treasury_series.index = pd.to_datetime(treasury_df["date"])
+
                     # Pipeline: winsorize then standardize
                     pipeline = TransformPipeline(
                         [
@@ -409,20 +428,20 @@ class FeatureBuilder:
                     if col in laus_df.columns:
                         state_col = col
                         break
-                
+
                 # Find employment column
                 employment_col = None
                 for col in laus_df.columns:
-                    if 'employ' in col.lower() and 'unemploy' not in col.lower():
+                    if "employ" in col.lower() and "unemploy" not in col.lower():
                         employment_col = col
                         break
-                
+
                 # Check we have the required columns
                 if state_col and employment_col and "date" in laus_df.columns:
                     # Filter to employment_level measure if measure column exists
                     if "measure" in laus_df.columns:
                         laus_df = laus_df[laus_df["measure"] == "employment_level"].copy()
-                    
+
                     aggregator = StateAggregator(agg_method="sum")
                     national = aggregator.aggregate(
                         laus_df,
@@ -442,9 +461,11 @@ class FeatureBuilder:
 
                     logger.info("state_aggregation_created", rows=len(national))
                 else:
-                    logger.warning("laus_aggregation_skipped_missing_columns", 
-                                 columns=list(laus_df.columns),
-                                 employment_col=employment_col)
+                    logger.warning(
+                        "laus_aggregation_skipped_missing_columns",
+                        columns=list(laus_df.columns),
+                        employment_col=employment_col,
+                    )
 
         except Exception as e:
             logger.error("state_aggregation_failed", error=str(e), exc_info=True)
@@ -457,20 +478,24 @@ class FeatureBuilder:
                 required_cols = ["date"]
                 sector_col = None
                 employment_col = None
-                
+
                 # Find sector column
                 for col in ces_df.columns:
-                    if any(x in col.lower() for x in ['sector', 'series', 'industry']):
+                    if any(x in col.lower() for x in ["sector", "series", "industry"]):
                         sector_col = col
                         break
-                
+
                 # Find employment column
                 for col in ces_df.columns:
-                    if any(x in col.lower() for x in ['employ', 'payroll', 'value']):
+                    if any(x in col.lower() for x in ["employ", "payroll", "value"]):
                         employment_col = col
                         break
-                
-                if sector_col and employment_col and all(col in ces_df.columns for col in required_cols):
+
+                if (
+                    sector_col
+                    and employment_col
+                    and all(col in ces_df.columns for col in required_cols)
+                ):
                     aggregator = SectorAggregator(agg_method="sum")
                     total_nonfarm = aggregator.aggregate(
                         ces_df,
@@ -490,10 +515,12 @@ class FeatureBuilder:
 
                     logger.info("sector_aggregation_created", rows=len(total_nonfarm))
                 else:
-                    logger.warning("ces_aggregation_skipped_missing_columns",
-                                 columns=list(ces_df.columns),
-                                 sector_col=sector_col,
-                                 employment_col=employment_col)
+                    logger.warning(
+                        "ces_aggregation_skipped_missing_columns",
+                        columns=list(ces_df.columns),
+                        sector_col=sector_col,
+                        employment_col=employment_col,
+                    )
 
         except Exception as e:
             logger.error("sector_aggregation_failed", error=str(e), exc_info=True)
@@ -512,22 +539,21 @@ class FeatureBuilder:
         """
         try:
             # ETL creates: data/vintages/{source}/{YYYY-MM-DD}/{source}_vintage.parquet
-            vintage_path = f"data/vintages/{data_source}/{self.vintage_date}/{data_source}_vintage.parquet"
+            vintage_path = (
+                f"data/vintages/{data_source}/{self.vintage_date}/{data_source}_vintage.parquet"
+            )
 
             if Path(vintage_path).exists():
                 df = pd.read_parquet(vintage_path)
-                
+
                 # CRITICAL: Validate this is production data, not synthetic test data
                 try:
                     validate_vintage_is_production(df, Path(vintage_path), strict=True)
                 except Exception as e:
-                    logger.error(
-                        f"❌ Vintage validation failed for {data_source}",
-                        error=str(e)
-                    )
+                    logger.error(f"❌ Vintage validation failed for {data_source}", error=str(e))
                     # Re-raise to prevent using synthetic data in production
                     raise
-                
+
                 logger.info(
                     "vintage_data_loaded",
                     source=data_source,
@@ -537,16 +563,19 @@ class FeatureBuilder:
                 )
                 return df
 
-            logger.warning("vintage_data_not_found", source=data_source, vintage=self.vintage_date, expected_path=vintage_path)
+            logger.warning(
+                "vintage_data_not_found",
+                source=data_source,
+                vintage=self.vintage_date,
+                expected_path=vintage_path,
+            )
             return None
 
         except Exception as e:
             logger.error("vintage_data_load_failed", source=data_source, error=str(e))
             return None
 
-    def _register_feature(
-        self, name: str, source: str, transform: str, frequency: str
-    ) -> None:
+    def _register_feature(self, name: str, source: str, transform: str, frequency: str) -> None:
         """Register feature in registry."""
         try:
             self.registry.register(
@@ -622,16 +651,20 @@ class FeatureBuilder:
             output_path = self.output_dir / f"{feature_name}.parquet"
             try:
                 # Validate DataFrame structure before saving
-                logger.debug(f"Saving {feature_name}: shape={feature_df.shape}, columns={list(feature_df.columns)}, dtypes={feature_df.dtypes.to_dict()}")
-                
+                logger.debug(
+                    f"Saving {feature_name}: shape={feature_df.shape}, columns={list(feature_df.columns)}, dtypes={feature_df.dtypes.to_dict()}"
+                )
+
                 # Check for nested Series in columns
                 for col in feature_df.columns:
                     if len(feature_df) > 0:
                         first_val = feature_df[col].iloc[0]
                         if isinstance(first_val, pd.Series):
-                            logger.error(f"❌ Column '{col}' in feature '{feature_name}' contains Series objects instead of scalars!")
+                            logger.error(
+                                f"❌ Column '{col}' in feature '{feature_name}' contains Series objects instead of scalars!"
+                            )
                             raise ValueError(f"Column '{col}' contains nested Series")
-                
+
                 feature_df.to_parquet(output_path)
                 logger.info("feature_saved", name=feature_name, path=str(output_path))
             except Exception as e:
@@ -715,4 +748,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

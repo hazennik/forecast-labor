@@ -53,7 +53,7 @@ def list_sources():
 def run_etl(source: str = None):
     """
     Run ETL pipeline(s)
-    
+
     Args:
         source: Source name or None for all sources
     """
@@ -63,11 +63,11 @@ def run_etl(source: str = None):
             logger.error(f"Unknown source: {source}")
             logger.info("Use --list to see available sources")
             sys.exit(1)
-        
+
         name, etl_class = ETL_PIPELINES[source]
         logger.info(f"Running {name} ETL...")
         logger.info("=" * 60)
-        
+
         try:
             etl = etl_class()
             etl.run()
@@ -76,18 +76,18 @@ def run_etl(source: str = None):
             logger.error(f"❌ {name} ETL failed: {e}")
             logger.exception(e)
             sys.exit(1)
-    
+
     else:
         # Run all sources
         logger.info("Running ALL ETL pipelines...")
         logger.info("=" * 60)
-        
+
         results = {}
         for key, (name, etl_class) in ETL_PIPELINES.items():
             logger.info(f"\n{'='*60}")
             logger.info(f"Running {name} ETL...")
             logger.info(f"{'='*60}")
-            
+
             try:
                 etl = etl_class()
                 etl.run()
@@ -97,54 +97,45 @@ def run_etl(source: str = None):
                 results[key] = f"FAILED: {e}"
                 logger.error(f"❌ {name} ETL failed: {e}")
                 # Continue with other pipelines
-        
+
         # Summary
         logger.info(f"\n{'='*60}")
         logger.info("ETL Run Summary:")
         logger.info(f"{'='*60}")
-        
+
         success_count = sum(1 for v in results.values() if v == "SUCCESS")
         total_count = len(results)
-        
+
         for key, status in results.items():
             name = ETL_PIPELINES[key][0]
             status_icon = "✅" if status == "SUCCESS" else "❌"
             logger.info(f"{status_icon} {name:30} - {status}")
-        
+
         logger.info(f"{'='*60}")
         logger.info(f"Total: {success_count}/{total_count} pipelines succeeded")
-        
+
         if success_count < total_count:
             sys.exit(1)
 
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(
-        description="Run ETL pipelines to ingest public data"
-    )
-    
+    parser = argparse.ArgumentParser(description="Run ETL pipelines to ingest public data")
+
     parser.add_argument(
-        "--source",
-        type=str,
-        help="Run specific source only (e.g., claims, ces, laus)"
+        "--source", type=str, help="Run specific source only (e.g., claims, ces, laus)"
     )
-    
-    parser.add_argument(
-        "--list",
-        action="store_true",
-        help="List all available sources"
-    )
-    
+
+    parser.add_argument("--list", action="store_true", help="List all available sources")
+
     args = parser.parse_args()
-    
+
     if args.list:
         list_sources()
         sys.exit(0)
-    
+
     run_etl(source=args.source)
 
 
 if __name__ == "__main__":
     main()
-

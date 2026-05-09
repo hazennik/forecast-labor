@@ -3,7 +3,7 @@ Validation Report Generator
 Creates HTML and PDF reports from validation results
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from pathlib import Path
 from datetime import datetime
 
@@ -16,86 +16,87 @@ from etl.validators.base_validator import ValidationResult, ValidationSeverity
 class ValidationReportGenerator:
     """
     Generates validation reports in multiple formats
-    
+
     Formats:
     - HTML: Interactive report with styling
     - PDF: Printable report (requires weasyprint)
     - CSV: Machine-readable summary
     """
-    
+
     def __init__(self, output_dir: Optional[Path] = None):
         """
         Initialize report generator
-        
+
         Args:
             output_dir: Output directory for reports
         """
         self.output_dir = Path(output_dir) if output_dir else Path("data/reports/validation")
         self.output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     def generate_html_report(
         self,
         results: List[ValidationResult],
         title: str = "Data Validation Report",
-        output_file: Optional[Path] = None
+        output_file: Optional[Path] = None,
     ) -> Path:
         """
         Generate HTML validation report
-        
+
         Args:
             results: List of validation results
             title: Report title
             output_file: Output file path
-            
+
         Returns:
             Path to generated report
         """
         logger.info(f"Generating HTML validation report: {title}")
-        
+
         if output_file is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_file = self.output_dir / f"validation_report_{timestamp}.html"
-        
+
         # Build HTML content
         html_content = self._build_html_report(results, title)
-        
+
         # Write to file
         output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.write_text(html_content)
-        
+
         logger.info(f"HTML report saved: {output_file}")
-        
+
         return output_file
-    
+
     def generate_pdf_report(
         self,
         results: List[ValidationResult],
         title: str = "Data Validation Report",
-        output_file: Optional[Path] = None
+        output_file: Optional[Path] = None,
     ) -> Path:
         """
         Generate PDF validation report
-        
+
         Args:
             results: List of validation results
             title: Report title
             output_file: Output file path
-            
+
         Returns:
             Path to generated report
         """
         logger.info(f"Generating PDF validation report: {title}")
-        
+
         if output_file is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_file = self.output_dir / f"validation_report_{timestamp}.pdf"
-        
+
         # Generate HTML first
         html_content = self._build_html_report(results, title)
-        
+
         # Convert to PDF
         try:
             from weasyprint import HTML
+
             HTML(string=html_content).write_pdf(str(output_file))
             logger.info(f"PDF report saved: {output_file}")
         except ImportError:
@@ -104,59 +105,53 @@ class ValidationReportGenerator:
             output_file = output_file.with_suffix(".html")
             output_file.write_text(html_content)
             logger.info(f"HTML report saved (PDF unavailable): {output_file}")
-        
+
         return output_file
-    
+
     def generate_csv_summary(
-        self,
-        results: List[ValidationResult],
-        output_file: Optional[Path] = None
+        self, results: List[ValidationResult], output_file: Optional[Path] = None
     ) -> Path:
         """
         Generate CSV summary of validation results
-        
+
         Args:
             results: List of validation results
             output_file: Output file path
-            
+
         Returns:
             Path to generated report
         """
         logger.info("Generating CSV validation summary")
-        
+
         if output_file is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_file = self.output_dir / f"validation_summary_{timestamp}.csv"
-        
+
         # Convert to DataFrame
         df = self._results_to_dataframe(results)
-        
+
         # Write to CSV
         output_file.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(output_file, index=False)
-        
+
         logger.info(f"CSV summary saved: {output_file}")
-        
+
         return output_file
-    
-    def _build_html_report(
-        self,
-        results: List[ValidationResult],
-        title: str
-    ) -> str:
+
+    def _build_html_report(self, results: List[ValidationResult], title: str) -> str:
         """Build HTML report content"""
-        
+
         # Calculate summary statistics
         total = len(results)
         passed = sum(1 for r in results if r.passed)
         failed = total - passed
-        
+
         # Group by severity
         by_severity = {}
         for severity in ValidationSeverity:
             count = sum(1 for r in results if r.severity == severity)
             by_severity[severity.value] = count
-        
+
         # Group by validator
         by_validator = {}
         for result in results:
@@ -167,7 +162,7 @@ class ValidationReportGenerator:
                 by_validator[validator]["passed"] += 1
             else:
                 by_validator[validator]["failed"] += 1
-        
+
         # Build HTML
         html = f"""
 <!DOCTYPE html>
@@ -353,14 +348,14 @@ class ValidationReportGenerator:
 </body>
 </html>
 """
-        
+
         return html
-    
+
     def _result_to_html_row(self, result: ValidationResult) -> str:
         """Convert validation result to HTML table row"""
         status_class = "passed" if result.passed else "failed"
         status_text = "✓ PASS" if result.passed else "✗ FAIL"
-        
+
         return f"""
                 <tr>
                     <td>{result.validator_name}</td>
@@ -371,29 +366,31 @@ class ValidationReportGenerator:
                     <td class="timestamp">{result.timestamp.strftime("%Y-%m-%d %H:%M:%S")}</td>
                 </tr>
 """
-    
+
     def _results_to_dataframe(self, results: List[ValidationResult]) -> pd.DataFrame:
         """Convert validation results to DataFrame"""
         data = []
-        
+
         for result in results:
-            data.append({
-                "validator": result.validator_name,
-                "check": result.rule_name,
-                "passed": result.passed,
-                "severity": result.severity.value,
-                "message": result.message,
-                "timestamp": result.timestamp.isoformat(),
-                "details": str(result.details) if result.details else ""
-            })
-        
+            data.append(
+                {
+                    "validator": result.validator_name,
+                    "check": result.rule_name,
+                    "passed": result.passed,
+                    "severity": result.severity.value,
+                    "message": result.message,
+                    "timestamp": result.timestamp.isoformat(),
+                    "details": str(result.details) if result.details else "",
+                }
+            )
+
         return pd.DataFrame(data)
 
 
 # Example usage
 if __name__ == "__main__":
     from etl.validators.base_validator import ValidationStatus
-    
+
     # Create sample validation results
     sample_results = [
         ValidationResult(
@@ -401,30 +398,29 @@ if __name__ == "__main__":
             rule_name="required_columns",
             status=ValidationStatus.PASSED,
             severity=ValidationSeverity.ERROR,
-            message="All required columns present"
+            message="All required columns present",
         ),
         ValidationResult(
             validator_name="FreshnessValidator",
             rule_name="data_age",
             status=ValidationStatus.FAILED,
             severity=ValidationSeverity.WARNING,
-            message="Data is 3 days old (threshold: 2 days)"
+            message="Data is 3 days old (threshold: 2 days)",
         ),
         ValidationResult(
             validator_name="QualityValidator",
             rule_name="missing_values",
             status=ValidationStatus.PASSED,
             severity=ValidationSeverity.ERROR,
-            message="Missing values within acceptable range (2.3%)"
+            message="Missing values within acceptable range (2.3%)",
         ),
     ]
-    
+
     # Generate reports
     generator = ValidationReportGenerator()
-    
+
     html_path = generator.generate_html_report(sample_results)
     print(f"HTML report: {html_path}")
-    
+
     csv_path = generator.generate_csv_summary(sample_results)
     print(f"CSV summary: {csv_path}")
-

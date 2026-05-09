@@ -1,54 +1,39 @@
 # CI X-13 Service Setup Guide
 
-**Version:** 1.0  
-**Last Updated:** 2025-11-24  
-**Status:** Phase 5.9.2 - Configuration Prepared, Full Deployment Deferred to Phase 6+
+**Version:** 1.1  
+**Last Updated:** 2026-05-08  
+**Status:** Phase 6.5 - X-13 CI quality gate enabled
 
 ---
 
 ## Overview
 
-This document describes how to enable full X-13ARIMA-SEATS seasonal adjustment testing in CI/CD. Currently, tests use graceful fallback when X-13 is unavailable. This guide explains how to enable the full service.
+This document describes the X-13ARIMA-SEATS seasonal adjustment quality gate in CI/CD.
+The test workflow now builds the X-13 Docker image, runs a real X-13 binary check, and
+executes the golden diagnostics verification inside that image.
 
-**Current State (Phase 5.9.2):**
+**Current State (Phase 6.5):**
 - ✅ X-13 service code and Dockerfile exist (`infra/x13/`)
-- ✅ Tests support graceful fallback to mock service
-- ✅ CI workflow configured with fallback logic
-- ⏳ X-13 Docker image not yet published to container registry
-- ⏳ GitHub Actions `services:` configuration prepared but not active
-
-**Target State (Phase 6+):**
-- ✅ X-13 Docker image published to GitHub Container Registry
-- ✅ CI workflow pulls pre-built image
-- ✅ Full X-13 seasonal adjustment runs in every CI build
-- ✅ Golden diagnostics quality gate validates M-statistics and Q-statistics
+- ✅ CI builds the X-13 image on every test run before the quality gate
+- ✅ `scripts/record_golden_diagnostics.py --verify` computes fresh M/Q diagnostics
+- ✅ Golden diagnostics quality gate validates M-statistics and Q-statistics against
+  `tests/fixtures/golden_baselines/golden_seasonal_diagnostics_ci.json`
+- ✅ `publish-x13-image.yml` publishes release images to GitHub Container Registry
 
 ---
 
 ## Architecture
 
-### Current Fallback Mechanism
+### Full CI Gate
 
 ```
 CI Test Run
-  ├─ Check X-13 service availability
-  │   └─ If unavailable: Use mock service (tests pass with warning)
-  ├─ Run seasonal adjustment tests
-  │   └─ Mock returns synthetic M/Q statistics
+  ├─ Build X-13 Docker image from infra/x13/Dockerfile
+  ├─ Verify x13as binary inside the image
   └─ Golden diagnostics validation
-      └─ JSON structure validation only (no real X-13 comparison)
-```
-
-### Target Full Service
-
-```
-CI Test Run
-  ├─ Pull X-13 Docker image from GitHub Container Registry
-  ├─ Start X-13 service (GitHub Actions services:)
-  ├─ Run seasonal adjustment tests
-  │   └─ Real X-13ARIMA-SEATS computation
-  └─ Golden diagnostics validation
-      └─ Full M1-M11 and Q-statistics comparison with baselines
+      ├─ Run real X-13ARIMA-SEATS inside the image
+      ├─ Compute fresh M1-M11 and Ljung-Box Q-statistics
+      └─ Compare fresh diagnostics with committed baselines
 ```
 
 ---
@@ -76,78 +61,50 @@ docker rm test-x13
 
 ### Step 2: Publish Image to GitHub Container Registry
 
-```bash
-# Login to GitHub Container Registry
-echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+Use the `Publish X-13 Image` GitHub Actions workflow. It runs on manual dispatch and on
+changes to X-13-related files on `main`, then publishes:
 
-# Tag image for GitHub Container Registry
-docker tag forecast-x13:latest ghcr.io/USERNAME/forecast-labor/x13:latest
-docker tag forecast-x13:latest ghcr.io/USERNAME/forecast-labor/x13:v1.0.0
-
-# Push to registry
-docker push ghcr.io/USERNAME/forecast-labor/x13:latest
-docker push ghcr.io/USERNAME/forecast-labor/x13:v1.0.0
-
-# Verify in GitHub
-# Navigate to: https://github.com/USERNAME/forecast-labor/packages
-```
+- `ghcr.io/<owner>/<repo>/x13:latest`
+- `ghcr.io/<owner>/<repo>/x13:<commit-sha>`
 
 ### Step 3: Update GitHub Actions Workflow
 
 **File:** `.github/workflows/test.yml`
 
-Uncomment and configure the X-13 service:
+The main test workflow builds the X-13 image locally for each run and executes the gate
+inside the image:
 
 ```yaml
-services:
-  postgres:
-    image: postgres:15
-    # ... (existing PostgreSQL config)
-  
-  x13:
-    image: ghcr.io/USERNAME/forecast-labor/x13:latest
-    credentials:
-      username: ${{ github.actor }}
-      password: ${{ secrets.GITHUB_TOKEN }}
-    options: >-
-      --health-cmd "curl -f http://localhost:5000/health || exit 1"
-      --health-interval 10s
-      --health-timeout 5s
-      --health-retries 5
-    ports:
-      - 5000:5000
+- name: Build X-13 CI image
+  run: docker build -t "${X13_CI_IMAGE}" -f infra/x13/Dockerfile infra/x13/
 
-env:
-  # Add X-13 service URL
-  X13_SERVICE_URL: http://localhost:5000
-  X13_SERVICE_TIMEOUT: 60
-```
-
-### Step 4: Remove Fallback Logic (Optional)
-
-Once X-13 service is reliably available, remove fallback:
-
-**File:** `scripts/record_golden_diagnostics.py`
-
-```python
-# Remove --skip-x13 flag support
-# Require X-13 service for all verification
-
-def verify_diagnostics(require_x13: bool = True):
-    if require_x13 and not x13_service_available():
-        raise RuntimeError("X-13 service required but unavailable")
-    # ... rest of verification
-```
-
-**File:** `.github/workflows/test.yml`
-
-```yaml
-# Remove conditional logic
 - name: Check golden diagnostics (X-13 Quality Gate)
   run: |
-    python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --verify
-  # Now fails build if X-13 unavailable (no more fallback)
+    docker run --rm \
+      -v "${{ github.workspace }}:/app" \
+      -w /app \
+      -e PYTHONPATH=/app \
+      "${X13_CI_IMAGE}" \
+      python3 scripts/record_golden_diagnostics.py \
+        --vintage-date 2024-01-15 \
+        --verify \
+        --force-synthetic \
+        --output-file tests/fixtures/golden_baselines/golden_seasonal_diagnostics_ci.json
 ```
+
+### Step 4: Verification Behavior
+
+`--verify` now records current diagnostics into a temporary file, extracts current
+M-statistics and Q-statistics, and compares them against the committed golden baseline.
+The command exits non-zero if the baseline is missing, current diagnostics cannot be
+computed, or any hard M-statistic/Q-statistic gate fails.
+
+CI intentionally uses `--force-synthetic` with the deterministic CI baseline
+`golden_seasonal_diagnostics_ci.json` because production vintages under `data/` are
+gitignored and unavailable in GitHub Actions. This still runs real X-13 and compares
+fresh M/Q diagnostics. The production baseline remains
+`golden_seasonal_diagnostics.json` and should be verified locally or in a production-like
+environment with the 2025-11-29 vintage available.
 
 ---
 
@@ -185,17 +142,10 @@ python scripts/record_golden_diagnostics.py --vintage-date 2024-01-15 --verify
 
 ### Q: What if X-13 service fails in CI?
 
-**A:** Current fallback behavior:
-
-- Tests log warning: "X-13 service unavailable, using mock"
-- Tests continue with mock service (synthetic M/Q statistics)
-- Golden diagnostics validates JSON structure only
-- Build passes (no blocking)
-
-Future behavior (after full deployment):
+**A:** Current Phase 6.5 behavior:
 
 - Build fails immediately if X-13 unavailable
-- No mock fallback
+- The golden diagnostics gate does not fall back to structure-only validation
 - Ensures production quality gates are enforced
 
 ### Q: How long does X-13 add to CI runtime?
@@ -304,19 +254,15 @@ Once X-13 fully deployed:
 
 ## Migration Checklist
 
-### Phase 6 Deployment (When Ready)
+### Phase 6 Deployment
 
-- [ ] Build and test X-13 Docker image locally
-- [ ] Publish image to GitHub Container Registry (ghcr.io)
-- [ ] Verify image pull works in CI (test with docker pull)
-- [ ] Update `.github/workflows/test.yml` with X-13 service
-- [ ] Add X13_SERVICE_URL environment variable
-- [ ] Run CI build and verify X-13 service starts
-- [ ] Run golden diagnostics verification (full, not fallback)
+- [x] Build and test X-13 Docker image in CI
+- [x] Add GitHub Container Registry publishing workflow
+- [x] Update `.github/workflows/test.yml` with X-13-backed quality gate
+- [x] Run golden diagnostics verification with full M/Q comparison
+- [x] Update documentation to reflect X-13 now required
+- [x] Remove structure-only verification fallback
 - [ ] Monitor CI runtime impact (target: < 5 minutes increase)
-- [ ] Update documentation to reflect X-13 now required
-- [ ] Remove mock service fallback (enforce X-13 availability)
-- [ ] Add CI alerts for X-13 service failures
 
 ---
 
@@ -344,8 +290,10 @@ Once X-13 fully deployed:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-11-24 | System | Initial documentation (Phase 5.9.2 Quality Gap Resolution) |
+| 1.1 | 2026-05-08 | AI Assistant | Phase 6.5 X-13 CI quality gate enabled |
 
 ---
 
-**Next Steps:** Defer full X-13 CI deployment to Phase 6 when backtesting begins. Current fallback mechanism is sufficient for Phase 5 completion.
+**Next Steps:** Monitor CI runtime and update the golden baseline only after reviewed,
+intentional seasonal adjustment changes.
 

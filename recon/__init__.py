@@ -9,5 +9,4 @@ This module provides hierarchical forecast reconciliation methods including:
 
 from recon.mint.mint_reconciler import MinTReconciler
 
-__all__ = ['MinTReconciler']
-
+__all__ = ["MinTReconciler"]

@@ -12,6 +12,7 @@ Usage:
 import argparse
 import json
 import sys
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -22,11 +23,8 @@ from loguru import logger
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from seasonal.pipeline import SeasonalAdjustmentPipeline
-from seasonal.diagnostics.extractor import DiagnosticsExtractor
-from seasonal.diagnostics.m_statistics import validate_quality_thresholds
-from seasonal.diagnostics.q_statistics import validate_residual_randomness
-from etl.common.storage import StorageClient
+from etl.common.storage import StorageClient  # noqa: E402
+from seasonal.pipeline import SeasonalAdjustmentPipeline  # noqa: E402
 
 # Golden diagnostics file
 GOLDEN_DIAGNOSTICS_FILE = Path("tests/fixtures/golden_baselines/golden_seasonal_diagnostics.json")
@@ -85,26 +83,30 @@ MONITORED_SERIES = {
 def _generate_sample_series(series_id: str, periods: int = 120) -> pd.Series:
     """
     Generate sample time series with seasonality for testing/fallback
-    
+
     Args:
         series_id: Series identifier
         periods: Number of periods (months)
-        
+
     Returns:
         Sample time series
     """
+    import hashlib
+
     import numpy as np
-    
+
     # Create date range
-    dates = pd.date_range(start='2014-01-01', periods=periods, freq='MS')
-    
+    dates = pd.date_range(start="2014-01-01", periods=periods, freq="MS")
+
     # Generate trend + seasonal + noise
     trend = np.linspace(140000, 160000, periods)  # Employment trend
-    seasonal = 2000 * np.sin(2 * np.pi * np.arange(periods) / 12)  # Annual seasonality
-    noise = np.random.normal(0, 500, periods)  # Random noise
-    
+    seasonal = 2000 * np.sin(2 * np.pi * np.arange(periods) / 12)
+    seed = int(hashlib.sha256(series_id.encode("utf-8")).hexdigest()[:8], 16)
+    rng = np.random.default_rng(seed)
+    noise = rng.normal(0, 500, periods)  # Deterministic synthetic fallback noise
+
     series = pd.Series(trend + seasonal + noise, index=dates, name=series_id)
-    
+
     return series
 
 
@@ -112,109 +114,122 @@ def _load_series_from_vintage(
     series_id: str,
     series_info: Dict[str, str],
     vintage_date: date,
-    storage_client: Optional[StorageClient] = None
+    storage_client: Optional[StorageClient] = None,
 ) -> Optional[pd.Series]:
     """
     Load a series from vintage data (MinIO or local filesystem)
-    
+
     Args:
         series_id: Series identifier (e.g., "CES0000000001")
         series_info: Series metadata (name, source)
         vintage_date: Vintage date to load
         storage_client: Optional storage client for MinIO access
-        
+
     Returns:
         Series data or None if not found
     """
     source = series_info.get("source")
-    
+
     # Try loading from MinIO first
     if storage_client:
         try:
-            vintage_path = f"vintages/{source}/{vintage_date.strftime('%Y-%m-%d')}/{source}_vintage.parquet"
+            vintage_path = (
+                f"vintages/{source}/{vintage_date.strftime('%Y-%m-%d')}/"
+                f"{source}_vintage.parquet"
+            )
             logger.info(f"  Attempting to load from MinIO: {vintage_path}")
-            
+
             df = storage_client.read_parquet(vintage_path)
-            
+
             if df is not None and not df.empty:
                 # Extract specific series
                 if "series_id" in df.columns:
                     series_df = df[df["series_id"] == series_id].copy()
-                    
+
                     if not series_df.empty:
                         # Ensure date index
                         if "date" in series_df.columns:
                             series_df["date"] = pd.to_datetime(series_df["date"])
                             series_df = series_df.set_index("date")
-                        
+
                         # Extract value column
                         if "value" in series_df.columns:
                             series = series_df["value"]
                             series.name = series_id
                             logger.info(f"  ✅ Loaded {len(series)} observations from MinIO")
                             return series
-                        
+
         except Exception as e:
             logger.warning(f"  Failed to load from MinIO: {e}")
-    
+
     # Try loading from local filesystem
     try:
-        from pathlib import Path
-        vintage_path = Path("data/vintages") / source / vintage_date.strftime("%Y-%m-%d") / f"{source}_vintage.parquet"
-        
+        vintage_path = (
+            Path("data/vintages")
+            / source
+            / vintage_date.strftime("%Y-%m-%d")
+            / f"{source}_vintage.parquet"
+        )
+
         if vintage_path.exists():
             logger.info(f"  Attempting to load from local: {vintage_path}")
-            
+
             df = pd.read_parquet(vintage_path)
-            
+
             if "series_id" in df.columns:
                 series_df = df[df["series_id"] == series_id].copy()
-                
+
                 if not series_df.empty:
                     # Ensure date index
                     if "date" in series_df.columns:
                         series_df["date"] = pd.to_datetime(series_df["date"])
                         series_df = series_df.set_index("date")
-                    
+
                     # Extract value column
                     if "value" in series_df.columns:
                         series = series_df["value"]
                         series.name = series_id
-                        logger.info(f"  ✅ Loaded {len(series)} observations from local filesystem")
+                        logger.info(
+                            f"  ✅ Loaded {len(series)} observations " "from local filesystem"
+                        )
                         return series
-    
+
     except Exception as e:
         logger.warning(f"  Failed to load from local filesystem: {e}")
-    
+
     logger.warning(f"  Could not load series {series_id} from vintage {vintage_date}")
     return None
 
 
-def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIAGNOSTICS_FILE) -> bool:
+def record_golden_diagnostics(
+    vintage_date: date,
+    output_file: Path = GOLDEN_DIAGNOSTICS_FILE,
+    force_synthetic: bool = False,
+) -> bool:
     """
     Record golden seasonal adjustment diagnostics by running actual X-13.
-    
+
     Args:
         vintage_date: Vintage date to use
         output_file: Output file path
-        
+        force_synthetic: Use deterministic synthetic series instead of loading vintages.
+
     Returns:
         True if successful
     """
     logger.info(f"Recording golden diagnostics for vintage: {vintage_date}")
     logger.info(f"Monitored series: {len(MONITORED_SERIES)}")
-    
+
     golden_diagnostics = {
         "vintage_date": vintage_date.isoformat(),
         "recorded_at": str(date.today()),
-        "series": {}
+        "series": {},
     }
-    
+
     # Initialize seasonal adjustment pipeline and storage
     try:
         pipeline = SeasonalAdjustmentPipeline()
-        extractor = DiagnosticsExtractor()
-        
+
         # Try to initialize storage client for loading vintages
         storage = None
         try:
@@ -223,102 +238,107 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
         except Exception as e:
             logger.warning(f"StorageClient initialization failed: {e}")
             logger.warning("Will only check local filesystem for vintages")
-        
+
         logger.info("Running seasonal adjustment on monitored series...")
-        
+
         for series_id, series_info in MONITORED_SERIES.items():
             logger.info(f"\nProcessing {series_id}: {series_info['name']}")
-            
+
             try:
-                # Try to load from vintage data first
-                series_data = _load_series_from_vintage(
-                    series_id,
-                    series_info,
-                    vintage_date,
-                    storage
-                )
-                
+                series_data = None
+                if not force_synthetic:
+                    # Try to load from vintage data first
+                    series_data = _load_series_from_vintage(
+                        series_id, series_info, vintage_date, storage
+                    )
+                else:
+                    logger.info("  Using deterministic synthetic series by request")
+
                 # Fallback to synthetic data if vintage not available
                 if series_data is None:
-                    logger.warning(f"  Vintage data not available, using synthetic fallback")
+                    logger.warning("  Vintage data not available, using synthetic fallback")
                     series_data = _generate_sample_series(series_id)
-                
+
                 logger.info(f"  Series length: {len(series_data)} months")
                 logger.info(f"  Date range: {series_data.index[0]} to {series_data.index[-1]}")
-                
+
                 # Run seasonal adjustment with series-type-appropriate configuration
                 # Get series-specific config (with defaults for backward compatibility)
                 series_config = series_info.get("config", {})
                 series_config["frequency"] = "monthly"  # Ensure frequency is set
-                
+
                 result = pipeline.run(
                     series_name=series_id,
                     series_data=series_data,
                     start_date=series_data.index[0].date(),
-                    config=series_config  # Use series-type-appropriate config
+                    config=series_config,  # Use series-type-appropriate config
                 )
-                
-                # Extract diagnostics (now includes M-statistics and Q-statistics from pipeline)
+
+                # Extract diagnostics (now includes M-statistics and Q-statistics)
                 diagnostics = result.get("diagnostics", {})
                 m_statistics = result.get("m_statistics", {})
                 q_statistics = result.get("q_statistics", {})
-                
-                # Check for valid diagnostics (avoid ambiguous truth value error with pandas Series)
-                if (diagnostics is not None and len(diagnostics) > 0) or (m_statistics is not None and len(m_statistics) > 0):
-                    logger.info(f"  ✅ Extracted diagnostics from seasonal adjustment")
-                    
+
+                # Check for diagnostics without pandas truth-value ambiguity.
+                if (diagnostics is not None and len(diagnostics) > 0) or (
+                    m_statistics is not None and len(m_statistics) > 0
+                ):
+                    logger.info("  ✅ Extracted diagnostics from seasonal adjustment")
+
                     # Get M-statistics quality assessment
-                    m_quality = m_statistics.get('m_quality_assessment', {})
-                    m_quality_grade = m_quality.get('overall_quality', 'unknown')
-                    
+                    m_quality = m_statistics.get("m_quality_assessment", {})
+                    m_quality_grade = m_quality.get("overall_quality", "unknown")
+
                     # Get Q-statistics quality assessment
-                    q_quality = q_statistics.get('q_quality_assessment', {})
-                    q_quality_grade = q_quality.get('quality', 'unknown')
-                    q_is_random = q_quality.get('random', None)
-                    
+                    q_quality = q_statistics.get("q_quality_assessment", {})
+                    q_quality_grade = q_quality.get("quality", "unknown")
+                    q_is_random = q_quality.get("random", None)
+
                     # Overall quality: worst of M-statistics and Q-statistics
-                    if m_quality_grade == 'poor' or q_quality_grade == 'poor':
-                        overall_quality = 'poor'
-                    elif m_quality_grade == 'acceptable' or q_quality_grade == 'acceptable':
-                        overall_quality = 'acceptable'
-                    elif m_quality_grade == 'good' and q_quality_grade == 'good':
-                        overall_quality = 'good'
+                    if m_quality_grade == "poor" or q_quality_grade == "poor":
+                        overall_quality = "poor"
+                    elif m_quality_grade == "acceptable" or q_quality_grade == "acceptable":
+                        overall_quality = "acceptable"
+                    elif m_quality_grade == "good" and q_quality_grade == "good":
+                        overall_quality = "good"
                     else:
-                        overall_quality = 'unknown'
-                    
+                        overall_quality = "unknown"
+
                     logger.info(f"  M-statistics quality: {m_quality_grade}")
-                    logger.info(f"  Q-statistics quality: {q_quality_grade} (random: {q_is_random})")
+                    logger.info(
+                        f"  Q-statistics quality: {q_quality_grade} " f"(random: {q_is_random})"
+                    )
                     logger.info(f"  Overall quality: {overall_quality}")
-                    
+
                     # Define thresholds based on Census Bureau guidelines
                     # These are maximum acceptable values for each statistic
                     thresholds = {
-                        "m1_max": 1.0,   # Irregular contribution over 3-month span
-                        "m2_max": 1.0,   # Irregular contribution to changes
-                        "m3_max": 1.0,   # Month-to-month irregular vs trend
-                        "m4_max": 1.0,   # Autocorrelation in irregular
-                        "m5_max": 1.0,   # Heteroscedasticity in irregular
-                        "m6_max": 1.0,   # Duration of runs in irregular
-                        "m7_max": 1.0,   # Combined seasonality test
-                        "m8_max": 1.0,   # Closeness of annual totals
-                        "m9_max": 1.0,   # Stability of seasonal factors
+                        "m1_max": 1.0,  # Irregular contribution over 3-month span
+                        "m2_max": 1.0,  # Irregular contribution to changes
+                        "m3_max": 1.0,  # Month-to-month irregular vs trend
+                        "m4_max": 1.0,  # Autocorrelation in irregular
+                        "m5_max": 1.0,  # Heteroscedasticity in irregular
+                        "m6_max": 1.0,  # Duration of runs in irregular
+                        "m7_max": 1.0,  # Combined seasonality test
+                        "m8_max": 1.0,  # Closeness of annual totals
+                        "m9_max": 1.0,  # Stability of seasonal factors
                         "m10_max": 1.0,  # Recent movements in seasonal factors
                         "m11_max": 1.0,  # Linear trend in seasonal factors
                         "q_statistic_max": 1.0,  # Q-statistic (average of M1-M11)
                         "q_max": 1.0,  # Backward-compatible alias
                         "ljung_box_p_min": 0.05,  # Ljung-Box p-value (> 0.05 = good)
                     }
-                    
+
                     # Store in golden diagnostics with enhanced structure
-                    # Convert any pandas Series to scalar values and numpy types to Python types
+                    # Convert pandas/numpy values to JSON-safe Python scalars.
                     def to_scalar(value):
-                        """Convert pandas Series and numpy types to JSON-serializable Python types"""
+                        """Convert pandas/numpy values to JSON-safe Python types."""
                         import pandas as pd
                         import numpy as np
-                        
+
                         if isinstance(value, pd.Series):
                             value = value.iloc[0] if len(value) > 0 else None
-                        
+
                         # Convert numpy types to Python types for JSON serialization
                         if isinstance(value, (np.integer, np.floating)):
                             return float(value)
@@ -326,53 +346,67 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
                             return bool(value)
                         elif isinstance(value, np.ndarray):
                             return value.tolist()
-                        
+
                         return value
-                    
+
                     golden_diagnostics["series"][series_id] = {
                         "name": series_info["name"],
                         "source": series_info["source"],
                         "m_statistics": {
-                            k: to_scalar(v) for k, v in m_statistics.items() 
-                            if (k.startswith('m') or k == 'q_statistic') and not isinstance(v, dict)
+                            k: to_scalar(v)
+                            for k, v in m_statistics.items()
+                            if (k.startswith("m") or k == "q_statistic") and not isinstance(v, dict)
                         },
                         "q_statistics": {
-                            "q_statistic": to_scalar(q_statistics.get('q_statistic')) if q_statistics else None,
-                            "p_value": to_scalar(q_statistics.get('p_value')) if q_statistics else None,
-                            "lags_tested": to_scalar(q_statistics.get('lags_tested')) if q_statistics else None,
+                            "q_statistic": to_scalar(q_statistics.get("q_statistic"))
+                            if q_statistics
+                            else None,
+                            "p_value": to_scalar(q_statistics.get("p_value"))
+                            if q_statistics
+                            else None,
+                            "lags_tested": to_scalar(q_statistics.get("lags_tested"))
+                            if q_statistics
+                            else None,
                         },
                         "quality_assessment": {
                             "m_quality": to_scalar(m_quality_grade),
                             "q_quality": to_scalar(q_quality_grade),
                             "q_is_random": to_scalar(q_is_random),
-                            "overall": to_scalar(overall_quality)
+                            "overall": to_scalar(overall_quality),
                         },
                         "thresholds": {k: to_scalar(v) for k, v in thresholds.items()},
                         "quality_grade": to_scalar(overall_quality),
                         "recorded_at": datetime.now().isoformat(),
-                        "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
+                        "notes": (
+                            "Real diagnostics from X-13 seasonal adjustment "
+                            "with M-statistics and Q-statistics (Ljung-Box)"
+                        ),
                     }
-                    
+
                 else:
                     logger.warning(f"  ⚠️ No diagnostics extracted for {series_id}")
-                    
+
             except Exception as e:
                 import traceback
+
                 logger.error(f"  ❌ Failed to process {series_id}: {e}")
                 logger.error(f"  Traceback: {traceback.format_exc()}")
                 # Continue with other series
-        
+
         # Save golden diagnostics
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w') as f:
+
+        with open(output_file, "w") as f:
             json.dump(golden_diagnostics, f, indent=2)
-        
+
         logger.info(f"\n✅ Golden diagnostics saved to: {output_file}")
-        logger.info(f"   Series successfully processed: {len(golden_diagnostics['series'])}/{len(MONITORED_SERIES)}")
-        
-        return len(golden_diagnostics['series']) > 0
-        
+        logger.info(
+            "   Series successfully processed: "
+            f"{len(golden_diagnostics['series'])}/{len(MONITORED_SERIES)}"
+        )
+
+        return len(golden_diagnostics["series"]) > 0
+
     except Exception as e:
         logger.error(f"Failed to record golden diagnostics: {e}")
         logger.exception(e)
@@ -380,49 +414,49 @@ def record_golden_diagnostics(vintage_date: date, output_file: Path = GOLDEN_DIA
 
 
 def verify_diagnostics(
-    current_diagnostics: Dict[str, Any], 
+    current_diagnostics: Dict[str, Any],
     golden_file: Path = GOLDEN_DIAGNOSTICS_FILE,
-    tolerance_pct: float = 10.0
+    tolerance_pct: float = 10.0,
 ) -> bool:
     """
     Verify current diagnostics against golden baseline with tolerance bands.
-    
+
     Args:
         current_diagnostics: Current diagnostics to verify (dict of series_id -> stats)
         golden_file: Golden diagnostics file
         tolerance_pct: Percentage tolerance for degradation (default: 10%)
-        
+
     Returns:
         True if within acceptable thresholds
     """
     logger.info("=" * 70)
     logger.info("Verifying seasonal diagnostics against golden baseline")
     logger.info("=" * 70)
-    
+
     if not golden_file.exists():
         logger.error(f"Golden diagnostics file not found: {golden_file}")
         return False
-    
-    with open(golden_file, 'r') as f:
+
+    with open(golden_file, "r") as f:
         golden = json.load(f)
-    
+
     all_pass = True
     total_checks = 0
     passed_checks = 0
     failed_checks = 0
-    
+
     for series_id, current_stats in current_diagnostics.items():
         if series_id not in golden["series"]:
             logger.warning(f"Series {series_id} not in golden baseline - skipping")
             continue
-        
+
         golden_series = golden["series"][series_id]
         golden_m_stats = golden_series.get("m_statistics", {})
         golden_q_stats = golden_series.get("q_statistics", {})
         thresholds = golden_series.get("thresholds", {})
-        
+
         logger.info(f"\nVerifying {series_id}: {golden_series.get('name', 'Unknown')}")
-        
+
         # Check M-statistics (M1-M11 and Q-statistic)
         for i in range(1, 12):
             m_key = f"m{i}"
@@ -433,28 +467,27 @@ def verify_diagnostics(
                 threshold = thresholds.get(threshold_key, 1.0)
                 if golden_val is not None:
                     threshold = max(threshold, golden_val * (1 + tolerance_pct / 100))
-                
+
                 total_checks += 1
-                
+
                 # Check against absolute threshold
                 if current_val > threshold:
                     logger.error(
-                        f"  ❌ {m_key.upper()}: {current_val:.3f} > {threshold:.3f} (threshold)"
+                        f"  ❌ {m_key.upper()}: {current_val:.3f} > " f"{threshold:.3f} (threshold)"
                     )
                     all_pass = False
                     failed_checks += 1
                 elif golden_val is not None:
                     logger.info(
-                        f"  ✅ {m_key.upper()}: {current_val:.3f} (golden: {golden_val:.3f}, "
+                        f"  ✅ {m_key.upper()}: {current_val:.3f} "
+                        f"(golden: {golden_val:.3f}, "
                         f"threshold: {threshold:.3f})"
                     )
                     passed_checks += 1
                 else:
-                    logger.info(
-                        f"  ✅ {m_key.upper()}: {current_val:.3f} <= {threshold:.3f}"
-                    )
+                    logger.info(f"  ✅ {m_key.upper()}: {current_val:.3f} <= {threshold:.3f}")
                     passed_checks += 1
-        
+
         # Check Q-statistic (average of M1-M11)
         if "q_statistic" in current_stats:
             current_q = current_stats["q_statistic"]
@@ -462,24 +495,20 @@ def verify_diagnostics(
             threshold = thresholds.get("q_statistic_max", 1.0)
             if golden_q is not None:
                 threshold = max(threshold, golden_q * (1 + tolerance_pct / 100))
-            
+
             total_checks += 1
-            
+
             if current_q > threshold:
-                logger.error(
-                    f"  ❌ Q-STAT: {current_q:.3f} > {threshold:.3f} (threshold)"
-                )
+                logger.error(f"  ❌ Q-STAT: {current_q:.3f} > {threshold:.3f} (threshold)")
                 all_pass = False
                 failed_checks += 1
             elif golden_q is not None:
-                logger.info(
-                    f"  ✅ Q-STAT: {current_q:.3f} (golden: {golden_q:.3f})"
-                )
+                logger.info(f"  ✅ Q-STAT: {current_q:.3f} (golden: {golden_q:.3f})")
                 passed_checks += 1
             else:
                 logger.info(f"  ✅ Q-STAT: {current_q:.3f} <= {threshold:.3f}")
                 passed_checks += 1
-        
+
         # Check Ljung-Box Q-statistic p-value
         if "p_value" in current_stats:
             current_p = current_stats["p_value"]
@@ -487,9 +516,9 @@ def verify_diagnostics(
             p_min_threshold = thresholds.get("ljung_box_p_min", 0.05)
             if golden_p is not None and golden_p < p_min_threshold:
                 p_min_threshold = golden_p * (1 - tolerance_pct / 100)
-            
+
             total_checks += 1
-            
+
             if current_p < p_min_threshold:
                 logger.warning(
                     f"  ⚠️  LJUNG-BOX: p={current_p:.4f} < {p_min_threshold} "
@@ -501,140 +530,178 @@ def verify_diagnostics(
                     f"threshold: >{p_min_threshold})"
                 )
             else:
-                logger.info(
-                    f"  ✅ LJUNG-BOX: p={current_p:.4f} > {p_min_threshold}"
-                )
+                logger.info(f"  ✅ LJUNG-BOX: p={current_p:.4f} > {p_min_threshold}")
             passed_checks += 1
-    
+
     # Summary
     logger.info("\n" + "=" * 70)
-    logger.info(f"Verification Summary:")
+    logger.info("Verification Summary:")
     logger.info(f"  Total checks: {total_checks}")
     logger.info(f"  Passed: {passed_checks}")
     logger.info(f"  Failed: {failed_checks}")
     logger.info(f"  Tolerance: ±{tolerance_pct}%")
-    
+
     if all_pass:
         logger.info("✅ All diagnostics within acceptable thresholds")
     else:
-        logger.error("❌ Some diagnostics exceeded thresholds or degraded significantly")
+        logger.error("❌ Some diagnostics exceeded quality thresholds")
     logger.info("=" * 70)
-    
+
     return all_pass
+
+
+def extract_current_diagnostics(diagnostics_report: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """
+    Extract flat diagnostic statistics from a recorded diagnostics report.
+
+    Args:
+        diagnostics_report: Report produced by ``record_golden_diagnostics``.
+
+    Returns:
+        Mapping of series ID to current M-statistics and Q-statistics.
+    """
+    current_diagnostics: Dict[str, Dict[str, Any]] = {}
+
+    for series_id, series_data in diagnostics_report.get("series", {}).items():
+        m_stats = series_data.get("m_statistics", {})
+        q_stats = series_data.get("q_statistics", {})
+
+        current_diagnostics[series_id] = {
+            **{
+                key: value
+                for key, value in m_stats.items()
+                if (key.startswith("m") or key == "q_statistic") and not isinstance(value, dict)
+            },
+            "p_value": q_stats.get("p_value"),
+            "ljung_box_q": q_stats.get("q_statistic"),
+        }
+
+    return current_diagnostics
+
+
+def run_full_diagnostics_verification(
+    vintage_date: date,
+    golden_file: Path = GOLDEN_DIAGNOSTICS_FILE,
+    tolerance_pct: float = 10.0,
+    force_synthetic: bool = False,
+) -> bool:
+    """
+    Run X-13 and compare fresh diagnostics against the golden baseline.
+
+    Args:
+        vintage_date: Vintage date to use for current diagnostics.
+        golden_file: Golden baseline file to compare against.
+        tolerance_pct: Percentage tolerance for degradation.
+        force_synthetic: Use deterministic synthetic series instead of loading vintages.
+
+    Returns:
+        True if current diagnostics are within acceptable thresholds.
+    """
+    if not golden_file.exists():
+        logger.error(f"Golden baseline not found: {golden_file}")
+        logger.error("Run with --record first to create the baseline")
+        return False
+
+    with tempfile.TemporaryDirectory(prefix="current_golden_diagnostics_") as tmp_dir:
+        current_file = Path(tmp_dir) / "current_diagnostics.json"
+
+        logger.info("=" * 70)
+        logger.info("Running current X-13 diagnostics for verification")
+        logger.info("=" * 70)
+
+        if not record_golden_diagnostics(
+            vintage_date,
+            current_file,
+            force_synthetic=force_synthetic,
+        ):
+            logger.error("Failed to compute current X-13 diagnostics")
+            return False
+
+        with open(current_file, "r") as f:
+            current_report = json.load(f)
+
+        current_diagnostics = extract_current_diagnostics(current_report)
+        if not current_diagnostics:
+            logger.error("Current diagnostics report has no series data")
+            return False
+
+        logger.info(
+            f"Computed current diagnostics for {len(current_diagnostics)} series; "
+            f"comparing against {golden_file}"
+        )
+        return verify_diagnostics(
+            current_diagnostics,
+            golden_file,
+            tolerance_pct=tolerance_pct,
+        )
 
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(
-        description="Record or verify golden seasonal diagnostics"
-    )
-    
+    parser = argparse.ArgumentParser(description="Record or verify golden seasonal diagnostics")
+
     parser.add_argument(
         "--vintage-date",
         type=str,
         default=PINNED_VINTAGE_DATE.isoformat(),
-        help=f"Vintage date (YYYY-MM-DD). Default: {PINNED_VINTAGE_DATE}"
+        help=f"Vintage date (YYYY-MM-DD). Default: {PINNED_VINTAGE_DATE}",
     )
-    
-    parser.add_argument(
-        "--record",
-        action="store_true",
-        help="Record golden diagnostics"
-    )
-    
+
+    parser.add_argument("--record", action="store_true", help="Record golden diagnostics")
+
     parser.add_argument(
         "--verify",
         action="store_true",
-        help="Verify current diagnostics against golden baseline"
+        help="Verify current diagnostics against golden baseline",
     )
-    
+
     parser.add_argument(
         "--output-file",
         type=str,
         default=str(GOLDEN_DIAGNOSTICS_FILE),
-        help="Output file path"
+        help="Output file path",
     )
-    
+
+    parser.add_argument(
+        "--tolerance-pct",
+        type=float,
+        default=10.0,
+        help=("Allowed percentage degradation from golden diagnostics during " "verification"),
+    )
+
+    parser.add_argument(
+        "--force-synthetic",
+        action="store_true",
+        help="Use deterministic synthetic series instead of loading vintage data",
+    )
+
     args = parser.parse_args()
-    
+
     # Parse vintage date
     try:
         vintage_date = date.fromisoformat(args.vintage_date)
     except ValueError:
         logger.error(f"Invalid date format: {args.vintage_date}")
         sys.exit(1)
-    
+
     output_file = Path(args.output_file)
-    
+
     # Execute
     if args.record:
-        success = record_golden_diagnostics(vintage_date, output_file)
+        success = record_golden_diagnostics(
+            vintage_date,
+            output_file,
+            force_synthetic=args.force_synthetic,
+        )
         sys.exit(0 if success else 1)
     elif args.verify:
-        # For verify, we need to run seasonal adjustment and compare
-        logger.warning("=" * 70)
-        logger.warning("⚠️  CRITICAL LIMITATION: --verify is a STRUCTURE-ONLY CHECK")
-        logger.warning("=" * 70)
-        logger.warning("This implementation:")
-        logger.warning("  ✅ Validates JSON file structure")
-        logger.warning("  ✅ Checks for non-null diagnostic values")
-        logger.warning("  ❌ Does NOT run X-13ARIMA-SEATS seasonal adjustment")
-        logger.warning("  ❌ Does NOT compute current M-statistics/Q-statistics")
-        logger.warning("  ❌ Does NOT compare against golden baseline values")
-        logger.warning("  ❌ CANNOT detect seasonal adjustment quality regressions")
-        logger.warning("")
-        logger.warning("PRODUCTION IMPACT:")
-        logger.warning("  - This gate protects JSON structure only")
-        logger.warning("  - Seasonal quality regressions will NOT be caught")
-        logger.warning("  - Full verification requires Phase 5+ implementation")
-        logger.warning("=" * 70)
-        
-        # TODO: Full verification implementation (Phase 5+)
-        # This should:
-        # 1. Load current vintage data
-        # 2. Run seasonal adjustment (X-13ARIMA-SEATS)
-        # 3. Extract M-statistics and Q-statistics
-        # 4. Compare current diagnostics to golden baseline
-        # 5. Fail if diagnostics exceed acceptable degradation thresholds
-        # 6. Support tolerance bands for acceptable degradation
-        
-        if not output_file.exists():
-            logger.error(f"Golden baseline not found: {output_file}")
-            logger.error("Run with --record first to create the baseline")
-            sys.exit(1)
-        
-        logger.info(f"Verifying against golden baseline: {output_file}")
-        logger.info("Current implementation: Validates file structure and non-null values only")
-        
-        # Load and validate golden baseline
-        try:
-            with open(output_file, 'r') as f:
-                golden = json.load(f)
-            
-            if not golden.get("series"):
-                logger.error("Golden baseline has no series data")
-                sys.exit(1)
-            
-            # Check that series have non-null values
-            empty_series = []
-            for series_id, data in golden["series"].items():
-                m_stats = data.get("m_statistics", {})
-                if all(v is None for v in m_stats.values()):
-                    empty_series.append(series_id)
-            
-            if empty_series:
-                logger.error(f"Golden baseline has {len(empty_series)} series with null diagnostics")
-                logger.error(f"Series with null data: {empty_series}")
-                logger.error("Run --record to populate the baseline with real diagnostics")
-                sys.exit(1)
-            
-            logger.info(f"✅ Golden baseline is valid with {len(golden['series'])} series")
-            logger.info("✅ All series have non-null diagnostic values")
-            sys.exit(0)
-            
-        except Exception as e:
-            logger.error(f"Failed to validate golden baseline: {e}")
-            sys.exit(1)
+        success = run_full_diagnostics_verification(
+            vintage_date,
+            output_file,
+            tolerance_pct=args.tolerance_pct,
+            force_synthetic=args.force_synthetic,
+        )
+        sys.exit(0 if success else 1)
     else:
         logger.error("Must specify either --record or --verify")
         parser.print_help()
@@ -643,4 +710,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

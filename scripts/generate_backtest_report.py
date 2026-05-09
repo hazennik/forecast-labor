@@ -27,7 +27,9 @@ def parse_args() -> ArgumentParser:
     parser.add_argument("--output-dir", type=Path, default=Path("data/reports"))
     parser.add_argument("--stem", type=str, default="phase_6_backtest_report")
     parser.add_argument("--title", type=str, default="Phase 6 Backtest Report")
-    parser.add_argument("--metadata", type=str, default="{}", help="JSON object with report metadata")
+    parser.add_argument(
+        "--metadata", type=str, default="{}", help="JSON object with report metadata"
+    )
     return parser
 
 

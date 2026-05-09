@@ -182,14 +182,8 @@ def validate_feature_lineage(
     ]
     impacts = [_coerce_rollback_impact(impact) for impact in (rollback_impacts or [])]
     findings = _portfolio_findings(model_results, impacts)
-    all_findings = findings + [
-        finding
-        for result in model_results
-        for finding in result.findings
-    ]
-    passed = not any(
-        finding.severity == LineageSeverity.CRITICAL for finding in all_findings
-    )
+    all_findings = findings + [finding for result in model_results for finding in result.findings]
+    passed = not any(finding.severity == LineageSeverity.CRITICAL for finding in all_findings)
 
     report = LineageValidationReport(
         passed=passed,
@@ -308,14 +302,19 @@ def _validate_model_artifact(
                     message="Feature vintage differs from model artifact vintage",
                     model_name=model_name,
                     feature_name=feature_name,
-                    metadata={"artifact_vintage": artifact_vintage, "feature_vintage": feature.get("vintage_date")},
+                    metadata={
+                        "artifact_vintage": artifact_vintage,
+                        "feature_vintage": feature.get("vintage_date"),
+                    },
                 )
             )
 
     findings.append(
         LineageFinding(
             check_name="artifact_lineage_coverage",
-            severity=LineageSeverity.INFO if len(nodes) == len(feature_names) else LineageSeverity.CRITICAL,
+            severity=LineageSeverity.INFO
+            if len(nodes) == len(feature_names)
+            else LineageSeverity.CRITICAL,
             message="Model artifact features resolved against feature registry",
             model_name=model_name,
             metadata={"resolved": len(nodes), "expected": len(feature_names)},

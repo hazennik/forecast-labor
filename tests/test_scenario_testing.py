@@ -99,8 +99,7 @@ class TestScenarioTesting:
         strike = next(result for result in report.results if result.category == "strike")
         assert strike.passed is False
         assert any(
-            finding.check_name == "scenario_sensitivity_coverage"
-            for finding in strike.findings
+            finding.check_name == "scenario_sensitivity_coverage" for finding in strike.findings
         )
 
     def test_forecast_magnitude_gate_is_critical(self) -> None:

@@ -8,7 +8,6 @@ All transformations must be deterministic and vintage-aware.
 import numpy as np
 import pandas as pd
 import pytest
-from datetime import datetime, timedelta
 
 
 class TestFrequencyConverter:
@@ -40,9 +39,7 @@ class TestFrequencyConverter:
         """Test daily to weekly conversion with mean aggregation."""
         from features.transforms.frequency import FrequencyConverter
 
-        converter = FrequencyConverter(
-            source_freq="D", target_freq="W", agg_method="mean"
-        )
+        converter = FrequencyConverter(source_freq="D", target_freq="W", agg_method="mean")
         result = converter.convert(daily_series)
 
         # Should have fewer observations
@@ -57,9 +54,7 @@ class TestFrequencyConverter:
         """Test daily to weekly conversion with sum aggregation."""
         from features.transforms.frequency import FrequencyConverter
 
-        converter = FrequencyConverter(
-            source_freq="D", target_freq="W", agg_method="sum"
-        )
+        converter = FrequencyConverter(source_freq="D", target_freq="W", agg_method="sum")
         result = converter.convert(daily_series)
 
         # Sums should be larger than individual values
@@ -70,9 +65,7 @@ class TestFrequencyConverter:
         """Test daily to weekly conversion with last-value method."""
         from features.transforms.frequency import FrequencyConverter
 
-        converter = FrequencyConverter(
-            source_freq="D", target_freq="W", agg_method="last"
-        )
+        converter = FrequencyConverter(source_freq="D", target_freq="W", agg_method="last")
         result = converter.convert(daily_series)
 
         assert len(result) > 0
@@ -84,9 +77,7 @@ class TestFrequencyConverter:
         """Test daily to monthly conversion."""
         from features.transforms.frequency import FrequencyConverter
 
-        converter = FrequencyConverter(
-            source_freq="D", target_freq="M", agg_method="mean"
-        )
+        converter = FrequencyConverter(source_freq="D", target_freq="M", agg_method="mean")
         result = converter.convert(daily_series)
 
         # Should have ~3 monthly observations for 90 days
@@ -99,9 +90,7 @@ class TestFrequencyConverter:
         """Test weekly to monthly conversion."""
         from features.transforms.frequency import FrequencyConverter
 
-        converter = FrequencyConverter(
-            source_freq="W", target_freq="M", agg_method="mean"
-        )
+        converter = FrequencyConverter(source_freq="W", target_freq="M", agg_method="mean")
         result = converter.convert(weekly_series)
 
         # Should have ~3 monthly observations for 12 weeks
@@ -114,7 +103,7 @@ class TestFrequencyConverter:
         # Invalid source frequency is caught first in validation
         with pytest.raises(ValueError, match="source_freq must be one of"):
             FrequencyConverter(source_freq="M", target_freq="D")
-        
+
         # Invalid target frequency
         with pytest.raises(ValueError, match="target_freq must be one of"):
             FrequencyConverter(source_freq="D", target_freq="H")
@@ -401,4 +390,3 @@ class TestTransformPipeline:
         result2 = pipeline.fit_transform(series)
 
         pd.testing.assert_series_equal(result1, result2)
-

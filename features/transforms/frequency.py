@@ -12,7 +12,6 @@ Aggregation methods: mean, sum, last, first
 
 from typing import Literal
 import pandas as pd
-import numpy as np
 from loguru import logger
 
 
@@ -78,8 +77,7 @@ class FrequencyConverter:
 
         if self.agg_method not in ["mean", "sum", "last", "first"]:
             raise ValueError(
-                f"agg_method must be 'mean', 'sum', 'last', or 'first', "
-                f"got {self.agg_method}"
+                f"agg_method must be 'mean', 'sum', 'last', or 'first', " f"got {self.agg_method}"
             )
 
     def convert(self, series: pd.Series) -> pd.Series:
@@ -208,4 +206,3 @@ def convert_to_frequency(
         source_freq=source_freq, target_freq=target_freq, agg_method=agg_method
     )
     return converter.convert(series)
-

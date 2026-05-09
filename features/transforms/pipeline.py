@@ -124,4 +124,3 @@ class TransformPipeline:
         """String representation of pipeline."""
         step_names = [name for name, _ in self.steps]
         return f"TransformPipeline(steps={step_names})"
-

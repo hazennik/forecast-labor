@@ -20,7 +20,9 @@ def parse_args() -> ArgumentParser:
     """Build the command-line parser."""
     parser = ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=DEFAULT_BASELINE_PATH)
-    parser.add_argument("--write", action="store_true", help="Persist measurements to the output file")
+    parser.add_argument(
+        "--write", action="store_true", help="Persist measurements to the output file"
+    )
     parser.add_argument("--n-samples", type=int, default=72)
     parser.add_argument("--n-features", type=int, default=8)
     parser.add_argument("--test-size", type=int, default=12)

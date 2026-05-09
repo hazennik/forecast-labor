@@ -10,4 +10,3 @@ Importance: #2 predictor of NFP (real-time payroll proxy)
 from .treasury_etl import TreasuryWithholdingsETL
 
 __all__ = ["TreasuryWithholdingsETL"]
-

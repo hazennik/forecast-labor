@@ -278,7 +278,9 @@ class ModelHealthMonitor:
             )
         ]
 
-    def _check_actuals_shape(self, y_true: np.ndarray, y_pred: np.ndarray) -> List[HealthCheckIssue]:
+    def _check_actuals_shape(
+        self, y_true: np.ndarray, y_pred: np.ndarray
+    ) -> List[HealthCheckIssue]:
         """Validate actuals align with predictions."""
         if y_true.shape != y_pred.shape:
             return [

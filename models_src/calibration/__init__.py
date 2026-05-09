@@ -15,16 +15,15 @@ from models_src.calibration.metrics import (
     compute_reliability_curve,
     compute_sharpness,
     compute_calibration_metrics,
-    evaluate_prediction_intervals
+    evaluate_prediction_intervals,
 )
 
 __all__ = [
-    'IsotonicCalibrator',
-    'ConformalPredictor',
-    'expected_calibration_error',
-    'compute_reliability_curve',
-    'compute_sharpness',
-    'compute_calibration_metrics',
-    'evaluate_prediction_intervals'
+    "IsotonicCalibrator",
+    "ConformalPredictor",
+    "expected_calibration_error",
+    "compute_reliability_curve",
+    "compute_sharpness",
+    "compute_calibration_metrics",
+    "evaluate_prediction_intervals",
 ]
-

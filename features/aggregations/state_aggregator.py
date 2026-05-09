@@ -10,7 +10,6 @@ Supports:
 
 from typing import Literal, Optional
 import pandas as pd
-import numpy as np
 from loguru import logger
 
 
@@ -188,4 +187,3 @@ def aggregate_all_states(
     """
     aggregator = StateAggregator(agg_method="sum")
     return aggregator.aggregate(state_data, value_col, date_col, state_col)
-

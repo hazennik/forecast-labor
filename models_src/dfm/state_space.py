@@ -179,9 +179,7 @@ def build_transition_matrix(
         stacklevel=2,
     )
     if ar_order != 1:
-        raise NotImplementedError(
-            f"Only AR(1) currently supported, got ar_order={ar_order}"
-        )
+        raise NotImplementedError(f"Only AR(1) currently supported, got ar_order={ar_order}")
 
     # If custom transition matrix provided, use it
     if transition_matrix is not None:
@@ -400,9 +398,7 @@ def validate_state_space_dimensions(
         raise ValueError(f"Transition must be 2D array, got shape {transition.shape}")
 
     if transition.shape[0] != transition.shape[1]:
-        raise ValueError(
-            f"Transition must be square matrix, got shape {transition.shape}"
-        )
+        raise ValueError(f"Transition must be square matrix, got shape {transition.shape}")
 
     # Check dimension compatibility
     if transition.shape[0] != n_factors:

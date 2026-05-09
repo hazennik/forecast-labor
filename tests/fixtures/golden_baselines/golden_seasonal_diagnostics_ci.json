@@ -1,0 +1,150 @@
+{
+  "vintage_date": "2024-01-15",
+  "recorded_at": "2026-05-08",
+  "series": {
+    "CES0000000001": {
+      "name": "Total Nonfarm Payrolls",
+      "source": "bls_ces",
+      "m_statistics": {
+        "m1": 5.406822835935106e-06,
+        "m2": 2.084323723536769e-06,
+        "m3": 6.765249986049299e-05,
+        "m4": 0.581484005774216,
+        "m5": 0.44533058096865247,
+        "m6": 0.2,
+        "m7": 0.27641670189208223,
+        "m8": 0.00026386638172580957,
+        "m9": 0.007906310479679067,
+        "m10": 0.04625442138866949,
+        "m11": 0.02436782480499805,
+        "q_statistic": 0.1438271686669494
+      },
+      "q_statistics": {
+        "q_statistic": 26.31242292355542,
+        "p_value": 0.009692382791759768,
+        "lags_tested": 12
+      },
+      "quality_assessment": {
+        "m_quality": "good",
+        "q_quality": "poor",
+        "q_is_random": false,
+        "overall": "poor"
+      },
+      "thresholds": {
+        "m1_max": 1.0,
+        "m2_max": 1.0,
+        "m3_max": 1.0,
+        "m4_max": 1.0,
+        "m5_max": 1.0,
+        "m6_max": 1.0,
+        "m7_max": 1.0,
+        "m8_max": 1.0,
+        "m9_max": 1.0,
+        "m10_max": 1.0,
+        "m11_max": 1.0,
+        "q_statistic_max": 1.0,
+        "q_max": 1.0,
+        "ljung_box_p_min": 0.05
+      },
+      "quality_grade": "poor",
+      "recorded_at": "2026-05-08T20:01:31.837861",
+      "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
+    },
+    "CES0500000003": {
+      "name": "Total Private Employment",
+      "source": "bls_ces",
+      "m_statistics": {
+        "m1": 6.655861503672519e-06,
+        "m2": 2.2630206822437266e-06,
+        "m3": 6.436455391811293e-05,
+        "m4": 1.0498695911468718,
+        "m5": 0.21487876911455187,
+        "m6": 0.31666666666666665,
+        "m7": 0.3182853404454,
+        "m8": 0.0002139350996243404,
+        "m9": 0.016615185465569834,
+        "m10": 0.12058492876407316,
+        "m11": 0.025216218649031584,
+        "q_statistic": 0.18749126534435392
+      },
+      "q_statistics": {
+        "q_statistic": 27.910612896257526,
+        "p_value": 0.005701028121127383,
+        "lags_tested": 12
+      },
+      "quality_assessment": {
+        "m_quality": "good",
+        "q_quality": "poor",
+        "q_is_random": false,
+        "overall": "poor"
+      },
+      "thresholds": {
+        "m1_max": 1.0,
+        "m2_max": 1.0,
+        "m3_max": 1.0,
+        "m4_max": 1.0,
+        "m5_max": 1.0,
+        "m6_max": 1.0,
+        "m7_max": 1.0,
+        "m8_max": 1.0,
+        "m9_max": 1.0,
+        "m10_max": 1.0,
+        "m11_max": 1.0,
+        "q_statistic_max": 1.0,
+        "q_max": 1.0,
+        "ljung_box_p_min": 0.05
+      },
+      "quality_grade": "poor",
+      "recorded_at": "2026-05-08T20:01:38.171357",
+      "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
+    },
+    "LASST060000000000003": {
+      "name": "California Unemployment Rate",
+      "source": "bls_laus",
+      "m_statistics": {
+        "m1": 1.0356591653307214,
+        "m2": 0.33761915137148335,
+        "m3": 8.416838293306602,
+        "m4": 0.6844025263526939,
+        "m5": 0.25339898686617496,
+        "m6": 0.21666666666666667,
+        "m7": 0.29468033320780396,
+        "m8": 0.0001945622754154962,
+        "m9": 0.006965768184955933,
+        "m10": 0.030725906260775482,
+        "m11": 0.027190046525525587,
+        "q_statistic": 1.0276674005771653
+      },
+      "q_statistics": {
+        "q_statistic": 27.923717272092293,
+        "p_value": 0.005675951061040463,
+        "lags_tested": 12
+      },
+      "quality_assessment": {
+        "m_quality": "poor",
+        "q_quality": "poor",
+        "q_is_random": false,
+        "overall": "poor"
+      },
+      "thresholds": {
+        "m1_max": 1.0,
+        "m2_max": 1.0,
+        "m3_max": 1.0,
+        "m4_max": 1.0,
+        "m5_max": 1.0,
+        "m6_max": 1.0,
+        "m7_max": 1.0,
+        "m8_max": 1.0,
+        "m9_max": 1.0,
+        "m10_max": 1.0,
+        "m11_max": 1.0,
+        "q_statistic_max": 1.0,
+        "q_max": 1.0,
+        "ljung_box_p_min": 0.05
+      },
+      "quality_grade": "poor",
+      "recorded_at": "2026-05-08T20:01:41.599006",
+      "notes": "Real diagnostics from X-13 seasonal adjustment with M-statistics and Q-statistics (Ljung-Box)"
+    }
+  }
+}

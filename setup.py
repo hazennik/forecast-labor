@@ -12,7 +12,15 @@ setup(
     author="Forecast Labor Team",
     python_requires=">=3.9",
     packages=find_packages(
-        include=["etl*", "seasonal*", "features*", "models_src*", "backtests*", "subnets*", "recon*"]
+        include=[
+            "etl*",
+            "seasonal*",
+            "features*",
+            "models_src*",
+            "backtests*",
+            "subnets*",
+            "recon*",
+        ]
     ),
     install_requires=[
         # Core dependencies are in requirements.txt
@@ -29,4 +37,3 @@ setup(
     },
     zip_safe=False,
 )
-

@@ -10,9 +10,8 @@ Features:
 All transformations are deterministic and support fit/transform/inverse_transform.
 """
 
-from typing import Optional, Tuple
+from typing import Optional
 import pandas as pd
-import numpy as np
 from loguru import logger
 
 
@@ -302,9 +301,7 @@ class Winsorizer:
     def __init__(self, lower: float = 0.05, upper: float = 0.95):
         """Initialize winsorizer."""
         if not 0 <= lower < upper <= 1:
-            raise ValueError(
-                f"Must have 0 <= lower < upper <= 1, got lower={lower}, upper={upper}"
-            )
+            raise ValueError(f"Must have 0 <= lower < upper <= 1, got lower={lower}, upper={upper}")
 
         self.lower = lower
         self.upper = upper
@@ -361,4 +358,3 @@ class Winsorizer:
     def fit_transform(self, series: pd.Series) -> pd.Series:
         """Fit and transform in one step."""
         return self.fit(series).transform(series)
-

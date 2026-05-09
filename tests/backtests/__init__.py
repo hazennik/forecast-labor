@@ -1,4 +1,3 @@
 """
 Backtest tests
 """
-

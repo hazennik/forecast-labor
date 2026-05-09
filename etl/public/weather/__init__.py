@@ -10,4 +10,3 @@ Importance: Adjusts for temporary employment disruptions
 from .weather_etl import WeatherETL
 
 __all__ = ["WeatherETL"]
-

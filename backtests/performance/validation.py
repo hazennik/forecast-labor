@@ -215,7 +215,9 @@ def _build_component_profiles(
 ) -> List[ComponentProfile]:
     """Build sorted component profiles for included model candidates."""
     total_training = sum(float(real_models[name]["training_time_sec"]) for name in included_models)
-    total_prediction = sum(float(real_models[name]["prediction_time_sec"]) for name in included_models)
+    total_prediction = sum(
+        float(real_models[name]["prediction_time_sec"]) for name in included_models
+    )
     total_memory = sum(float(real_models[name]["memory_mb"]) for name in included_models)
 
     profiles: List[ComponentProfile] = []

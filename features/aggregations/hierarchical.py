@@ -188,4 +188,3 @@ def build_summing_matrix(n_bottom: int, hierarchy_type: str = "single_level") ->
     )
 
     return S
-

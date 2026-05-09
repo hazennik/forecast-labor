@@ -11,7 +11,6 @@ Features:
 
 from typing import List, Literal, Union, Optional
 import pandas as pd
-import numpy as np
 from datetime import datetime
 import calendar
 from loguru import logger
@@ -316,4 +315,3 @@ def apply_calendar_adjustment(
     )
 
     return result
-

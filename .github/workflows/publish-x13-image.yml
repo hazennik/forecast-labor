@@ -1,0 +1,46 @@
+name: Publish X-13 Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - infra/x13/**
+      - seasonal/**
+      - etl/**
+      - requirements.txt
+      - .github/workflows/publish-x13-image.yml
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build and Push X-13 Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push X-13 image
+        run: |
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY,,}/x13"
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            --tag "${IMAGE_NAME}:latest" \
+            --tag "${IMAGE_NAME}:${GITHUB_SHA}" \
+            --file infra/x13/Dockerfile \
+            infra/x13/

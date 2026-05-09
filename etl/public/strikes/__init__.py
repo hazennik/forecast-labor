@@ -10,4 +10,3 @@ Importance: Critical for adjusting NFP during disruption months
 from .strikes_etl import StrikesETL
 
 __all__ = ["StrikesETL"]
-
