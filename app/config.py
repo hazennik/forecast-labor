@@ -20,6 +20,7 @@ class ApiSettings:
     artifact_dir: Path = Path("zone2/runner/artifacts")
     extraction_dir: Path = Path("zone2/runner/extracted")
     active_bundle_path: Optional[Path] = None
+    api_key: Optional[str] = None
 
     @classmethod
     def from_env(cls) -> "ApiSettings":
@@ -32,4 +33,5 @@ class ApiSettings:
             artifact_dir=Path(os.getenv("ZONE2_ARTIFACT_DIR", "zone2/runner/artifacts")),
             extraction_dir=Path(os.getenv("ZONE2_EXTRACT_DIR", "zone2/runner/extracted")),
             active_bundle_path=Path(active_bundle) if active_bundle else None,
+            api_key=os.getenv("ZONE2_API_KEY") or os.getenv("API_KEY"),
         )

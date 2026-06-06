@@ -28,6 +28,11 @@ def _client(settings: ApiSettings) -> TestClient:
     return TestClient(create_app(settings))
 
 
+def _auth_headers() -> dict[str, str]:
+    """Return valid API auth headers for protected endpoints."""
+    return {"X-API-Key": "test-key"}
+
+
 def _write_signed_model_bundle(path: Path, model_dir: Path) -> None:
     """Write a signed model bundle using production signing helpers."""
     model_path = model_dir / "model.joblib"
@@ -79,10 +84,11 @@ def test_active_artifact_reads_manifest(tmp_path: Path) -> None:
             extraction_dir=tmp_path / "extracted",
             active_bundle_path=bundle,
             environment="test",
+            api_key="test-key",
         )
     )
 
-    response = client.get("/artifacts/active")
+    response = client.get("/artifacts/active", headers=_auth_headers())
 
     assert response.status_code == 200
     payload = response.json()
@@ -91,6 +97,60 @@ def test_active_artifact_reads_manifest(tmp_path: Path) -> None:
     assert payload["artifact"]["manifest_present"] is True
     assert payload["artifact"]["metadata"]["metadata"]["model_id"] == "midas_v1"
     assert payload["artifact"]["artifacts"] == ["artifact/model.joblib"]
+
+
+def test_active_artifact_requires_api_key(tmp_path: Path) -> None:
+    """Artifact status should require the configured API key."""
+    bundle = tmp_path / "active_bundle.zip"
+    _write_signed_model_bundle(bundle, tmp_path)
+    client = _client(
+        ApiSettings(
+            artifact_dir=tmp_path,
+            extraction_dir=tmp_path / "extracted",
+            active_bundle_path=bundle,
+            environment="test",
+            api_key="test-key",
+        )
+    )
+
+    response = client.get("/artifacts/active")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid or missing API key"
+
+
+def test_active_artifact_auth_requires_configured_key(tmp_path: Path) -> None:
+    """Protected endpoints should fail closed if API auth is not configured."""
+    client = _client(ApiSettings(artifact_dir=tmp_path, environment="test"))
+
+    response = client.get("/artifacts/active", headers=_auth_headers())
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "API key authentication is not configured"
+
+
+def test_export_active_artifact_requires_auth_and_verified_bundle(tmp_path: Path) -> None:
+    """Artifact export should return the active verified signed bundle only with auth."""
+    bundle = tmp_path / "active_bundle.zip"
+    _write_signed_model_bundle(bundle, tmp_path)
+    client = _client(
+        ApiSettings(
+            artifact_dir=tmp_path,
+            extraction_dir=tmp_path / "extracted",
+            active_bundle_path=bundle,
+            environment="test",
+            api_key="test-key",
+        )
+    )
+
+    response = client.get("/artifacts/active/export", headers=_auth_headers())
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["content-disposition"].startswith(
+        'attachment; filename="active_bundle.zip"'
+    )
+    assert response.content[:2] == b"PK"
 
 
 def test_forecast_refuses_placeholder_predictions_without_artifact(tmp_path: Path) -> None:
