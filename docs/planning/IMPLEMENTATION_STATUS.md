@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: base adapter interface added ✅ | Full Docker suite passing: 1424 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: registry & config loading added ✅ | Full Docker suite passing: 1435 passed, 4 skipped)
 
 ## ⏳ PHASE 7 IN PROGRESS: Subnet Integration (Adapter Pattern) (2026-06-06)
 
-**Status:** IN PROGRESS - base subnet adapter package, abstract interface, shared submission dataclasses, subnet config template, and focused adapter contract tests are implemented  
-**Completion:** Phase 7.1 base adapter interface slice complete ✅  
+**Status:** IN PROGRESS - base subnet adapter package, abstract interface, shared submission dataclasses, subnet config template, config loader, adapter registry, active subnet selection, and focused adapter contract tests are implemented  
+**Completion:** Phase 7.1 base adapter interface and Phase 7.2 registry/configuration loading slices complete ✅  
 **Breaking Changes:** NONE - additive subnet adapter package and template config
 
 ### Completed This Session
@@ -17,6 +17,10 @@ Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: base adapter i
 - ✅ Added `configs/subnets/template.yaml` so new subnet adapters start from a config-driven template.
 - ✅ Mounted `subnets/` and `configs/` into the ETL test service for Phase 7 contract-test visibility.
 - ✅ Added focused base adapter contract tests under `tests/subnets/test_base_adapter.py`.
+- ✅ Added `subnets/config.py` for YAML-backed subnet configuration loading and validation.
+- ✅ Added `subnets/registry.py` for adapter factory registration and `ACTIVE_SUBNET` runtime selection.
+- ✅ Extended `SubnetConfig` with optional submission settings so payload/signing behavior stays config-driven.
+- ✅ Added focused config loader and registry tests under `tests/subnets/`.
 
 ### Validation
 
@@ -28,10 +32,18 @@ Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: base adapter i
 - ✅ `docker compose exec etl ruff check subnets tests/subnets/test_base_adapter.py tests/test_phase_6a_deployment.py`
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1424 passed, 4 skipped, 320 warnings in 614.05s**
+- ✅ `docker compose up -d etl && docker compose exec etl pytest tests/subnets -q`
+- ✅ Result: **16 passed in 0.09s**
+- ✅ `docker compose exec etl pytest tests/subnets tests/test_phase_6a_deployment.py tests/features/test_registry_performance.py::TestMemoryModePerformance::test_memory_mode_registration_speed -q`
+- ✅ Result: **23 passed, 1 warning in 0.35s**
+- ✅ `docker compose exec etl black --check subnets tests/subnets tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl ruff check subnets tests/subnets tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1435 passed, 4 skipped, 320 warnings in 713.15s**
 
 ### Next Action
 
-Continue **Phase 7.2: Registry & Configuration Loading**, then add scheduler and scoring shim before implementing the SN41 adapter.
+Continue **Phase 7.3: Scheduler**, then add scoring shim before implementing the SN41 adapter.
 
 ## ✅ PHASE 6A COMPLETE: API & Two-Zone Architecture (2026-06-06)
 

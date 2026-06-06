@@ -6,10 +6,24 @@ from subnets.base_adapter import (
     SubmissionResult,
     SubnetConfig,
 )
+from subnets.config import SubnetConfigError, load_subnet_config, subnet_config_from_mapping
+from subnets.registry import (
+    ActiveSubnetError,
+    AdapterNotRegisteredError,
+    AdapterRegistrationError,
+    SubnetRegistry,
+)
 
 __all__ = [
+    "ActiveSubnetError",
+    "AdapterNotRegisteredError",
+    "AdapterRegistrationError",
     "BaseSubnetAdapter",
     "SubmissionKeyPaths",
     "SubmissionResult",
+    "SubnetConfigError",
     "SubnetConfig",
+    "SubnetRegistry",
+    "load_subnet_config",
+    "subnet_config_from_mapping",
 ]

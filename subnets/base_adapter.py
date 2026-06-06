@@ -19,6 +19,7 @@ class SubnetConfig:
     cadence: Mapping[str, Any]
     scoring: Mapping[str, Any]
     network: Mapping[str, Any]
+    submission: Mapping[str, Any] = field(default_factory=dict)
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
