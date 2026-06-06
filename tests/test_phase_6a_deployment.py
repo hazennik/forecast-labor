@@ -8,6 +8,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
 API_DOCKERFILE = REPO_ROOT / "infra" / "api" / "Dockerfile"
+DEPLOY_GATES_PATH = REPO_ROOT / "docs" / "ops" / "DEPLOY_GATES.md"
 RUNBOOK_PATH = REPO_ROOT / "docs" / "ops" / "RUNBOOK.md"
 
 
@@ -94,3 +95,35 @@ def test_phase_6a_runbook_documents_api_operational_workflow() -> None:
         assert failure_mode in runbook
     for forbidden_root in forbidden_roots:
         assert forbidden_root in runbook
+
+
+def test_phase_6a_deploy_gates_document_hard_blockers() -> None:
+    """Deployment gates should document model, artifact, API, and rollback blockers."""
+    deploy_gates = DEPLOY_GATES_PATH.read_text(encoding="utf-8")
+    required_snippets = (
+        "GATE_SMAPE_MAX",
+        "GATE_COVERAGE_MIN",
+        "GATE_COVERAGE_MAX",
+        "GATE_COHERENCE_ERROR_MAX",
+        "Calibration ECE must remain below `0.05`",
+        "Revision error must remain below `30K`",
+        "MIDAS, XGBoost, and LightGBM",
+        "DFM is diagnostic-only",
+        "docker compose exec etl pytest tests/test_phase_6a_api.py -q",
+        "docker compose exec etl pytest tests/test_phase_6a_deployment.py -q",
+        "docker compose --profile api config",
+        "docker compose --profile api up -d api",
+        "curl -fsS http://localhost:8000/ready",
+        "curl -fsS http://localhost:8000/metrics",
+        "`/forecast` fails closed with `503`",
+        "`/forecast` fails closed with `429` and `Retry-After`",
+        "Every response includes `X-Request-ID`",
+        "docker compose exec etl pytest -q",
+        "ACTIVE_MODEL_BUNDLE=zone2/runner/artifacts/previous_bundle.zip",
+    )
+    forbidden_roots = ("data", "zone1", "etl", "features", "models_src", "backtests", "scripts")
+
+    for snippet in required_snippets:
+        assert snippet in deploy_gates
+    for forbidden_root in forbidden_roots:
+        assert forbidden_root in deploy_gates

@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: deployment runbook polished ✅ | Full Docker suite passing: 1417 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: deployment gates documented ✅ | Full Docker suite passing: 1418 passed, 4 skipped)
 
 ## ⏳ PHASE 6A IN PROGRESS: API & Two-Zone Architecture (2026-06-06)
 
-**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, forecast rate limiting, API deployment profile, subnet logging schema, metrics endpoint, request ID correlation, and deployment runbook are implemented and tested  
-**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, rate-limiting, deployment-profile, subnet logging schema, metrics endpoint, request ID correlation, and deployment-runbook slices complete ✅  
+**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, forecast rate limiting, API deployment profile, subnet logging schema, metrics endpoint, request ID correlation, deployment runbook, and deployment gates are implemented and tested  
+**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, rate-limiting, deployment-profile, subnet logging schema, metrics endpoint, request ID correlation, deployment-runbook, and deployment-gates slices complete ✅  
 **Breaking Changes:** NONE - additive API package, tests, and zone scaffolding
 
 ### Completed This Session
@@ -55,6 +55,9 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: depl
 - ✅ Added `docs/ops/RUNBOOK.md` covering Phase 6A API preflight, startup, smoke checks, protected artifact checks, expected failure modes, metrics, request IDs, rollback, and shutdown.
 - ✅ Linked the Phase 6A runbook from `docs/README.md`.
 - ✅ Extended deployment contract tests to preserve critical runbook commands, failure-mode guidance, forbidden-root warnings, and rollback steps.
+- ✅ Added `docs/ops/DEPLOY_GATES.md` documenting Phase 6A model quality, signed artifact, Zone 2 isolation, API operational, full validation, and rollback gates.
+- ✅ Linked deployment gates from `docs/README.md`.
+- ✅ Extended deployment contract tests to preserve the gate thresholds, commands, failure modes, forbidden-root blockers, and rollback procedure.
 
 ### Validation
 
@@ -116,6 +119,13 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: depl
 - ✅ `docker compose exec etl ruff check tests/test_phase_6a_deployment.py`
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1417 passed, 4 skipped, 320 warnings in 796.68s**
+- ✅ `docker compose up -d etl && docker compose exec etl pytest tests/test_phase_6a_deployment.py -q`
+- ✅ Result: **5 passed in 0.10s**
+- ✅ `docker compose --profile api config`
+- ✅ `docker compose exec etl black --check tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl ruff check tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1418 passed, 4 skipped, 320 warnings in 1000.34s**
 
 ### Next Action
 
