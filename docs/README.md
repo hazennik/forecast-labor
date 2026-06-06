@@ -69,7 +69,8 @@ Will contain:
 
 ## 📊 Current Project Status
 
-**Overall Progress:** 50% Complete
+**Current Phase:** Phase 7 ready  
+**Overall Progress:** See [`IMPLEMENTATION_STATUS.md`](./planning/IMPLEMENTATION_STATUS.md) for the current source of truth.
 
 ### ✅ Completed Phases
 - **Phase 1:** Foundation (100%)
@@ -92,17 +93,35 @@ Will contain:
   - Intelligent regressors (holidays, strikes, weather)
   - Diagnostics and quality gates
 
-### 🚧 In Progress
-- **Phase 4:** Feature Engineering
-  - MIDAS lag constructors
-  - Mixed-frequency transformations
+- **Phase 4:** Feature Engineering (100%)
+  - MIDAS lag constructors and mixed-frequency transformations
   - Pay-period alignment
   - State/sector aggregations
 
+- **Phase 5:** Core Models and Post-Phase-6 Documentation Refresh (100%)
+  - MIDAS, XGBoost, and LightGBM production candidates
+  - DFM retained as diagnostic/research until pre-release gates pass
+  - Calibration, revision forecasting, and MinT reconciliation support
+
+- **Phase 6:** Backtesting, Reporting, Quality Gates, and Infrastructure (100%)
+  - Vintage-honest backtesting and report generation
+  - Model selection and accuracy gates
+  - Scenario testing and feature lineage
+  - X-13 CI service integration
+
+- **Phase 6A:** API & Two-Zone Architecture (100%)
+  - FastAPI forecast/status/artifact surface
+  - Signed-artifact inference boundary
+  - Zone 2 isolation checks, rate limiting, metrics, and request IDs
+  - API deployment profile, runbook, and deployment gates
+
+### 🚧 Next
+- **Phase 7:** Subnet Integration (Adapter Pattern) - next
+  - Base adapter interface, registry, scheduler, and scoring shim
+  - Subnet configuration template
+  - SN41 adapter as the first concrete implementation
+
 ### 📋 Upcoming
-- **Phase 5:** Core Models (DFM, MIDAS, XGBoost)
-- **Phase 6:** Backtesting & Validation
-- **Phase 7:** SN41 Integration
 - **Phase 8:** AI Agents & Automation
 
 ---
@@ -125,7 +144,8 @@ Will contain:
 
 ### For Operations
 - [AGENTS_AND_OPS_RUNBOOK.md](./AGENTS_AND_OPS_RUNBOOK.md) - Agent operations
-- [PHASE_3_COMPLETE.md](./planning/PHASE_3_COMPLETE.md) - Latest achievements
+- [ops/RUNBOOK.md](./ops/RUNBOOK.md) - Phase 6A API operations
+- [ops/DEPLOY_GATES.md](./ops/DEPLOY_GATES.md) - Deployment gates
 
 ---
 
@@ -152,6 +172,6 @@ See [IMPLEMENTATION_STATUS.md](./planning/IMPLEMENTATION_STATUS.md) for real-tim
 
 ---
 
-**Last Updated:** November 11, 2025  
-**Project Version:** 0.5.0 (Phase 3 Complete)
+**Last Updated:** 2026-06-06  
+**Project Version:** Phase 6A Complete / Phase 7 Ready
 

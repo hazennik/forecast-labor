@@ -9,6 +9,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
 API_DOCKERFILE = REPO_ROOT / "infra" / "api" / "Dockerfile"
 DEPLOY_GATES_PATH = REPO_ROOT / "docs" / "ops" / "DEPLOY_GATES.md"
+DOCS_README_PATH = REPO_ROOT / "docs" / "README.md"
+IMPLEMENTATION_STATUS_PATH = REPO_ROOT / "docs" / "planning" / "IMPLEMENTATION_STATUS.md"
 RUNBOOK_PATH = REPO_ROOT / "docs" / "ops" / "RUNBOOK.md"
 
 
@@ -127,3 +129,19 @@ def test_phase_6a_deploy_gates_document_hard_blockers() -> None:
         assert snippet in deploy_gates
     for forbidden_root in forbidden_roots:
         assert forbidden_root in deploy_gates
+
+
+def test_phase_6a_final_status_points_to_phase_7_adapter_work() -> None:
+    """Status docs should record Phase 6A closure and the next Phase 7 handoff."""
+    status_doc = IMPLEMENTATION_STATUS_PATH.read_text(encoding="utf-8")
+    docs_readme = DOCS_README_PATH.read_text(encoding="utf-8")
+
+    assert "PHASE 6A COMPLETE: API & Two-Zone Architecture" in status_doc
+    assert "**Completion:** Phase 6A 100%" in status_doc
+    assert "Proceed to **Phase 7: Subnet Integration (Adapter Pattern)**" in status_doc
+    assert "Phase 7 adapter work must begin with the base adapter interface" in status_doc
+    assert "**Current Phase:** Phase 7 ready" in docs_readme
+    assert "**Phase 6A:** API & Two-Zone Architecture (100%)" in docs_readme
+    assert "**Phase 7:** Subnet Integration (Adapter Pattern) - next" in docs_readme
+    assert "### 🚧 In Progress\n- **Phase 4:** Feature Engineering" not in docs_readme
+    assert "Phase 3 Complete" not in docs_readme
