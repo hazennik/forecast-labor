@@ -67,4 +67,6 @@ def service_status(request: Request) -> ServiceStatusResponse:
         active_artifact_ready=repository.is_ready(),
         active_artifact_path=str(active_path) if active_path else None,
         zone2_security_isolated=isolation_status.isolated,
+        rate_limit_enabled=settings.rate_limit_enabled,
+        rate_limit_requests_per_minute=settings.rate_limit_requests_per_minute,
     )

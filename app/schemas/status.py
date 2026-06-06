@@ -39,4 +39,6 @@ class ServiceStatusResponse(BaseModel):
     active_artifact_ready: bool
     active_artifact_path: Optional[str] = None
     zone2_security_isolated: bool
+    rate_limit_enabled: bool
+    rate_limit_requests_per_minute: int
     timestamp: datetime = Field(default_factory=utc_now)

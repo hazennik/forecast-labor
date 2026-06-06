@@ -100,6 +100,25 @@ def test_readiness_blocks_forbidden_zone2_artifact_paths(tmp_path: Path) -> None
     ]
 
 
+def test_status_reports_rate_limit_configuration(tmp_path: Path) -> None:
+    """Status should expose operational rate limit settings for deployment checks."""
+    client = _client(
+        ApiSettings(
+            artifact_dir=tmp_path,
+            environment="test",
+            rate_limit_enabled=True,
+            rate_limit_requests_per_minute=17,
+        )
+    )
+
+    response = client.get("/status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["rate_limit_enabled"] is True
+    assert payload["rate_limit_requests_per_minute"] == 17
+
+
 def test_active_artifact_reads_manifest(tmp_path: Path) -> None:
     """Artifact endpoint should report manifest metadata from the active bundle."""
     bundle = tmp_path / "active_bundle.zip"
@@ -228,6 +247,35 @@ def test_forecast_serves_prediction_from_signed_artifact(tmp_path: Path) -> None
     assert payload["model_id"] == "midas_v1"
     assert payload["intervals"][0]["level"] == 0.9
     assert payload["probabilities"]["150k_to_250k"] == 0.7
+
+
+def test_forecast_rate_limit_fails_closed_before_inference(tmp_path: Path) -> None:
+    """Forecast endpoint should reject excess requests with Retry-After metadata."""
+    bundle = tmp_path / "active_bundle.zip"
+    _write_signed_model_bundle(bundle, tmp_path)
+    client = _client(
+        ApiSettings(
+            artifact_dir=tmp_path,
+            extraction_dir=tmp_path / "extracted",
+            active_bundle_path=bundle,
+            environment="test",
+            rate_limit_requests_per_minute=1,
+        )
+    )
+    request_payload = {
+        "target": "NFP",
+        "vintage_date": "2025-11-29",
+        "horizon_months": 1,
+        "features": {"claims_growth": 0.5},
+    }
+
+    first_response = client.post("/forecast", json=request_payload)
+    second_response = client.post("/forecast", json=request_payload)
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 429
+    assert second_response.json()["detail"] == "Forecast request rate limit exceeded"
+    assert int(second_response.headers["retry-after"]) > 0
 
 
 def test_forecast_refuses_forbidden_zone2_artifact_paths(tmp_path: Path) -> None:

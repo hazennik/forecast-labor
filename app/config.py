@@ -21,6 +21,8 @@ class ApiSettings:
     extraction_dir: Path = Path("zone2/runner/extracted")
     active_bundle_path: Optional[Path] = None
     api_key: Optional[str] = None
+    rate_limit_enabled: bool = True
+    rate_limit_requests_per_minute: int = 60
 
     @classmethod
     def from_env(cls) -> "ApiSettings":
@@ -34,4 +36,26 @@ class ApiSettings:
             extraction_dir=Path(os.getenv("ZONE2_EXTRACT_DIR", "zone2/runner/extracted")),
             active_bundle_path=Path(active_bundle) if active_bundle else None,
             api_key=os.getenv("ZONE2_API_KEY") or os.getenv("API_KEY"),
+            rate_limit_enabled=_parse_bool(os.getenv("API_RATE_LIMIT_ENABLED"), default=True),
+            rate_limit_requests_per_minute=_parse_int(
+                os.getenv("API_RATE_LIMIT_REQUESTS_PER_MINUTE"), default=60
+            ),
         )
+
+
+def _parse_bool(value: Optional[str], default: bool) -> bool:
+    """Parse a boolean environment value."""
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _parse_int(value: Optional[str], default: int) -> int:
+    """Parse an integer environment value with a safe default."""
+    if value is None:
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        return default
+    return parsed if parsed > 0 else default

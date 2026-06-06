@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: deployment isolation checks added ✅ | Full Docker suite passing: 1403 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: forecast rate limiting added ✅ | Full Docker suite passing: 1405 passed, 4 skipped)
 
 ## ⏳ PHASE 6A IN PROGRESS: API & Two-Zone Architecture (2026-06-06)
 
-**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, and deployment isolation checks are implemented and tested  
-**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, and deployment isolation slices complete ✅  
+**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, and forecast rate limiting are implemented and tested  
+**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, and rate-limiting slices complete ✅  
 **Breaking Changes:** NONE - additive API package, tests, and zone scaffolding
 
 ### Completed This Session
@@ -32,6 +32,10 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: depl
 - ✅ Wired isolation status into `/ready`, `/status`, and forecast-serving fail-closed behavior.
 - ✅ Added Phase 6A tests proving readiness and forecast serving reject forbidden Zone 2 artifact-path configurations.
 - ✅ Updated Zone 2 runner documentation with deployment isolation behavior.
+- ✅ Added configurable in-process forecast request rate limiting for Phase 6A operational API hardening.
+- ✅ Exposed rate-limit configuration through `/status`.
+- ✅ Added Phase 6A tests for rate-limit observability and `429` fail-closed behavior with `Retry-After`.
+- ✅ Updated `.env.example` and Zone 2 runner documentation with rate-limit settings.
 
 ### Validation
 
@@ -55,10 +59,16 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: depl
 - ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py`
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1403 passed, 4 skipped, 320 warnings in 494.52s**
+- ✅ `docker compose up -d etl && docker compose exec etl pytest tests/test_phase_6a_api.py -q`
+- ✅ Result: **12 passed, 3 warnings in 1.05s**
+- ✅ `docker compose exec etl black --check app tests/test_phase_6a_api.py`
+- ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1405 passed, 4 skipped, 320 warnings in 483.68s**
 
 ### Next Action
 
-Continue **Phase 6A** with the remaining deployment automation, rate-limiting, and operational API hardening before moving to subnet adapter work.
+Continue **Phase 6A** with the remaining deployment automation and operational API hardening before moving to subnet adapter work.
 
 ## ✅ PHASE 5.14.5 POST-PHASE-6 REFRESH COMPLETE: Forecasting Capabilities Update (2026-06-06)
 
