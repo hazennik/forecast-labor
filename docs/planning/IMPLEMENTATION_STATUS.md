@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: registry & config loading added ✅ | Full Docker suite passing: 1435 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: scheduler added ✅ | Full Docker suite passing: 1442 passed, 4 skipped)
 
 ## ⏳ PHASE 7 IN PROGRESS: Subnet Integration (Adapter Pattern) (2026-06-06)
 
-**Status:** IN PROGRESS - base subnet adapter package, abstract interface, shared submission dataclasses, subnet config template, config loader, adapter registry, active subnet selection, and focused adapter contract tests are implemented  
-**Completion:** Phase 7.1 base adapter interface and Phase 7.2 registry/configuration loading slices complete ✅  
+**Status:** IN PROGRESS - base subnet adapter package, abstract interface, shared submission dataclasses, subnet config template, config loader, adapter registry, active subnet selection, scheduler, and focused adapter contract tests are implemented  
+**Completion:** Phase 7.1 base adapter interface, Phase 7.2 registry/configuration loading, and Phase 7.3 scheduler slices complete ✅  
 **Breaking Changes:** NONE - additive subnet adapter package and template config
 
 ### Completed This Session
@@ -21,6 +21,9 @@ Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: registry & con
 - ✅ Added `subnets/registry.py` for adapter factory registration and `ACTIVE_SUBNET` runtime selection.
 - ✅ Extended `SubnetConfig` with optional submission settings so payload/signing behavior stays config-driven.
 - ✅ Added focused config loader and registry tests under `tests/subnets/`.
+- ✅ Added `subnets/scheduler.py` for config-driven submission windows across adapters.
+- ✅ Added `SubmissionWindow` and `SubnetScheduler` for open-window checks, next-window selection, and `should_submit()` decisions.
+- ✅ Added focused scheduler tests under `tests/subnets/` for multi-subnet ordering, cadence offsets, and invalid window config.
 
 ### Validation
 
@@ -40,10 +43,18 @@ Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: registry & con
 - ✅ `docker compose exec etl ruff check subnets tests/subnets tests/test_phase_6a_deployment.py`
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1435 passed, 4 skipped, 320 warnings in 713.15s**
+- ✅ `docker compose up -d etl && docker compose exec etl pytest tests/subnets -q`
+- ✅ Result: **23 passed in 0.11s**
+- ✅ `docker compose exec etl black --check subnets tests/subnets tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl ruff check subnets tests/subnets tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl pytest tests/subnets tests/test_phase_6a_deployment.py -q`
+- ✅ Result: **29 passed in 0.17s**
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1442 passed, 4 skipped, 320 warnings in 502.14s**
 
 ### Next Action
 
-Continue **Phase 7.3: Scheduler**, then add scoring shim before implementing the SN41 adapter.
+Continue **Phase 7.4: Scoring Shim**, then implement the SN41 adapter.
 
 ## ✅ PHASE 6A COMPLETE: API & Two-Zone Architecture (2026-06-06)
 

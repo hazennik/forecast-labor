@@ -13,6 +13,7 @@ from subnets.registry import (
     AdapterRegistrationError,
     SubnetRegistry,
 )
+from subnets.scheduler import SchedulerError, SubmissionWindow, SubnetScheduler
 
 __all__ = [
     "ActiveSubnetError",
@@ -24,6 +25,9 @@ __all__ = [
     "SubnetConfigError",
     "SubnetConfig",
     "SubnetRegistry",
+    "SchedulerError",
+    "SubmissionWindow",
+    "SubnetScheduler",
     "load_subnet_config",
     "subnet_config_from_mapping",
 ]
