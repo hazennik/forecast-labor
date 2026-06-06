@@ -230,12 +230,38 @@ Never use shuffled k-fold validation for production forecast selection.
 
 ## Hyperparameter Sensitivity
 
+Treat hyperparameter tuning as a gate-driven process, not a search for the
+lowest training error. Phase 6 baselines show the current deterministic model
+classes are fast enough for local SLAs, so production tuning should prioritize
+vintage-honest sMAPE/RMSE, 90% interval coverage, calibration ECE, probability
+coherence, and forecast stability before small runtime differences.
+
+Current Phase 6 runtime reference points:
+
+- MIDAS: 0.120821 seconds training, 0.000244 seconds prediction.
+- XGBoost: 0.234230 seconds training, 0.011881 seconds prediction.
+- LightGBM: 0.203134 seconds training, 0.016490 seconds prediction.
+- Revision: 0.007708 seconds training, 0.001038 seconds prediction.
+- Full production candidate pipeline: 0.565893 seconds training, 0.029653
+  seconds prediction.
+- DFM: 0.156561 seconds training, 0.002809 seconds prediction, but excluded from
+  production selection because corrected pre-release accuracy misses the gate.
+
+Use `scripts/validate_accuracy_gates.py` after each material tuning change.
+Runtime regressions should be checked against
+`tests/fixtures/performance_baselines.json`, but a fast model still cannot be
+promoted if any critical accuracy, calibration, coherence, or stability gate
+fails.
+
 ### MIDAS
 
-Key parameters:
+Production role: interpretable mixed-frequency bridge model for daily or weekly
+signals aligned to monthly NFP.
+
+Most sensitive parameters:
 
 - `n_lags`: High impact. Too few lags miss delayed high-frequency effects; too
-  many lags increase noise and optimization difficulty.
+  many lags add noise and increase optimization fragility.
 - `almon_degree`: Medium impact. Degree 2 is the default starting point; higher
   degrees add flexibility but can overfit small samples.
 - `horizon`: High impact. Use horizon 1 for nowcasting unless the target is
@@ -243,19 +269,28 @@ Key parameters:
 - `optimization_method`: Medium impact. `L-BFGS-B` is preferred for bridged
   models when constraints and convergence are important.
 
-Recommended ranges:
+Recommended tuning order:
 
-- `n_lags`: 4-12 for weekly inputs, 20-65 for daily inputs depending on the
-  source window.
-- `almon_degree`: 1-3.
-- `optimization_method`: `L-BFGS-B`, then `BFGS` or `Powell` if convergence
-  fails.
+- Start with `n_lags=4-12` for weekly inputs and `n_lags=20-65` for daily
+  inputs, based on the source release window.
+- Keep `almon_degree=2` first, then compare degree 1 or 3 only if validation
+  error or lag weights suggest underfit or overfit.
+- Keep `horizon=1` for monthly NFP nowcasts.
+- Use `L-BFGS-B` first, then `BFGS` or `Powell` only when convergence fails.
 
-Watch for optimization failures and unstable lag weights.
+Gate checks:
+
+- Reject settings that improve in-sample fit but worsen vintage-honest sMAPE or
+  RMSE.
+- Watch for optimization failures, unstable lag weights, and sharp month-to-month
+  probability changes.
+- Prefer simpler lag structures when accuracy is statistically similar.
 
 ### XGBoost and LightGBM Quantile Models
 
-Key parameters:
+Production role: nonlinear public-signal models and quantile interval builders.
+
+Most sensitive parameters:
 
 - `n_estimators`: High impact on fit and runtime. More trees can improve accuracy
   until validation error plateaus.
@@ -271,43 +306,67 @@ Key parameters:
   and upper quantiles needed by downstream calibration.
 - `prevent_crossing`: Keep enabled unless debugging raw quantile behavior.
 
-Recommended ranges:
+Recommended tuning order:
 
 - `n_estimators`: 50-500.
 - `max_depth`: 2-6 for macro samples.
 - `learning_rate`: 0.01-0.10.
 - `subsample`: 0.6-1.0.
 - `colsample_bytree`: 0.6-1.0.
-- `num_leaves`: 7-63 for LightGBM.
+- `num_leaves`: 7-63 for LightGBM, kept consistent with `max_depth` and sample
+  size.
 
-Tune against sMAPE/RMSE and interval coverage together. A model with slightly
-worse point accuracy but materially better calibrated intervals may be superior
-for subnet scoring.
+Gate checks:
+
+- Tune point accuracy and interval coverage together. A model with slightly worse
+  sMAPE can still be better for subnet scoring if interval coverage, ECE, and
+  probability stability are materially stronger.
+- Keep tree depth conservative unless expanding-window validation proves deeper
+  trees improve out-of-sample accuracy.
+- If quantile intervals cross, keep `prevent_crossing=True` and inspect feature
+  scaling before widening the hyperparameter search.
 
 ### Dynamic Factor Model
 
-Key parameters:
+Current role: research and diagnostics only. DFM is stable on 17/17 real CES
+vintages, but Phase 6.3.1a corrected pre-release CES-only validation produced
+103.61% sMAPE, and the optimized DFM+XGBoost ensemble still produced 88.10%
+sMAPE. Do not tune DFM for production inclusion until true pre-release public
+signals are integrated and the vintage-honest gate is rerun.
+
+Most sensitive parameters:
 
 - `n_factors`: High impact. Too few factors underfit broad conditions; too many
-  factors destabilize short samples.
+  factors can overfit short samples.
 - `ridge_alphas`: High impact for the supervised nowcast head.
 - `include_direct_features`: High impact. Including direct bridge features can
   improve point forecasts but must respect release timing.
 - `max_iter` and `tol`: Medium impact on convergence and runtime.
 
-Recommended ranges:
+Recommended diagnostic ranges:
 
-- `n_factors`: 1-3 until Phase 6 proves larger factor structures are useful.
+- `n_factors`: 1-3 until a real pre-release signal set proves larger factor
+  structures are useful.
 - `ridge_alphas`: `(0.1, 1.0, 10.0, 100.0)` as a conservative default.
 - `max_iter`: 50-200.
 - `tol`: `1e-3` to `1e-5`.
 
-Use DFM validation results as diagnostics until the pre-release accuracy gate is
-met.
+Gate checks:
+
+- Preserve one-month CES sector lagging; same-release CES sector components are
+  leakage for same-month pre-release NFP.
+- Treat finite predictions as necessary but not sufficient. DFM must pass the
+  same sMAPE, interval coverage, ECE, and stability gates as production
+  candidates before receiving production weight.
+- Tune DFM interval calibration only after point forecasts pass honest
+  pre-release accuracy gates.
 
 ### Calibration
 
-Key parameters:
+Production role: convert model outputs into reliable intervals and probability
+vectors for deployment and subnet scoring.
+
+Most sensitive parameters:
 
 - `confidence_levels`: High impact. Match downstream scoring needs: 80%, 90%,
   and 95% intervals are standard.
@@ -317,30 +376,47 @@ Key parameters:
   can become noisy.
 - `out_of_bounds`: Use `clip` for isotonic calibration in production.
 
-Recommended ranges:
+Recommended tuning order:
 
 - `confidence_levels`: `[0.8, 0.9, 0.95]`.
 - `adaptive_gamma`: 0.05-0.25 when adaptive intervals are enabled.
+- Keep isotonic `out_of_bounds="clip"` for production.
 
-Gate on empirical interval coverage, not only average interval width.
+Gate checks:
+
+- Target 90% interval coverage between 85% and 95%.
+- Keep ECE at or below 0.05 when probability/event payloads are available.
+- Do not narrow intervals only to improve sharpness if coverage falls outside the
+  gate.
 
 ### Revision Forecaster
 
-Key parameters:
+Production role: post-release first-to-final or benchmark revision adjustment.
+
+Most sensitive parameters:
 
 - `alpha`: High impact. Higher values smooth noisy revision patterns.
 - `fit_intercept`: Keep enabled unless there is strong evidence of zero-mean
   revision residuals after feature construction.
 
-Recommended ranges:
+Recommended tuning order:
 
 - `alpha`: 0.1-100.0 on a log grid.
+- Keep `fit_intercept=True` unless vintage-honest residual diagnostics justify
+  disabling it.
 
-Evaluate revision MAE and direction accuracy separately.
+Gate checks:
+
+- Revision MAE must remain at or below 30,000.
+- Revision direction accuracy must remain at or above 50%.
+- Evaluate revision performance separately from pre-release nowcast accuracy.
 
 ### MinT Reconciliation
 
-Key parameters:
+Production role: enforce state, sector, or other hierarchy coherence after base
+model selection.
+
+Most sensitive parameters:
 
 - `method`: High impact. `mint_shrink` is the default for noisy covariance
   estimates; `ols` is a simple baseline.
@@ -355,8 +431,12 @@ Recommended method order:
 4. `mint_sample` only when enough error history exists for a stable covariance
    estimate.
 
-Reject reconciliation settings that improve coherence but materially degrade
-forecast accuracy.
+Gate checks:
+
+- Reconciliation error must stay within the configured coherence threshold.
+- Reject settings that improve coherence but materially degrade base forecast
+  accuracy.
+- Re-run mathematical property tests after changing reconciliation settings.
 
 ## Metrics And Gates
 

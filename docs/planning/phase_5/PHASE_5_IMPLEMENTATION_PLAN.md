@@ -1075,14 +1075,14 @@ workflow validates golden baseline structure; full verification requires X-13 se
 
 **Goal:** Complete all Phase 5 documentation requirements
 
-**Status:** COMPLETE - Phase 5 documentation now covers current model training workflows, model selection, hyperparameter sensitivity, feature registry database usage, forecasting capabilities, the post-Phase-6 model training baseline, and the post-Phase-6 model selection decision tree.
+**Status:** COMPLETE - Phase 5 documentation now covers current model training workflows, model selection, hyperparameter sensitivity, feature registry database usage, forecasting capabilities, the post-Phase-6 model training baseline, the post-Phase-6 model selection decision tree, the post-Phase-6 hyperparameter sensitivity refresh, and the post-Phase-6 forecasting capabilities refresh.
 
 **Decision:** Phase 5.14 is complete with current Phase 5 evidence and explicitly documents what remains Phase 6 empirical validation.
 - **Rationale:** The guide records the current production decision without inventing backtest results
 - Model selection decision tree reflects current candidates: MIDAS + XGBoost/LightGBM, with DFM diagnostic-only
 - Hyperparameter sensitivity guidance uses implemented model APIs and conservative tuning ranges
 - Phase 6 will add empirical performance results to backtest reports rather than block Phase 5 documentation
-- Post-Phase-6 refresh records the validated runtime baselines, Phase 6 verification commands, and Phase 6.4.2 model-selection gate workflow while keeping accuracy promotion gated by vintage-honest results
+- Post-Phase-6 refresh records the validated runtime baselines, Phase 6 verification commands, Phase 6.4.2 model-selection gate workflow, gate-driven tuning priorities, and current forecasting capability boundaries while keeping accuracy promotion gated by vintage-honest results
 
 **Update IMPLEMENTATION_STATUS.md:** Lines 2053-2058 when complete
 
@@ -1114,6 +1114,7 @@ workflow validates golden baseline structure; full verification requires X-13 se
   - [x] Sensitivity analysis (which params matter most)
   - [x] Recommended tuning ranges
   - [x] Impact on accuracy/speed
+- [x] **Post-Phase-6 refresh:** Add measured runtime baselines, gate-driven tuning priorities, DFM diagnostic-only tuning guidance, and model-specific promotion checks
 
 #### 5.14.4. Feature Registry Documentation
 - [x] **Verify:** `docs/FEATURE_REGISTRY_DATABASE.md` complete (created in 5.2.4)
@@ -1129,6 +1130,7 @@ workflow validates golden baseline structure; full verification requires X-13 se
   - [x] Add hierarchical reconciliation
   - [x] Add feature registry capabilities
   - [x] Update accuracy expectations with model details and Phase 6 validation boundary
+- [x] **Post-Phase-6 refresh:** Separate current production candidates, validated support systems, DFM diagnostic boundary, subnet readiness, and future/conditional capabilities
 
 **✅ WHEN COMPLETE:** 
 - Mark ALL items in IMPLEMENTATION_STATUS.md lines 2053-2058 as `[x]`

@@ -1,6 +1,56 @@
 # Implementation Status
 
-Last Updated: 2026-05-09 (Phase 5.14.2 Post-Phase-6 Refresh COMPLETE ✅ | Full Docker suite passing: 1393 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 5.14.5 Post-Phase-6 Refresh COMPLETE ✅ | Full Docker suite passing: 1393 passed, 4 skipped)
+
+## ✅ PHASE 5.14.5 POST-PHASE-6 REFRESH COMPLETE: Forecasting Capabilities Update (2026-06-06)
+
+**Status:** COMPLETE - forecasting capabilities documentation refreshed with current Phase 6 production candidates, validated support systems, DFM boundary, subnet readiness, and conditional future capabilities  
+**Completion:** Phase 5.14.5 post-Phase-6 refresh 100% ✅  
+**Breaking Changes:** NONE - documentation-only update
+
+### Completed This Session
+
+- ✅ Examined current implementation status and the most recent prior development chat before continuing.
+- ✅ Confirmed Phase 5.14.3 post-Phase-6 refresh was complete and the next action was Phase 5.14.5.
+- ✅ Refreshed `docs/FORECASTING_CAPABILITIES.md` to distinguish current production candidates from future or conditional capabilities.
+- ✅ Documented the current production candidate set: **MIDAS + XGBoost + LightGBM**.
+- ✅ Preserved the DFM decision: stable and useful for diagnostics, but excluded from production until true pre-release public signals pass vintage-honest gates.
+- ✅ Added current capability boundaries for calibration, revision forecasting, MinT reconciliation, scenario testing, feature lineage, and subnet readiness.
+- ✅ Updated `docs/planning/phase_5/PHASE_5_IMPLEMENTATION_PLAN.md` to mark the post-Phase-6 `5.14.5` refresh complete.
+
+### Validation
+
+- ✅ `docker compose up -d etl && docker compose exec etl pytest -q`
+- ✅ Result: **1393 passed, 4 skipped, 320 warnings in 510.23s**
+
+### Next Action
+
+Proceed to **Phase 6A: API & Two-Zone Architecture**, starting with the FastAPI forecast/status surface and the Zone 1/Zone 2 artifact boundary. Phase 7 subnet adapter implementation should wait until Phase 6A exposes the inference boundary cleanly.
+
+## ✅ PHASE 5.14.3 POST-PHASE-6 REFRESH COMPLETE: Hyperparameter Sensitivity (2026-05-12)
+
+**Status:** COMPLETE - hyperparameter sensitivity guidance refreshed with Phase 6 runtime baselines, gate priorities, and DFM diagnostic-only tuning rules  
+**Completion:** Phase 5.14.3 post-Phase-6 refresh 100% ✅  
+**Breaking Changes:** NONE - documentation-only update
+
+### Completed This Session
+
+- ✅ Examined current project status and recent commits before continuing development.
+- ✅ Confirmed Phase 5.14.2 post-Phase-6 refresh was complete and the next action was Phase 5.14.3.
+- ✅ Refreshed `docs/MODEL_TRAINING.md` hyperparameter sensitivity guidance with measured Phase 6 runtime baselines.
+- ✅ Reframed tuning as a gate-driven process prioritizing vintage-honest sMAPE/RMSE, 90% coverage, calibration ECE, probability coherence, and forecast stability.
+- ✅ Added production tuning priorities for MIDAS, XGBoost, LightGBM, calibration, revision forecasting, and MinT reconciliation.
+- ✅ Preserved DFM as diagnostic/research only and documented that DFM tuning for production must wait for true pre-release public signals and a rerun vintage-honest gate.
+- ✅ Updated `docs/planning/phase_5/PHASE_5_IMPLEMENTATION_PLAN.md` to mark the post-Phase-6 `5.14.3` refresh complete.
+
+### Validation
+
+- ✅ `docker compose up -d etl && docker compose exec etl pytest -q`
+- ✅ Result: **1393 passed, 4 skipped, 320 warnings in 540.25s**
+
+### Next Action
+
+Proceed to **Phase 5.14.5 Post-Phase-6 Refresh: Forecasting Capabilities Update**, using the completed Phase 6 model selection, runtime baseline, scenario, lineage, performance, and quality-gate results. Phase 5.14.4 feature registry documentation remains complete and does not require a post-Phase-6 refresh in the current status plan.
 
 ## ✅ PHASE 5.14.2 POST-PHASE-6 REFRESH COMPLETE: Model Selection Decision Tree (2026-05-09)
 

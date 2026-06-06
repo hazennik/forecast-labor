@@ -1,308 +1,189 @@
-Forcasting Capabilities
+# Forecasting Capabilities
 
-Below is a clear, complete list of EVERYTHING your forecasting system will be capable of predicting, broken into categories.
-This reflects realistic, data-driven, statistically valid predictions — not LLM guessing.
+This document summarizes what the forecasting system is designed to predict and what is currently validated after the Phase 6 backtesting, model-selection, scenario, lineage, performance, and quality-gate work.
 
-If you build the full system as designed (public signals + private signals + seasonal models + revision modeling + AI automation), this is exactly what it will be able to predict accurately and consistently.
+The important current boundary is this: the production candidate set is **MIDAS + XGBoost + LightGBM**, with calibration, revision forecasting, feature lineage, scenario testing, and MinT reconciliation available around those models. `DynamicFactorModel` is stable on real CES vintages, but it remains research/diagnostic only until true pre-release public signals pass vintage-honest accuracy gates.
 
-Current Phase 5/6 validation note: the DFM implementation is stable on real CES vintages, but it is not part of the production ensemble until true pre-release public signals such as claims, Treasury withholdings, business formation, strikes/weather controls, and prior CES releases pass vintage-honest accuracy gates. Current production ensemble candidates are MIDAS, XGBoost, and LightGBM.
+## Current Validation Snapshot
 
-⸻
+- Production candidate models: `MIDAS`, `XGBoostQuantile`, and `LightGBMQuantile`.
+- Diagnostic/research model: `DynamicFactorModel`.
+- Excluded for production now: DFM, because corrected pre-release CES-only validation missed the deployment accuracy gate.
+- Runtime readiness: full deterministic production candidate pipeline baseline is `0.565893s` training and `0.029653s` prediction on the Phase 6 fixture.
+- Accuracy readiness: model promotion remains gated by vintage-honest sMAPE/RMSE, interval coverage, ECE, probability coherence, revision quality, reconciliation coherence, and forecast stability.
 
-✅ 1. National Job Market Predictions (High Accuracy)
+---
 
-These are the core, most powerful targets.
-Your system will be able to predict each of these monthly:
+## 1. Primary Production Forecasts
 
-✅ 1.1 Nonfarm Payrolls (NFP) – First Release
-	•	Month-over-month job growth or loss
-	•	Full distribution (probabilities, not just a number)
-	•	Bins like:
-	•	<0k
-	•	0–100k
-	•	100–200k
-	•	200–300k
-	•	300k+
-	•	SN41-ready probability vectors
-This is your strongest target.
+### 1.1 Nonfarm Payrolls (NFP) First Release
 
-✅ 1.2 Private Payrolls (ex-Government)
+This remains the core target. The current production candidate workflow can support:
 
-Often more stable.
-Your model will predict this with even better accuracy.
+- Month-over-month NFP job growth forecasts.
+- Prediction intervals from quantile and conformal calibration layers.
+- Probability vectors for subnet payloads once a subnet adapter defines the required bins.
+- Vintage-aware training and evaluation so forecasts use only data available at the forecast date.
 
-✅ 1.3 Unemployment Rate (U-3)
-	•	Direction (rise/fall)
-	•	Probability of hitting certain thresholds
-Your model can predict direction with solid accuracy, and levels with some error (CPS is noisy).
+Current status: implemented model infrastructure and gates are ready, but promotion still depends on passing vintage-honest accuracy gates for a candidate bundle.
 
-✅ 1.4 Labor Force Participation Rate (LFPR)
+### 1.2 Private Payrolls, Sector Payrolls, and Related CES Targets
 
-This is harder, but your model can predict:
-	•	Direction
-	•	Magnitude in stable periods
+The pipeline can represent private-payroll and sector-level targets through CES source features, sector aggregations, and hierarchical reconciliation. These targets are useful both as direct forecasts and as supporting signals for top-line NFP.
 
-✅ 1.5 Wage Growth (Average Hourly Earnings)
+Current status: feature and model infrastructure exists; production use requires target-specific backtests and gate reports.
 
-Predictable using:
-	•	Payroll microdata
-	•	Private-sector weekly hours
-Useful for inflation signaling.
+### 1.3 Unemployment, Participation, and Wage Indicators
 
-⸻
+The system is designed to ingest and model labor-market indicators such as unemployment direction, labor force participation, and wage growth. These are secondary targets and supporting features rather than the current production-selection focus.
 
-✅ 2. Early Signals of Turning Points
+Current status: supported by the broader architecture, but not the primary validated Phase 6 production path.
 
-This is where your system beats averages and beats government estimates.
+## 2. High-Frequency Nowcasts
 
-Your model will detect:
+The mixed-frequency stack can align daily, weekly, and monthly inputs into monthly forecast features through `MIDASBridge` and `MixedFrequencyPipeline`.
 
-✅ 2.1 Hiring slowdowns before they appear in NFP
+Supported signal types include:
 
-How?
-	•	Job postings demand collapsing
-	•	Fewer business applications
-	•	Higher continuing claims
-	•	Declining hours worked in payroll data
+- Initial and continuing unemployment claims.
+- Treasury withholding momentum.
+- Business formation signals.
+- Strike and weather controls.
+- Prior-release CES information.
+- Other public or private signals that are registered with release timing and vintage metadata.
 
-✅ 2.2 Layoff waves before the headlines
+Current status: the bridge and pipeline infrastructure are implemented. Automated daily/weekly triggering remains future Nowcast Agent scope, and production promotion requires vintage-honest validation with true pre-release signal availability.
 
-How?
-	•	Initial claims spike
-	•	WARN notices
-	•	Deteriorating private payroll signals
+## 3. Probabilistic Forecasts and Calibration
 
-✅ 2.3 Rebounds after shocks
+The model stack supports probability-aware forecasting rather than point forecasts only.
 
-Weather events, strikes, or holidays distort data — but the model corrects for this.
+Implemented capabilities:
 
-⸻
+- Quantile outputs from XGBoost and LightGBM models.
+- Split conformal prediction intervals.
+- Isotonic probability calibration.
+- Coverage and ECE validation.
+- Probability coherence checks for subnet payloads.
 
-✅ 3. State-Level Job Growth Predictions
+Promotion gates:
 
-Your system will produce state employment forecasts and reconcile them to national totals:
+- 90% interval coverage should remain within the accepted 85%-95% range.
+- ECE should remain at or below the calibration threshold when event outcomes are available.
+- Probability vectors must sum to one within tolerance.
+- Probability histories should avoid unstable month-to-month swings.
 
-✅ Which states are contributing most to national job growth
+## 4. Revision Forecasts
 
-✅ Which states are losing jobs
+The revision model supports first-to-later-print adjustment workflows after an initial BLS release is available.
 
-✅ Regional turning points (West Coast slump, Sun Belt surge, etc.)
+Implemented capabilities:
 
-This increases forecast stability, even if SN41 doesn’t require it yet.
+- Revision magnitude forecasting.
+- Revision direction support.
+- Separate revision MAE and direction-accuracy gates.
 
-⸻
+Promotion gates:
 
-✅ 4. Sector-Level Job Growth Predictions
+- Revision MAE must remain within the configured threshold.
+- Revision direction accuracy must pass the configured lower bound.
+- Revision results should be evaluated separately from pre-release nowcast accuracy.
 
-Not every sector is equally predictable, but many are.
+## 5. Hierarchical and Coherent Forecasts
 
-Your model can predict:
+The reconciliation layer can enforce coherence across related forecast levels, such as state-to-national or sector-to-total outputs.
 
-✅ Leisure & Hospitality (very predictable)
+Implemented capabilities:
 
-✅ Construction (weather-driven)
+- OLS reconciliation.
+- WLS reconciliation.
+- Sample MinT reconciliation.
+- Shrinkage MinT reconciliation.
+- Mathematical property tests for coherence and method differentiation.
 
-✅ Retail Trade (highly seasonal, but predictable with X-13)
+Promotion gates:
 
-✅ Professional/Business Services
+- Reconciliation error must stay within the coherence threshold.
+- Reconciliation must not materially degrade base forecast accuracy.
+- Hierarchical outputs must preserve documented lineage from source features to model artifact.
 
-✅ Education & Health Services
+## 6. Scenario and Shock Testing
 
-✅ Manufacturing (strikes + ISM + payrolls help)
+The Phase 6 scenario framework supports deterministic stress tests for forecast behavior under special events.
 
-These sector predictions improve the top-line NFP forecast.
+Implemented scenario coverage:
 
-⸻
+- Storm or hurricane disruption.
+- Large transport or labor strike.
+- Policy uncertainty shock.
+- Neutral scenarios that should not materially move the forecast.
 
-✅ 5. Probability Distributions for SN41 Tasks
+The scenario system validates whether shocked features move forecasts in expected directions and whether magnitudes remain plausible.
 
-This is critical.
+## 7. Feature Registry and Lineage
 
-Your system will generate:
+The feature registry supports production metadata needed for reproducible forecasts and auditability.
 
-✅ Full probabilistic forecasts
+Implemented capabilities:
 
-Not just “200k jobs”.
-But:
-	•	P(<0k)
-	•	P(0–50k)
-	•	P(50–150k)
-	•	P(150–250k)
-	•	P(250k+)
-Or whatever bins SN41 requires.
+- PostgreSQL-backed feature metadata.
+- Feature versioning and rollback support.
+- Feature lineage tracking.
+- Model artifact to feature registry validation.
+- Vintage-date checks between model artifacts and feature metadata.
+- Rollback impact analysis.
 
-✅ Calibrated intervals
+These capabilities reduce the risk of training on stale, missing, unregistered, or incorrectly versioned features.
 
-(50%, 80%, 95%) that match real outcomes.
+## 8. Dynamic Factor Model Boundary
 
-✅ Low-noise, high-consistency probability vectors
+`DynamicFactorModel` is implemented and numerically stable with the statsmodels-backed refactor. It remains valuable for diagnostics and research.
 
-Which is exactly what SN41 validators reward.
+Current production decision:
 
-⸻
+- DFM is excluded from the production ensemble.
+- Phase 6.3.1a corrected validation showed stable predictions but poor pre-release CES-only accuracy.
+- DFM should not receive production ensemble weight until true pre-release public signals are integrated and vintage-honest gates pass.
 
-✅ 6. First-to-Final Revision Predictions
+What must change before DFM can be promoted:
 
-This is something even Wall Street often ignores.
+- Add true pre-release public mixed-frequency inputs to the validation harness.
+- Re-run vintage-honest point accuracy, interval coverage, calibration, and stability gates.
+- Tune interval calibration only after point forecasts pass the deployment accuracy gate.
 
-Your system can predict:
+## 9. Subnet Readiness
 
-✅ Whether the BLS first print will be revised up or down
+The forecasting stack is designed to support subnet payloads through the adapter pattern rather than hardcoded subnet logic.
 
-✅ How large the revision will be
+Current readiness:
 
-✅ Probability of a negative revision
+- Forecast and calibration layers can produce probability-ready outputs.
+- Selection gates include probability coherence and stability checks.
+- SN41-specific payload construction remains future adapter-phase work.
 
-✅ Magnitude of benchmark revisions
+The subnet adapter phase should use the validated production candidate bundle rather than reintroducing model-selection logic inside subnet code.
 
-This is extremely valuable.
+## Summary
 
-⸻
+Current production candidates:
 
-✅ 7. Special Event Adjustments
+- MIDAS for interpretable mixed-frequency nowcasting.
+- XGBoost for nonlinear public-signal interactions and quantile outputs.
+- LightGBM for nonlinear public-signal interactions and quantile outputs.
 
-Your model will automatically adjust predictions for:
+Validated support systems:
 
-✅ Strikes (auto workers, teachers, Hollywood, etc.)
+- Calibration.
+- Revision forecasting.
+- MinT reconciliation.
+- Scenario testing.
+- Feature registry lineage.
+- Performance baselines.
+- Accuracy and deployment gates.
 
-✅ Severe weather events
-	•	Hurricanes
-	•	Snowstorms
-	•	Wildfire smoke shutdowns
+Conditional or future capabilities:
 
-✅ Holiday timing distortions
-	•	Easter shifting
-	•	Thanksgiving quirks
-
-✅ Government shutdowns
-
-✅ Census temporary hiring
-
-These adjustments dramatically reduce month-to-month prediction errors.
-
-⸻
-
-✅ 8. Short-Term Nowcasts
-
-Your model will produce daily or weekly updated forecasts based on:
-	•	New UI claims
-	•	New Treasury withholdings
-	•	Updated private payroll data
-	•	Updated postings
-	•	New weather impacts
-	•	Strike resolutions
-
-These nowcasts strengthen the accuracy just before SN41 task deadlines.
-
-Implementation note: `MixedFrequencyPipeline.predict()` can be re-run with updated `raw_sources` as fresh daily or weekly data arrives. Automated triggering remains future Nowcast Agent scope; the current refactor provides the bridge/pipeline infrastructure.
-
-⸻
-
-✅ 9. Labor Market Tightness Metrics
-
-Your system can produce predictive metrics:
-
-✅ Job openings vs unemployed ratio
-✅ Hiring pressure
-✅ Layoff risk
-✅ Wage pressure
-✅ Sectoral tightness indices
-
-You can feed some of these into SN41 if needed.
-
-⸻
-
-✅ 10. Structured Scenarios (Optional)
-
-Your system can simulate:
-
-✅ “If claims rise 10%, NFP likely falls to X”
-✅ “If withholdings surge in late month, expect a large upward print”
-✅ “If storm event hits key states, expect a distortion of X jobs”
-
-This helps you validate the model’s logic and stability.
-
-⸻
-
-✅ 11. Implemented Phase 5 Model Stack
-
-Phase 5 now includes the complete model-development layer needed to support the capabilities above:
-
-✅ MIDAS and bridged MIDAS models
-	•	Mixed-frequency daily/weekly/monthly signal alignment
-	•	Almon lag weighting for interpretable high-frequency effects
-	•	Production candidate for pre-release NFP nowcasting
-
-✅ XGBoost and LightGBM quantile models
-	•	Nonlinear signal interactions
-	•	Multi-quantile outputs for prediction intervals
-	•	Production candidates for calibrated probability forecasts
-
-✅ Dynamic Factor Model
-	•	Statsmodels-backed latent factor extraction
-	•	Stable diagnostics on real CES vintages
-	•	Research/diagnostic only until pre-release accuracy gates pass
-
-✅ Calibration
-	•	Isotonic probability calibration
-	•	Split conformal prediction intervals
-	•	Coverage and ECE validation
-
-✅ Revision forecasting
-	•	First-to-later-print revision magnitude forecasts
-	•	Revision direction support
-
-✅ MinT reconciliation
-	•	State/sector-to-national coherence
-	•	OLS, WLS, sample MinT, and shrinkage MinT methods
-
-✅ Complete training documentation
-	•	See `docs/MODEL_TRAINING.md` for the training workflow, model selection decision tree, hyperparameter sensitivity guidance, gates, and troubleshooting.
-
-⸻
-
-✅ Summary — What the Model Can Predict (Full List)
-
-✅ National job growth (NFP)
-
-✅ Private payroll growth
-
-✅ Unemployment rate movement
-
-✅ Wage growth
-
-✅ State-level employment changes
-
-✅ Sector-level job changes
-
-✅ Turning points & cycle shifts
-
-✅ Layoff wave signals
-
-✅ Hiring slowdowns
-
-✅ Strikes/weather/holiday shock adjustments
-
-✅ Revisions (first → final)
-
-✅ Probability distributions for SN41
-
-✅ Fully-calibrated forecast intervals
-
-✅ Daily/weekly nowcasts
-
-✅ High-frequency momentum signals
-
-This is the same toolkit used by top-tier quant macro funds — and strictly superior to U.S. government forecasting capabilities.
-
-⸻
-
-✅ Want the “Accuracy Map” for each prediction?
-
-I can give you:
-
-✅ The 14 core prediction targets
-✅ The expected accuracy of each
-✅ Which signals contribute the most
-✅ How reliable each prediction is
-✅ Which ones SN41 rewards the most
+- DFM production ensemble inclusion.
+- Automated intramonth nowcast triggering.
+- SN41 payload submission through the subnet adapter.
+- Secondary target production promotion for unemployment, wages, state forecasts, and sector forecasts.
