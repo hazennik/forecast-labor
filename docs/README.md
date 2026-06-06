@@ -69,7 +69,7 @@ Will contain:
 
 ## 📊 Current Project Status
 
-**Current Phase:** Phase 7 ready  
+**Current Phase:** Phase 7 in progress  
 **Overall Progress:** See [`IMPLEMENTATION_STATUS.md`](./planning/IMPLEMENTATION_STATUS.md) for the current source of truth.
 
 ### ✅ Completed Phases
@@ -115,8 +115,8 @@ Will contain:
   - Zone 2 isolation checks, rate limiting, metrics, and request IDs
   - API deployment profile, runbook, and deployment gates
 
-### 🚧 Next
-- **Phase 7:** Subnet Integration (Adapter Pattern) - next
+### 🚧 In Progress
+- **Phase 7:** Subnet Integration (Adapter Pattern)
   - Base adapter interface, registry, scheduler, and scoring shim
   - Subnet configuration template
   - SN41 adapter as the first concrete implementation
@@ -173,5 +173,5 @@ See [IMPLEMENTATION_STATUS.md](./planning/IMPLEMENTATION_STATUS.md) for real-tim
 ---
 
 **Last Updated:** 2026-06-06  
-**Project Version:** Phase 6A Complete / Phase 7 Ready
+**Project Version:** Phase 7 In Progress
 

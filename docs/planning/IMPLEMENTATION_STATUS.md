@@ -1,6 +1,37 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture COMPLETE ✅ | Full Docker suite passing: 1419 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: base adapter interface added ✅ | Full Docker suite passing: 1424 passed, 4 skipped)
+
+## ⏳ PHASE 7 IN PROGRESS: Subnet Integration (Adapter Pattern) (2026-06-06)
+
+**Status:** IN PROGRESS - base subnet adapter package, abstract interface, shared submission dataclasses, subnet config template, and focused adapter contract tests are implemented  
+**Completion:** Phase 7.1 base adapter interface slice complete ✅  
+**Breaking Changes:** NONE - additive subnet adapter package and template config
+
+### Completed This Session
+
+- ✅ Started Phase 7 from the completed Phase 6A readiness handoff.
+- ✅ Added `subnets/__init__.py` and `subnets/base_adapter.py` as the first adapter-framework package.
+- ✅ Added `SubnetConfig`, `SubmissionKeyPaths`, and `SubmissionResult` dataclasses with validation for shared adapter configuration and telemetry.
+- ✅ Added `BaseSubnetAdapter` abstract methods for config, event catalog, payload building, payload validation, and submission.
+- ✅ Added `configs/subnets/template.yaml` so new subnet adapters start from a config-driven template.
+- ✅ Mounted `subnets/` and `configs/` into the ETL test service for Phase 7 contract-test visibility.
+- ✅ Added focused base adapter contract tests under `tests/subnets/test_base_adapter.py`.
+
+### Validation
+
+- ✅ `docker compose up -d --force-recreate etl && docker compose exec etl pytest tests/subnets/test_base_adapter.py -q`
+- ✅ Result: **5 passed in 0.13s**
+- ✅ `docker compose exec etl pytest tests/subnets/test_base_adapter.py tests/test_phase_6a_deployment.py -q`
+- ✅ Result: **11 passed in 0.10s**
+- ✅ `docker compose exec etl black --check subnets tests/subnets/test_base_adapter.py tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl ruff check subnets tests/subnets/test_base_adapter.py tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1424 passed, 4 skipped, 320 warnings in 614.05s**
+
+### Next Action
+
+Continue **Phase 7.2: Registry & Configuration Loading**, then add scheduler and scoring shim before implementing the SN41 adapter.
 
 ## ✅ PHASE 6A COMPLETE: API & Two-Zone Architecture (2026-06-06)
 

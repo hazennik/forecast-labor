@@ -1,0 +1,50 @@
+# Template for subnet adapter configuration.
+# Copy this file to configs/subnets/<subnet_id>.yaml and replace placeholder values.
+
+subnet_id: example_subnet
+name: Example Forecasting Subnet
+netuid: 0
+adapter_version: 0.1.0
+
+events:
+  - event_id: example_nfp_release
+    target: NFP
+    release_date: 2026-01-02
+    timezone: America/New_York
+    bins:
+      - label: below_0k
+        lower: null
+        upper: 0
+      - label: 0k_to_100k
+        lower: 0
+        upper: 100000
+      - label: above_100k
+        lower: 100000
+        upper: null
+
+cadence:
+  type: monthly
+  window_open: T-5d
+  window_close: T-1d
+  submission_timezone: America/New_York
+
+scoring:
+  metric: log_score
+  probability_tolerance: 0.001
+  calibration_weight: 0.3
+  variance_penalty: 0.2
+
+network:
+  endpoint: wss://example.invalid
+  timeout_seconds: 30
+  retries: 3
+  backoff: exponential
+
+submission:
+  payload_format: json
+  requires_signature: true
+  dry_run_supported: true
+
+metadata:
+  owner: forecast-labor
+  description: Replace with subnet-specific notes and operational assumptions.

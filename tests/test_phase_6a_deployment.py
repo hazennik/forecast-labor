@@ -132,16 +132,17 @@ def test_phase_6a_deploy_gates_document_hard_blockers() -> None:
 
 
 def test_phase_6a_final_status_points_to_phase_7_adapter_work() -> None:
-    """Status docs should record Phase 6A closure and the next Phase 7 handoff."""
+    """Status docs should record Phase 6A closure and active Phase 7 adapter work."""
     status_doc = IMPLEMENTATION_STATUS_PATH.read_text(encoding="utf-8")
     docs_readme = DOCS_README_PATH.read_text(encoding="utf-8")
 
+    assert "PHASE 7 IN PROGRESS: Subnet Integration (Adapter Pattern)" in status_doc
+    assert "Phase 7.1 base adapter interface slice complete" in status_doc
     assert "PHASE 6A COMPLETE: API & Two-Zone Architecture" in status_doc
     assert "**Completion:** Phase 6A 100%" in status_doc
-    assert "Proceed to **Phase 7: Subnet Integration (Adapter Pattern)**" in status_doc
-    assert "Phase 7 adapter work must begin with the base adapter interface" in status_doc
-    assert "**Current Phase:** Phase 7 ready" in docs_readme
+    assert "Continue **Phase 7.2: Registry & Configuration Loading**" in status_doc
+    assert "**Current Phase:** Phase 7 in progress" in docs_readme
     assert "**Phase 6A:** API & Two-Zone Architecture (100%)" in docs_readme
-    assert "**Phase 7:** Subnet Integration (Adapter Pattern) - next" in docs_readme
+    assert "**Phase 7:** Subnet Integration (Adapter Pattern)" in docs_readme
     assert "### 🚧 In Progress\n- **Phase 4:** Feature Engineering" not in docs_readme
     assert "Phase 3 Complete" not in docs_readme
