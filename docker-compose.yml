@@ -194,6 +194,7 @@ services:
       - ./data:/app/data
       - ./scripts:/app/scripts
       - ./tests:/app/tests
+      - ./docs:/app/docs:ro
       - ./docker-compose.yml:/app/docker-compose.yml:ro
       - ./infra:/app/infra:ro
       - ./.github:/app/.github:ro

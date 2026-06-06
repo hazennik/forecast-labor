@@ -17,6 +17,7 @@ Complete documentation for the Real-Time U.S. Labor-Market Forecasting Engine + 
 
 ### Operations & Agents
 - **[AGENTS_AND_OPS_RUNBOOK.md](./AGENTS_AND_OPS_RUNBOOK.md)** - AI agents roster, autonomy levels, and operational gates
+- **[ops/RUNBOOK.md](./ops/RUNBOOK.md)** - Phase 6A API deployment, smoke checks, observability, and rollback
 
 ---
 
@@ -55,11 +56,11 @@ Will contain:
 
 ## 🚀 Operations
 
-Located in [`ops/`](./ops/) _(to be created)_
+Located in [`ops/`](./ops/)
 
 Will contain:
 - **DEPLOY_GATES.md** - CI/CD gates (sMAPE, coverage, coherence thresholds)
-- **RUNBOOK.md** - Incident response, rollback procedures, release calendar
+- **RUNBOOK.md** - Phase 6A API deployment, smoke checks, incident response, and rollback
 - Production deployment guides
 - Monitoring and alerting setup
 

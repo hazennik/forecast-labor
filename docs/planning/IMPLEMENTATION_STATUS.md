@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: request ID correlation added ✅ | Full Docker suite passing: 1416 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: deployment runbook polished ✅ | Full Docker suite passing: 1417 passed, 4 skipped)
 
 ## ⏳ PHASE 6A IN PROGRESS: API & Two-Zone Architecture (2026-06-06)
 
-**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, forecast rate limiting, API deployment profile, subnet logging schema, metrics endpoint, and request ID correlation are implemented and tested  
-**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, rate-limiting, deployment-profile, subnet logging schema, metrics endpoint, and request ID correlation slices complete ✅  
+**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, forecast rate limiting, API deployment profile, subnet logging schema, metrics endpoint, request ID correlation, and deployment runbook are implemented and tested  
+**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, rate-limiting, deployment-profile, subnet logging schema, metrics endpoint, request ID correlation, and deployment-runbook slices complete ✅  
 **Breaking Changes:** NONE - additive API package, tests, and zone scaffolding
 
 ### Completed This Session
@@ -52,6 +52,9 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: requ
 - ✅ Added `X-Request-ID` request correlation for all API responses, preserving caller-provided IDs or generating UUIDs.
 - ✅ Added Phase 6A tests for generated request IDs, incoming request ID echoing, and traceable fail-closed forecast errors.
 - ✅ Updated Zone 2 runner documentation with request correlation behavior.
+- ✅ Added `docs/ops/RUNBOOK.md` covering Phase 6A API preflight, startup, smoke checks, protected artifact checks, expected failure modes, metrics, request IDs, rollback, and shutdown.
+- ✅ Linked the Phase 6A runbook from `docs/README.md`.
+- ✅ Extended deployment contract tests to preserve critical runbook commands, failure-mode guidance, forbidden-root warnings, and rollback steps.
 
 ### Validation
 
@@ -106,10 +109,17 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: requ
 - ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py`
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1416 passed, 4 skipped, 320 warnings in 505.59s**
+- ✅ `docker compose up -d --force-recreate etl && docker compose exec etl pytest tests/test_phase_6a_deployment.py -q`
+- ✅ Result: **4 passed in 0.14s**
+- ✅ `docker compose --profile api config`
+- ✅ `docker compose exec etl black --check tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl ruff check tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1417 passed, 4 skipped, 320 warnings in 796.68s**
 
 ### Next Action
 
-Continue **Phase 6A** with deployment runbook polish before moving to subnet adapter work.
+Continue **Phase 6A** with final status review before moving to subnet adapter work.
 
 ## ✅ PHASE 5.14.5 POST-PHASE-6 REFRESH COMPLETE: Forecasting Capabilities Update (2026-06-06)
 
