@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: forecast rate limiting added ✅ | Full Docker suite passing: 1405 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: API deployment profile added ✅ | Full Docker suite passing: 1408 passed, 4 skipped)
 
 ## ⏳ PHASE 6A IN PROGRESS: API & Two-Zone Architecture (2026-06-06)
 
-**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, and forecast rate limiting are implemented and tested  
-**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, and rate-limiting slices complete ✅  
+**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, forecast rate limiting, and the API deployment profile are implemented and tested  
+**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, rate-limiting, and deployment-profile slices complete ✅  
 **Breaking Changes:** NONE - additive API package, tests, and zone scaffolding
 
 ### Completed This Session
@@ -36,6 +36,11 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: fore
 - ✅ Exposed rate-limit configuration through `/status`.
 - ✅ Added Phase 6A tests for rate-limit observability and `429` fail-closed behavior with `Retry-After`.
 - ✅ Updated `.env.example` and Zone 2 runner documentation with rate-limit settings.
+- ✅ Added `infra/api/Dockerfile` for the Zone 2 forecast-serving API.
+- ✅ Added an opt-in Docker Compose `api`/`zone2` profile with Uvicorn, `/health` checks, and Zone 2-only runtime mounts.
+- ✅ Mounted `docker-compose.yml` and `infra/` read-only into the ETL service so deployment contract tests run inside Docker.
+- ✅ Added Phase 6A deployment contract tests covering the API Compose profile, healthcheck, Uvicorn command, and forbidden mount exclusions.
+- ✅ Updated `.env.example` and Zone 2 runner documentation with local API profile deployment instructions.
 
 ### Validation
 
@@ -65,10 +70,17 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: fore
 - ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py`
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1405 passed, 4 skipped, 320 warnings in 483.68s**
+- ✅ `docker compose up -d --force-recreate etl && docker compose exec etl pytest tests/test_phase_6a_api.py tests/test_phase_6a_deployment.py -q`
+- ✅ Result: **15 passed, 3 warnings in 1.18s**
+- ✅ `docker compose --profile api config`
+- ✅ `docker compose exec etl black --check app tests/test_phase_6a_api.py tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1408 passed, 4 skipped, 320 warnings in 500.56s**
 
 ### Next Action
 
-Continue **Phase 6A** with the remaining deployment automation and operational API hardening before moving to subnet adapter work.
+Continue **Phase 6A** with remaining operational API hardening, submission logging/metrics scaffolding, and deployment runbook polish before moving to subnet adapter work.
 
 ## ✅ PHASE 5.14.5 POST-PHASE-6 REFRESH COMPLETE: Forecasting Capabilities Update (2026-06-06)
 

@@ -15,6 +15,14 @@ The Phase 6A API exposes health, readiness, artifact status, artifact export, an
 
 Protected endpoints require the key in the `X-API-Key` request header. Health and readiness endpoints remain unauthenticated for deployment probes.
 
+Local deployment:
+
+```bash
+docker compose --profile api up -d api
+```
+
+The `api` Compose profile uses `infra/api/Dockerfile` and mounts only `zone2/runner/artifacts` and `zone2/runner/extracted`. It does not mount raw data, Zone 1, ETL, feature, model-source, backtest, or script directories.
+
 Deployment isolation checks fail readiness and forecast serving if Zone 2 artifact paths are configured inside raw data, Zone 1, training code, backtest, feature, ETL, model-source, or script directories. Runtime artifacts should remain under the Zone 2 runner artifact and extraction directories.
 
 Forecast requests are rate limited per client and endpoint before model inference runs. When the limit is exceeded, `/forecast` returns `429` with a `Retry-After` header.

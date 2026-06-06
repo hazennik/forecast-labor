@@ -194,10 +194,47 @@ services:
       - ./data:/app/data
       - ./scripts:/app/scripts
       - ./tests:/app/tests
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+      - ./infra:/app/infra:ro
       - ./.github:/app/.github:ro
     working_dir: /app
     networks:
       - forecast-net
+
+  # ----------------------------
+  # API SERVICE (Zone 2 Forecast Serving)
+  # ----------------------------
+  api:
+    build:
+      context: .
+      dockerfile: ./infra/api/Dockerfile
+    container_name: forecast-api
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      API_SERVICE_NAME: ${API_SERVICE_NAME:-forecast-labor-api}
+      ACTIVE_SUBNET: ${ACTIVE_SUBNET:-sn41}
+      ACTIVE_MODEL_BUNDLE: ${ACTIVE_MODEL_BUNDLE:-}
+      ZONE2_ARTIFACT_DIR: ${ZONE2_ARTIFACT_DIR:-/app/zone2/runner/artifacts}
+      ZONE2_EXTRACT_DIR: ${ZONE2_EXTRACT_DIR:-/app/zone2/runner/extracted}
+      ZONE2_API_KEY: ${ZONE2_API_KEY:-}
+      API_RATE_LIMIT_ENABLED: ${API_RATE_LIMIT_ENABLED:-true}
+      API_RATE_LIMIT_REQUESTS_PER_MINUTE: ${API_RATE_LIMIT_REQUESTS_PER_MINUTE:-60}
+    volumes:
+      - ./zone2/runner/artifacts:/app/zone2/runner/artifacts:ro
+      - ./zone2/runner/extracted:/app/zone2/runner/extracted
+    working_dir: /app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - forecast-net
+    profiles:
+      - api
+      - zone2
 
   # ----------------------------
   # MODELS SERVICE (Training + Inference)
