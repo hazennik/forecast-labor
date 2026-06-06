@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: API deployment profile added ✅ | Full Docker suite passing: 1408 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: subnet logging schema added ✅ | Full Docker suite passing: 1411 passed, 4 skipped)
 
 ## ⏳ PHASE 6A IN PROGRESS: API & Two-Zone Architecture (2026-06-06)
 
-**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, forecast rate limiting, and the API deployment profile are implemented and tested  
-**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, rate-limiting, and deployment-profile slices complete ✅  
+**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, forecast rate limiting, API deployment profile, and subnet logging schema are implemented and tested  
+**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, rate-limiting, deployment-profile, and subnet logging schema slices complete ✅  
 **Breaking Changes:** NONE - additive API package, tests, and zone scaffolding
 
 ### Completed This Session
@@ -41,6 +41,10 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: API 
 - ✅ Mounted `docker-compose.yml` and `infra/` read-only into the ETL service so deployment contract tests run inside Docker.
 - ✅ Added Phase 6A deployment contract tests covering the API Compose profile, healthcheck, Uvicorn command, and forbidden mount exclusions.
 - ✅ Updated `.env.example` and Zone 2 runner documentation with local API profile deployment instructions.
+- ✅ Replaced legacy `sn41` PostgreSQL bootstrap schema with subnet-agnostic `subnets.submission_log` and `subnets.event_catalog`.
+- ✅ Added shared submission telemetry fields for adapter version, payload hash, transaction hash, latency, status, validator response, and metadata.
+- ✅ Added database contract tests to prevent regression to `sn41.*` bootstrap tables before Phase 7 adapter work.
+- ✅ Updated stale planning summary references to the generalized `subnets.*` database schema.
 
 ### Validation
 
@@ -77,10 +81,16 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: API 
 - ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py tests/test_phase_6a_deployment.py`
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1408 passed, 4 skipped, 320 warnings in 500.56s**
+- ✅ `docker compose up -d etl && docker compose exec etl pytest tests/test_phase_6a_subnet_database.py tests/test_phase_6a_api.py tests/test_phase_6a_deployment.py -q`
+- ✅ Result: **18 passed, 3 warnings in 1.13s**
+- ✅ `docker compose exec etl black --check tests/test_phase_6a_subnet_database.py`
+- ✅ `docker compose exec etl ruff check tests/test_phase_6a_subnet_database.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1411 passed, 4 skipped, 320 warnings in 490.50s**
 
 ### Next Action
 
-Continue **Phase 6A** with remaining operational API hardening, submission logging/metrics scaffolding, and deployment runbook polish before moving to subnet adapter work.
+Continue **Phase 6A** with remaining operational API hardening, metrics endpoint scaffolding, and deployment runbook polish before moving to subnet adapter work.
 
 ## ✅ PHASE 5.14.5 POST-PHASE-6 REFRESH COMPLETE: Forecasting Capabilities Update (2026-06-06)
 

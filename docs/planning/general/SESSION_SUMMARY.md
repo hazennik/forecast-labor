@@ -46,8 +46,8 @@
 - `models.model_registry` - Model versions
 - `models.performance_log` - Performance tracking
 - `backtests.backtest_runs` - Backtest results
-- `sn41.submission_log` - SN41 submissions
-- `sn41.event_catalog` - Event definitions
+- `subnets.submission_log` - Subnet submissions (any subnet)
+- `subnets.event_catalog` - Subnet event definitions
 - `raw.seasonal_specs` - X-13 specifications
 
 ---

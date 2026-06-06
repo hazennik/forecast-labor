@@ -20,7 +20,7 @@ CREATE SCHEMA IF NOT EXISTS staging;
 CREATE SCHEMA IF NOT EXISTS features;
 CREATE SCHEMA IF NOT EXISTS models;
 CREATE SCHEMA IF NOT EXISTS backtests;
-CREATE SCHEMA IF NOT EXISTS sn41;
+CREATE SCHEMA IF NOT EXISTS subnets;
 CREATE SCHEMA IF NOT EXISTS logs;
 
 -- Create extensions
@@ -120,33 +120,46 @@ CREATE TABLE IF NOT EXISTS backtests.backtest_runs (
 );
 
 -- ----------------------------
--- SN41 SUBMISSION LOG
+-- SUBNET SUBMISSION LOGGING
 -- ----------------------------
 
-CREATE TABLE IF NOT EXISTS sn41.submission_log (
+CREATE TABLE IF NOT EXISTS subnets.submission_log (
     submission_id SERIAL PRIMARY KEY,
+    subnet_id VARCHAR(100) NOT NULL,
+    adapter_version VARCHAR(100),
     submission_timestamp TIMESTAMP DEFAULT NOW(),
+    event_id VARCHAR(255),
     event_name VARCHAR(255),
     event_date DATE,
     forecast_date DATE,
+    target VARCHAR(100),
     probability_vector JSONB,
     signed_payload TEXT,
-    submission_status VARCHAR(50),
+    payload_hash VARCHAR(128),
+    submission_status VARCHAR(50) NOT NULL,
     validator_response JSONB,
+    transaction_hash VARCHAR(255),
     reward NUMERIC,
-    error_message TEXT
+    latency_ms INTEGER,
+    error_message TEXT,
+    metadata JSONB
 );
 
--- SN41 event catalog
-CREATE TABLE IF NOT EXISTS sn41.event_catalog (
-    event_id SERIAL PRIMARY KEY,
+-- Subnet event catalog
+CREATE TABLE IF NOT EXISTS subnets.event_catalog (
+    catalog_id SERIAL PRIMARY KEY,
+    subnet_id VARCHAR(100) NOT NULL,
+    external_event_id VARCHAR(255) NOT NULL,
     event_name VARCHAR(255) NOT NULL,
     event_type VARCHAR(100),
     event_date DATE,
+    target VARCHAR(100),
     bin_definitions JSONB,
     scoring_rule VARCHAR(50),
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (subnet_id, external_event_id)
 );
 
 -- ----------------------------
@@ -171,7 +184,10 @@ CREATE INDEX IF NOT EXISTS idx_ingestion_log_source ON logs.ingestion_log(source
 CREATE INDEX IF NOT EXISTS idx_ingestion_log_vintage ON logs.ingestion_log(vintage_date);
 CREATE INDEX IF NOT EXISTS idx_performance_log_model ON models.performance_log(model_id, evaluation_date DESC);
 CREATE INDEX IF NOT EXISTS idx_backtest_runs_model ON backtests.backtest_runs(model_id, run_timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_submission_log_event ON sn41.submission_log(event_name, event_date);
+CREATE INDEX IF NOT EXISTS idx_submission_log_subnet ON subnets.submission_log(subnet_id, submission_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_submission_log_event ON subnets.submission_log(subnet_id, event_name, event_date);
+CREATE INDEX IF NOT EXISTS idx_submission_log_status ON subnets.submission_log(subnet_id, submission_status);
+CREATE INDEX IF NOT EXISTS idx_event_catalog_subnet ON subnets.event_catalog(subnet_id, event_date DESC);
 
 -- ----------------------------
 -- GRANTS
@@ -183,7 +199,7 @@ GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA staging TO forecast_user;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA features TO forecast_user;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA models TO forecast_user;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA backtests TO forecast_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA sn41 TO forecast_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA subnets TO forecast_user;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA logs TO forecast_user;
 
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA raw TO forecast_user;
@@ -191,7 +207,7 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA staging TO forecast_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA features TO forecast_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA models TO forecast_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA backtests TO forecast_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA sn41 TO forecast_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA subnets TO forecast_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA logs TO forecast_user;
 
 -- ----------------------------
@@ -203,7 +219,7 @@ BEGIN
     RAISE NOTICE '========================================';
     RAISE NOTICE 'Forecast-Labor Database Initialized';
     RAISE NOTICE '========================================';
-    RAISE NOTICE 'Schemas: raw, staging, features, models, backtests, sn41, logs';
+    RAISE NOTICE 'Schemas: raw, staging, features, models, backtests, subnets, logs';
     RAISE NOTICE 'Ready for data ingestion and model tracking';
 END $$;
 
