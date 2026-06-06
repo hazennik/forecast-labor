@@ -187,7 +187,10 @@ services:
       - ./features:/app/features
       - ./models_src:/app/models_src
       - ./backtests:/app/backtests
+      - ./app:/app/app
       - ./recon:/app/recon
+      - ./zone1:/app/zone1
+      - ./zone2:/app/zone2
       - ./data:/app/data
       - ./scripts:/app/scripts
       - ./tests:/app/tests

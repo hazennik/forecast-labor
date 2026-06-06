@@ -1,6 +1,38 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 5.14.5 Post-Phase-6 Refresh COMPLETE ✅ | Full Docker suite passing: 1393 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: API foundation complete ✅ | Full Docker suite passing: 1397 passed, 4 skipped)
+
+## ⏳ PHASE 6A IN PROGRESS: API & Two-Zone Architecture (2026-06-06)
+
+**Status:** IN PROGRESS - FastAPI foundation and initial Zone 1/Zone 2 serving boundary are implemented and tested  
+**Completion:** Phase 6A foundation slice complete ✅  
+**Breaking Changes:** NONE - additive API package, tests, and zone scaffolding
+
+### Completed This Session
+
+- ✅ Committed and pushed completed Phase 5.14 documentation refresh (`db25686`) to `main`.
+- ✅ Started Phase 6A from the documented next action after Phase 5.14.5.
+- ✅ Added `app/main.py` FastAPI application factory and entrypoint.
+- ✅ Added status, artifact, and forecast routers under `app/routers/`.
+- ✅ Added Pydantic request/response schemas under `app/schemas/`.
+- ✅ Added read-only Zone 2 artifact inspection through `app/services/artifacts.py`.
+- ✅ Added safe forecast-serving behavior: `/forecast` refuses placeholder predictions until a verified signed artifact is available.
+- ✅ Added initial Zone 1 public-only training config and Zone 2 runner documentation.
+- ✅ Mounted `app`, `zone1`, and `zone2` into the ETL Docker service for test visibility.
+- ✅ Added focused Phase 6A API tests in `tests/test_phase_6a_api.py`.
+
+### Validation
+
+- ✅ `docker compose up -d --force-recreate etl && docker compose exec etl pytest tests/test_phase_6a_api.py -q`
+- ✅ Result: **4 passed, 1 warning in 0.56s**
+- ✅ `docker compose exec etl black --check app tests/test_phase_6a_api.py`
+- ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1397 passed, 4 skipped, 320 warnings in 510.22s**
+
+### Next Action
+
+Continue **Phase 6A** with signed artifact loading and inference wiring for Zone 2, then add API endpoint tests for authenticated artifact export/status workflows before moving to subnet adapter work.
 
 ## ✅ PHASE 5.14.5 POST-PHASE-6 REFRESH COMPLETE: Forecasting Capabilities Update (2026-06-06)
 
@@ -4888,12 +4920,12 @@ Complete mapping of REPO_SCAFFOLDING.md components to implementation phases.
 
 | Component          | Phase    | Status     | Notes                     |
 | ------------------ | -------- | ---------- | ------------------------- |
-| `app/main.py`      | Phase 6A | 📋 Planned | FastAPI application       |
-| `app/routers/`     | Phase 6A | 📋 Planned | Forecast, reports, status |
-| `app/schemas/`     | Phase 6A | 📋 Planned | Pydantic models           |
-| `zone1/configs/`   | Phase 6A | 📋 Planned | Training profiles         |
+| `app/main.py`      | Phase 6A | ✅ Started  | FastAPI application factory and entrypoint |
+| `app/routers/`     | Phase 6A | ✅ Started  | Health, readiness, artifact, forecast routes |
+| `app/schemas/`     | Phase 6A | ✅ Started  | Pydantic API request/response models |
+| `zone1/configs/`   | Phase 6A | ✅ Started  | Public-only training profile |
 | `zone1/artifacts/` | Phase 6A | 📋 Planned | Versioned models          |
-| `zone2/runner/`    | Phase 6A | 📋 Planned | Inference app             |
+| `zone2/runner/`    | Phase 6A | ✅ Started  | Signed-artifact inference boundary docs |
 | `zone2/logs/`      | Phase 6A | 📋 Planned | Submission logs           |
 
 

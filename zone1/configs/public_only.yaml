@@ -1,0 +1,17 @@
+# Zone 1 public-only training profile.
+#
+# This profile may train on reproducible public vintages and can produce signed
+# artifacts for Zone 2. Private data sources must remain disabled here.
+
+profile_id: public_only
+zone: zone1
+allow_private_sources: false
+artifact_output_dir: zone1/artifacts
+allowed_model_families:
+  - midas
+  - xgboost
+  - lightgbm
+  - revision
+diagnostic_model_families:
+  - dfm
+

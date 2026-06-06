@@ -18,6 +18,7 @@ setup(
             "features*",
             "models_src*",
             "backtests*",
+            "app*",
             "subnets*",
             "recon*",
         ]
