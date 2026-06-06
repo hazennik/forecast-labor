@@ -42,3 +42,23 @@ class ServiceStatusResponse(BaseModel):
     rate_limit_enabled: bool
     rate_limit_requests_per_minute: int
     timestamp: datetime = Field(default_factory=utc_now)
+
+
+class EndpointMetricsResponse(BaseModel):
+    """Operational metrics for one API endpoint."""
+
+    request_count: int
+    status_counts: Dict[str, int]
+    average_latency_ms: float
+    max_latency_ms: float
+    last_status_code: int
+
+
+class MetricsResponse(BaseModel):
+    """Operational API metrics response."""
+
+    service: str
+    environment: str
+    total_requests: int
+    endpoints: Dict[str, EndpointMetricsResponse]
+    timestamp: datetime = Field(default_factory=utc_now)

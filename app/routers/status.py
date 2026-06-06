@@ -3,9 +3,15 @@
 from fastapi import APIRouter, Request
 
 from app.config import ApiSettings
-from app.schemas.status import HealthResponse, ReadinessResponse, ServiceStatusResponse
+from app.schemas.status import (
+    HealthResponse,
+    MetricsResponse,
+    ReadinessResponse,
+    ServiceStatusResponse,
+)
 from app.services.artifacts import ArtifactRepository
 from app.services.deployment import summarize_zone2_isolation
+from app.services.metrics import ApiMetricsRecorder
 
 router = APIRouter(tags=["status"])
 
@@ -18,6 +24,11 @@ def _settings(request: Request) -> ApiSettings:
 def _repository(request: Request) -> ArtifactRepository:
     """Return the artifact repository from FastAPI state."""
     return request.app.state.artifacts
+
+
+def _metrics(request: Request) -> ApiMetricsRecorder:
+    """Return the API metrics recorder from FastAPI state."""
+    return request.app.state.metrics
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -69,4 +80,17 @@ def service_status(request: Request) -> ServiceStatusResponse:
         zone2_security_isolated=isolation_status.isolated,
         rate_limit_enabled=settings.rate_limit_enabled,
         rate_limit_requests_per_minute=settings.rate_limit_requests_per_minute,
+    )
+
+
+@router.get("/metrics", response_model=MetricsResponse)
+def service_metrics(request: Request) -> MetricsResponse:
+    """Return in-process API metrics for deployment dashboards."""
+    settings = _settings(request)
+    snapshot = _metrics(request).snapshot()
+    return MetricsResponse(
+        service=settings.service_name,
+        environment=settings.environment,
+        total_requests=int(snapshot["total_requests"]),
+        endpoints=snapshot["endpoints"],
     )

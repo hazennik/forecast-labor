@@ -11,7 +11,7 @@ Expected runtime inputs:
 - `API_RATE_LIMIT_ENABLED`: enables forecast request rate limiting, defaulting to `true`.
 - `API_RATE_LIMIT_REQUESTS_PER_MINUTE`: per-client forecast request limit, defaulting to `60`.
 
-The Phase 6A API exposes health, readiness, artifact status, artifact export, and forecast endpoints. Forecast responses are served only after a verified signed artifact loader can extract the active bundle and load the model.
+The Phase 6A API exposes health, readiness, metrics, artifact status, artifact export, and forecast endpoints. Forecast responses are served only after a verified signed artifact loader can extract the active bundle and load the model.
 
 Protected endpoints require the key in the `X-API-Key` request header. Health and readiness endpoints remain unauthenticated for deployment probes.
 
@@ -26,4 +26,6 @@ The `api` Compose profile uses `infra/api/Dockerfile` and mounts only `zone2/run
 Deployment isolation checks fail readiness and forecast serving if Zone 2 artifact paths are configured inside raw data, Zone 1, training code, backtest, feature, ETL, model-source, or script directories. Runtime artifacts should remain under the Zone 2 runner artifact and extraction directories.
 
 Forecast requests are rate limited per client and endpoint before model inference runs. When the limit is exceeded, `/forecast` returns `429` with a `Retry-After` header.
+
+Operational request metrics are available at `/metrics`. The response includes total request counts plus per-method/path status counts and latency aggregates for lightweight deployment dashboards.
 

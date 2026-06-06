@@ -119,6 +119,52 @@ def test_status_reports_rate_limit_configuration(tmp_path: Path) -> None:
     assert payload["rate_limit_requests_per_minute"] == 17
 
 
+def test_metrics_reports_endpoint_request_counts(tmp_path: Path) -> None:
+    """Metrics endpoint should expose request counts and status counts by endpoint."""
+    client = _client(ApiSettings(artifact_dir=tmp_path, environment="test"))
+
+    first_response = client.get("/health")
+    second_response = client.get("/health")
+    metrics_response = client.get("/metrics")
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert metrics_response.status_code == 200
+    payload = metrics_response.json()
+    assert payload["service"] == "forecast-labor-api"
+    assert payload["environment"] == "test"
+    assert payload["total_requests"] == 2
+    assert payload["endpoints"]["GET /health"]["request_count"] == 2
+    assert payload["endpoints"]["GET /health"]["status_counts"] == {"200": 2}
+    assert payload["endpoints"]["GET /health"]["average_latency_ms"] >= 0.0
+    assert payload["endpoints"]["GET /health"]["max_latency_ms"] >= 0.0
+    assert payload["endpoints"]["GET /health"]["last_status_code"] == 200
+
+
+def test_metrics_records_failed_forecast_status(tmp_path: Path) -> None:
+    """Metrics should capture fail-closed forecast responses for operations review."""
+    client = _client(ApiSettings(artifact_dir=tmp_path, environment="test"))
+
+    forecast_response = client.post(
+        "/forecast",
+        json={
+            "target": "NFP",
+            "vintage_date": "2025-11-29",
+            "horizon_months": 1,
+            "features": {"claims_growth": 0.1},
+        },
+    )
+    metrics_response = client.get("/metrics")
+
+    assert forecast_response.status_code == 503
+    assert metrics_response.status_code == 200
+    payload = metrics_response.json()
+    assert payload["total_requests"] == 1
+    assert payload["endpoints"]["POST /forecast"]["request_count"] == 1
+    assert payload["endpoints"]["POST /forecast"]["status_counts"] == {"503": 1}
+    assert payload["endpoints"]["POST /forecast"]["last_status_code"] == 503
+
+
 def test_active_artifact_reads_manifest(tmp_path: Path) -> None:
     """Artifact endpoint should report manifest metadata from the active bundle."""
     bundle = tmp_path / "active_bundle.zip"
