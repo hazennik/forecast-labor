@@ -71,7 +71,33 @@ def test_readiness_blocks_without_signed_artifact(tmp_path: Path) -> None:
     assert payload["ready"] is False
     assert payload["status"] == "not_ready"
     assert payload["checks"]["active_signed_artifact"] is False
+    assert payload["checks"]["zone2_security_isolation"] is True
     assert "No active signed model bundle" in payload["blockers"][0]
+
+
+def test_readiness_blocks_forbidden_zone2_artifact_paths(tmp_path: Path) -> None:
+    """Readiness should fail if Zone 2 is configured with raw data access paths."""
+    bundle = tmp_path / "active_bundle.zip"
+    _write_signed_model_bundle(bundle, tmp_path)
+    client = _client(
+        ApiSettings(
+            artifact_dir=Path("data/vintages"),
+            extraction_dir=tmp_path / "extracted",
+            active_bundle_path=bundle,
+            environment="test",
+        )
+    )
+
+    response = client.get("/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ready"] is False
+    assert payload["checks"]["active_signed_artifact"] is True
+    assert payload["checks"]["zone2_security_isolation"] is False
+    assert payload["blockers"] == [
+        "Zone 2 artifact_dir must not point inside forbidden project root: data"
+    ]
 
 
 def test_active_artifact_reads_manifest(tmp_path: Path) -> None:
@@ -202,3 +228,34 @@ def test_forecast_serves_prediction_from_signed_artifact(tmp_path: Path) -> None
     assert payload["model_id"] == "midas_v1"
     assert payload["intervals"][0]["level"] == 0.9
     assert payload["probabilities"]["150k_to_250k"] == 0.7
+
+
+def test_forecast_refuses_forbidden_zone2_artifact_paths(tmp_path: Path) -> None:
+    """Forecast serving should fail closed when Zone 2 isolation is misconfigured."""
+    bundle = tmp_path / "active_bundle.zip"
+    _write_signed_model_bundle(bundle, tmp_path)
+    client = _client(
+        ApiSettings(
+            artifact_dir=Path("zone1/artifacts"),
+            extraction_dir=tmp_path / "extracted",
+            active_bundle_path=bundle,
+            environment="test",
+        )
+    )
+
+    response = client.post(
+        "/forecast",
+        json={
+            "target": "NFP",
+            "vintage_date": "2025-11-29",
+            "horizon_months": 1,
+            "features": {"claims_growth": 0.5},
+        },
+    )
+
+    assert response.status_code == 503
+    detail = response.json()["detail"]
+    assert detail["target"] == "nfp"
+    assert detail["blockers"] == [
+        "Zone 2 artifact_dir must not point inside forbidden project root: zone1"
+    ]

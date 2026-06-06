@@ -9,6 +9,7 @@ from loguru import logger
 
 from app.schemas.forecast import ForecastInterval, ForecastRequest, ForecastResponse
 from app.services.artifacts import ArtifactRepository
+from app.services.deployment import summarize_zone2_isolation
 from models_src.utils.io import load_model
 
 
@@ -37,6 +38,10 @@ class InferenceService:
 
     def load_active_model(self) -> LoadedModel:
         """Load the active verified model artifact from Zone 2 storage."""
+        isolation_status = summarize_zone2_isolation(self.repository.settings)
+        if not isolation_status.isolated:
+            raise InferenceUnavailableError("; ".join(isolation_status.blockers))
+
         bundle_path = self.repository.get_active_bundle_path()
         if bundle_path is None:
             raise InferenceUnavailableError("No active signed model bundle configured or found")

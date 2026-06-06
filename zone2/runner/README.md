@@ -13,3 +13,5 @@ The Phase 6A API exposes health, readiness, artifact status, artifact export, an
 
 Protected endpoints require the key in the `X-API-Key` request header. Health and readiness endpoints remain unauthenticated for deployment probes.
 
+Deployment isolation checks fail readiness and forecast serving if Zone 2 artifact paths are configured inside raw data, Zone 1, training code, backtest, feature, ETL, model-source, or script directories. Runtime artifacts should remain under the Zone 2 runner artifact and extraction directories.
+

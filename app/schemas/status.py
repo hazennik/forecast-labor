@@ -38,4 +38,5 @@ class ServiceStatusResponse(BaseModel):
     active_subnet: str
     active_artifact_ready: bool
     active_artifact_path: Optional[str] = None
+    zone2_security_isolated: bool
     timestamp: datetime = Field(default_factory=utc_now)
