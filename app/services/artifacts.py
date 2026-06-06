@@ -8,6 +8,7 @@ import zipfile
 from loguru import logger
 
 from app.config import ApiSettings
+from models_src.utils.signing import SignatureError, TamperDetectedError, extract_signed_bundle
 
 
 class ArtifactRepository:
@@ -45,7 +46,9 @@ class ArtifactRepository:
 
         issues: List[str] = []
         metadata: Dict[str, Any] = {}
+        artifacts: List[str] = []
         exists = bundle_path.exists()
+        extract_dir = self.settings.extraction_dir / bundle_path.stem
         manifest_present = False
 
         if not exists:
@@ -64,7 +67,20 @@ class ArtifactRepository:
                 logger.error("artifact_manifest_read_failed", path=str(bundle_path), error=str(exc))
                 issues.append(f"Failed to read active model bundle manifest: {exc}")
 
-        verified = exists and manifest_present and not issues
+        verified = False
+        if exists and manifest_present and not issues:
+            try:
+                extraction = extract_signed_bundle(bundle_path, extract_dir, verify=True)
+                verified = bool(extraction["verified"])
+                artifacts = list(extraction.get("artifacts", []))
+                if not verified:
+                    issues.append("Signed bundle verification failed")
+            except (FileNotFoundError, SignatureError, TamperDetectedError, OSError) as exc:
+                logger.error(
+                    "artifact_bundle_verification_failed", path=str(bundle_path), error=str(exc)
+                )
+                issues.append(f"Signed bundle verification failed: {exc}")
+
         return {
             "active": verified,
             "artifact": {
@@ -73,6 +89,8 @@ class ArtifactRepository:
                 "manifest_present": manifest_present,
                 "verified": verified,
                 "metadata": metadata,
+                "extract_dir": str(extract_dir),
+                "artifacts": artifacts,
                 "issues": issues,
             },
             "blockers": issues,

@@ -19,6 +19,8 @@ class ArtifactSummary(BaseModel):
     manifest_present: bool
     verified: bool
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    extract_dir: Optional[str] = None
+    artifacts: List[str] = Field(default_factory=list)
     issues: List[str] = Field(default_factory=list)
 
 

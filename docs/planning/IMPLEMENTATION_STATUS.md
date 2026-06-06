@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: API foundation complete ✅ | Full Docker suite passing: 1397 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: signed artifact inference complete ✅ | Full Docker suite passing: 1398 passed, 4 skipped)
 
 ## ⏳ PHASE 6A IN PROGRESS: API & Two-Zone Architecture (2026-06-06)
 
-**Status:** IN PROGRESS - FastAPI foundation and initial Zone 1/Zone 2 serving boundary are implemented and tested  
-**Completion:** Phase 6A foundation slice complete ✅  
+**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, and initial Zone 2 inference wiring are implemented and tested  
+**Completion:** Phase 6A API + signed inference slices complete ✅  
 **Breaking Changes:** NONE - additive API package, tests, and zone scaffolding
 
 ### Completed This Session
@@ -20,6 +20,10 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: API 
 - ✅ Added initial Zone 1 public-only training config and Zone 2 runner documentation.
 - ✅ Mounted `app`, `zone1`, and `zone2` into the ETL Docker service for test visibility.
 - ✅ Added focused Phase 6A API tests in `tests/test_phase_6a_api.py`.
+- ✅ Added signed bundle verification for active Zone 2 artifacts using the existing `models_src.utils.signing` bundle verifier.
+- ✅ Added `app/services/inference.py` to load verified extracted model artifacts and serve predictions through `/forecast`.
+- ✅ Updated artifact status responses to expose extracted artifacts and verification metadata.
+- ✅ Added signed-artifact inference test coverage using production `create_signed_bundle()` and `save_model()` helpers.
 
 ### Validation
 
@@ -29,10 +33,14 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: API 
 - ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py`
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1397 passed, 4 skipped, 320 warnings in 510.22s**
+- ✅ `docker compose exec etl pytest tests/test_phase_6a_api.py -q`
+- ✅ Result: **5 passed, 3 warnings in 0.95s**
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1398 passed, 4 skipped, 320 warnings in 497.28s**
 
 ### Next Action
 
-Continue **Phase 6A** with signed artifact loading and inference wiring for Zone 2, then add API endpoint tests for authenticated artifact export/status workflows before moving to subnet adapter work.
+Continue **Phase 6A** with authenticated artifact export/status workflows, then add deployment/security isolation tests before moving to subnet adapter work.
 
 ## ✅ PHASE 5.14.5 POST-PHASE-6 REFRESH COMPLETE: Forecasting Capabilities Update (2026-06-06)
 

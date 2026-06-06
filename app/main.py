@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app.config import ApiSettings
 from app.routers import artifacts, forecast, status
 from app.services.artifacts import ArtifactRepository
+from app.services.inference import InferenceService
 
 
 def create_app(settings: Optional[ApiSettings] = None) -> FastAPI:
@@ -19,6 +20,7 @@ def create_app(settings: Optional[ApiSettings] = None) -> FastAPI:
     )
     app.state.settings = resolved_settings
     app.state.artifacts = ArtifactRepository(resolved_settings)
+    app.state.inference = InferenceService(app.state.artifacts)
     app.include_router(status.router)
     app.include_router(artifacts.router)
     app.include_router(forecast.router)

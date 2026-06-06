@@ -18,6 +18,7 @@ class ApiSettings:
     service_name: str = "forecast-labor-api"
     active_subnet: str = "sn41"
     artifact_dir: Path = Path("zone2/runner/artifacts")
+    extraction_dir: Path = Path("zone2/runner/extracted")
     active_bundle_path: Optional[Path] = None
 
     @classmethod
@@ -29,5 +30,6 @@ class ApiSettings:
             service_name=os.getenv("API_SERVICE_NAME", "forecast-labor-api"),
             active_subnet=os.getenv("ACTIVE_SUBNET", "sn41"),
             artifact_dir=Path(os.getenv("ZONE2_ARTIFACT_DIR", "zone2/runner/artifacts")),
+            extraction_dir=Path(os.getenv("ZONE2_EXTRACT_DIR", "zone2/runner/extracted")),
             active_bundle_path=Path(active_bundle) if active_bundle else None,
         )
