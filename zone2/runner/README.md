@@ -29,3 +29,5 @@ Forecast requests are rate limited per client and endpoint before model inferenc
 
 Operational request metrics are available at `/metrics`. The response includes total request counts plus per-method/path status counts and latency aggregates for lightweight deployment dashboards.
 
+Every API response includes `X-Request-ID` for operational correlation. If callers provide `X-Request-ID`, the API echoes it; otherwise, the API generates a UUID for the response.
+

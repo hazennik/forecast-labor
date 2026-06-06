@@ -1,6 +1,7 @@
 """Tests for Phase 6A FastAPI serving boundary."""
 
 from pathlib import Path
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 
@@ -58,6 +59,26 @@ def test_health_endpoint_does_not_require_artifact(tmp_path: Path) -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["environment"] == "test"
+
+
+def test_health_endpoint_returns_generated_request_id(tmp_path: Path) -> None:
+    """API responses should include a generated correlation ID."""
+    client = _client(ApiSettings(artifact_dir=tmp_path, environment="test"))
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert UUID(response.headers["x-request-id"])
+
+
+def test_health_endpoint_preserves_incoming_request_id(tmp_path: Path) -> None:
+    """API responses should echo caller-provided request IDs for traceability."""
+    client = _client(ApiSettings(artifact_dir=tmp_path, environment="test"))
+
+    response = client.get("/health", headers={"X-Request-ID": "deploy-check-123"})
+
+    assert response.status_code == 200
+    assert response.headers["x-request-id"] == "deploy-check-123"
 
 
 def test_readiness_blocks_without_signed_artifact(tmp_path: Path) -> None:
@@ -261,6 +282,25 @@ def test_forecast_refuses_placeholder_predictions_without_artifact(tmp_path: Pat
     assert response.status_code == 503
     assert response.json()["detail"]["target"] == "nfp"
     assert "No verified signed model artifact" in response.json()["detail"]["message"]
+
+
+def test_forecast_error_preserves_request_id(tmp_path: Path) -> None:
+    """Fail-closed forecast responses should remain traceable by request ID."""
+    client = _client(ApiSettings(artifact_dir=tmp_path, environment="test"))
+
+    response = client.post(
+        "/forecast",
+        headers={"X-Request-ID": "forecast-error-123"},
+        json={
+            "target": "NFP",
+            "vintage_date": "2025-11-29",
+            "horizon_months": 1,
+            "features": {"claims_growth": 0.1},
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.headers["x-request-id"] == "forecast-error-123"
 
 
 def test_forecast_serves_prediction_from_signed_artifact(tmp_path: Path) -> None:

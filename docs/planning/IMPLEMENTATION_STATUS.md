@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: metrics endpoint added ✅ | Full Docker suite passing: 1413 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: request ID correlation added ✅ | Full Docker suite passing: 1416 passed, 4 skipped)
 
 ## ⏳ PHASE 6A IN PROGRESS: API & Two-Zone Architecture (2026-06-06)
 
-**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, forecast rate limiting, API deployment profile, subnet logging schema, and metrics endpoint are implemented and tested  
-**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, rate-limiting, deployment-profile, subnet logging schema, and metrics endpoint slices complete ✅  
+**Status:** IN PROGRESS - FastAPI foundation, signed artifact loading, authenticated artifact workflows, Zone 2 inference wiring, deployment isolation checks, forecast rate limiting, API deployment profile, subnet logging schema, metrics endpoint, and request ID correlation are implemented and tested  
+**Completion:** Phase 6A API, signed inference, authenticated artifact workflow, deployment isolation, rate-limiting, deployment-profile, subnet logging schema, metrics endpoint, and request ID correlation slices complete ✅  
 **Breaking Changes:** NONE - additive API package, tests, and zone scaffolding
 
 ### Completed This Session
@@ -49,6 +49,9 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: metr
 - ✅ Exposed operational metrics through `/metrics` for deployment dashboards and probes.
 - ✅ Added Phase 6A tests covering metrics for successful liveness requests and fail-closed forecast responses.
 - ✅ Updated Zone 2 runner documentation with metrics endpoint behavior.
+- ✅ Added `X-Request-ID` request correlation for all API responses, preserving caller-provided IDs or generating UUIDs.
+- ✅ Added Phase 6A tests for generated request IDs, incoming request ID echoing, and traceable fail-closed forecast errors.
+- ✅ Updated Zone 2 runner documentation with request correlation behavior.
 
 ### Validation
 
@@ -97,10 +100,16 @@ Last Updated: 2026-06-06 (Phase 6A API & Two-Zone Architecture IN PROGRESS: metr
 - ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py`
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1413 passed, 4 skipped, 320 warnings in 510.40s**
+- ✅ `docker compose up -d etl && docker compose exec etl pytest tests/test_phase_6a_api.py -q`
+- ✅ Result: **17 passed, 3 warnings in 1.07s**
+- ✅ `docker compose exec etl black --check app tests/test_phase_6a_api.py`
+- ✅ `docker compose exec etl ruff check app tests/test_phase_6a_api.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1416 passed, 4 skipped, 320 warnings in 505.59s**
 
 ### Next Action
 
-Continue **Phase 6A** with deployment runbook polish and final operational hardening before moving to subnet adapter work.
+Continue **Phase 6A** with deployment runbook polish before moving to subnet adapter work.
 
 ## ✅ PHASE 5.14.5 POST-PHASE-6 REFRESH COMPLETE: Forecasting Capabilities Update (2026-06-06)
 

@@ -2,6 +2,7 @@
 
 from time import perf_counter
 from typing import Awaitable, Callable, Optional
+from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
 
@@ -11,6 +12,8 @@ from app.services.artifacts import ArtifactRepository
 from app.services.inference import InferenceService
 from app.services.metrics import ApiMetricsRecorder
 from app.services.rate_limit import InMemoryRateLimiter
+
+REQUEST_ID_HEADER = "X-Request-ID"
 
 
 def create_app(settings: Optional[ApiSettings] = None) -> FastAPI:
@@ -31,12 +34,15 @@ def create_app(settings: Optional[ApiSettings] = None) -> FastAPI:
     async def record_request_metrics(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        """Record request counts, status codes, and latency for operational visibility."""
+        """Record request metrics and attach correlation IDs to responses."""
         start_time = perf_counter()
         status_code = 500
+        request_id = _request_id(request)
+        request.state.request_id = request_id
         try:
             response = await call_next(request)
             status_code = response.status_code
+            response.headers[REQUEST_ID_HEADER] = request_id
             return response
         finally:
             latency_ms = (perf_counter() - start_time) * 1000
@@ -51,6 +57,12 @@ def create_app(settings: Optional[ApiSettings] = None) -> FastAPI:
     app.include_router(artifacts.router)
     app.include_router(forecast.router)
     return app
+
+
+def _request_id(request: Request) -> str:
+    """Return the incoming request ID or generate a new correlation ID."""
+    request_id = request.headers.get(REQUEST_ID_HEADER, "").strip()
+    return request_id or str(uuid4())
 
 
 app = create_app()
