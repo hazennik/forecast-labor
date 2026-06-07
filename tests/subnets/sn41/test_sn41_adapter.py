@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import secrets
 from pathlib import Path
 
 import pytest
@@ -77,19 +78,23 @@ def test_sn41_adapter_rejects_invalid_payload_probabilities() -> None:
     assert adapter.validate_payload(json.dumps(payload).encode("utf-8")) is False
 
 
-def test_sn41_adapter_dry_run_submit_returns_payload_hash() -> None:
+def test_sn41_adapter_dry_run_submit_returns_payload_hash(tmp_path: Path) -> None:
     """SN41 dry-run submit should validate payloads and return shared telemetry."""
+    hotkey_path = tmp_path / "hotkey"
+    hotkey_path.write_text(secrets.token_bytes(32).hex())
     adapter = SN41Adapter(load_subnet_config("sn41", config_dir=CONFIG_DIR))
     payload = adapter.build_payload({"events": {"nfp_next_release": _probabilities()}})
 
-    result = adapter.submit(payload, SubmissionKeyPaths(hotkey_path=Path("subnets/keys/hotkey")))
+    result = adapter.submit(payload, SubmissionKeyPaths(hotkey_path=hotkey_path))
 
     assert result.success is True
     assert result.subnet_id == "sn41"
     assert result.status == "dry_run"
     assert result.payload_hash == hashlib.sha256(payload).hexdigest()
     assert result.metadata["network_submission"] is False
-    assert result.metadata["hotkey_path"] == "subnets/keys/hotkey"
+    assert result.metadata["hotkey_path"] == str(hotkey_path)
+    assert "signature_hex" in result.metadata
+    assert result.metadata["signature_algorithm"] == "hmac-sha256"
 
 
 def test_default_registry_loads_active_sn41_adapter(monkeypatch) -> None:

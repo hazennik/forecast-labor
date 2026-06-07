@@ -1,8 +1,6 @@
 """SN41 adapter implementation for offline payload validation and dry runs."""
 
 import hashlib
-import json
-from datetime import datetime, timezone
 from typing import Any, Mapping, Sequence
 
 from subnets.base_adapter import (
@@ -11,8 +9,10 @@ from subnets.base_adapter import (
     SubmissionResult,
     SubnetConfig,
 )
+from subnets.payload_signing import PayloadSigningError, sign_payload, verify_payload_signature
 from subnets.scoring_shim import SubnetScoringShim
 from subnets.sn41.event_catalog import get_sn41_event_catalog
+from subnets.sn41.payload_builder import build_sn41_payload, validate_sn41_payload
 
 
 class SN41Adapter(BaseSubnetAdapter):
@@ -35,53 +35,11 @@ class SN41Adapter(BaseSubnetAdapter):
 
     def build_payload(self, predictions: Mapping[str, Any]) -> bytes:
         """Build a deterministic JSON payload from event probability predictions."""
-        event_payloads = []
-        for event in self.get_event_catalog():
-            event_id = str(event["event_id"])
-            probabilities = _event_probabilities(predictions, event_id)
-            validation = self.scoring.validate_probabilities(event_id, probabilities)
-            if not validation.is_valid:
-                raise ValueError(f"Invalid probabilities for event_id={event_id}")
-            event_payloads.append(
-                {
-                    "event_id": event_id,
-                    "target": event.get("target"),
-                    "probabilities": dict(sorted(probabilities.items())),
-                    "total_probability": round(validation.total_probability, 12),
-                }
-            )
-
-        payload = {
-            "subnet_id": self.config.subnet_id,
-            "adapter_version": self.config.adapter_version,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "events": event_payloads,
-        }
-        return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return build_sn41_payload(self.config, predictions, self.scoring)
 
     def validate_payload(self, payload: bytes) -> bool:
         """Validate a deterministic JSON SN41 payload before submission."""
-        try:
-            decoded = json.loads(payload.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            return False
-        if decoded.get("subnet_id") != self.config.subnet_id:
-            return False
-        events = decoded.get("events")
-        if not isinstance(events, list) or len(events) != len(self.config.events):
-            return False
-        configured_event_ids = {str(event["event_id"]) for event in self.config.events}
-        for event_payload in events:
-            if not isinstance(event_payload, Mapping):
-                return False
-            event_id = event_payload.get("event_id")
-            probabilities = event_payload.get("probabilities")
-            if event_id not in configured_event_ids or not isinstance(probabilities, Mapping):
-                return False
-            validation = self.scoring.validate_probabilities(str(event_id), probabilities)
-            if not validation.is_valid:
-                return False
-        return True
+        return validate_sn41_payload(self.config, payload, self.scoring)
 
     def submit(self, payload: bytes, keys: SubmissionKeyPaths) -> SubmissionResult:
         """Return a dry-run submission result for validated SN41 payloads."""
@@ -91,6 +49,23 @@ class SN41Adapter(BaseSubnetAdapter):
             raise ValueError("SN41 dry-run submission is not enabled in config")
 
         payload_hash = hashlib.sha256(payload).hexdigest()
+        metadata: dict[str, Any] = {
+            "hotkey_path": str(keys.hotkey_path),
+            "payload_bytes": len(payload),
+            "network_submission": False,
+        }
+
+        if bool(self.config.submission.get("requires_signature", False)):
+            try:
+                signature = sign_payload(payload, keys.hotkey_path)
+            except PayloadSigningError as exc:
+                raise ValueError(f"payload signing failed: {exc}") from exc
+            if not verify_payload_signature(payload, signature, keys.hotkey_path):
+                raise ValueError("payload signature verification failed")
+            metadata["signature_algorithm"] = signature.algorithm
+            metadata["signature_hex"] = signature.signature_hex
+            metadata["key_fingerprint"] = signature.key_fingerprint
+
         return SubmissionResult(
             success=True,
             subnet_id=self.subnet_id,
@@ -98,21 +73,5 @@ class SN41Adapter(BaseSubnetAdapter):
             payload_hash=payload_hash,
             transaction_hash=None,
             latency_ms=0,
-            metadata={
-                "hotkey_path": str(keys.hotkey_path),
-                "payload_bytes": len(payload),
-                "network_submission": False,
-            },
+            metadata=metadata,
         )
-
-
-def _event_probabilities(predictions: Mapping[str, Any], event_id: str) -> Mapping[str, float]:
-    """Extract an event probability vector from a prediction mapping."""
-    raw_probabilities = predictions.get(event_id)
-    if raw_probabilities is None and "events" in predictions:
-        raw_events = predictions["events"]
-        if isinstance(raw_events, Mapping):
-            raw_probabilities = raw_events.get(event_id)
-    if not isinstance(raw_probabilities, Mapping):
-        raise ValueError(f"Missing probability mapping for event_id={event_id}")
-    return {str(label): float(probability) for label, probability in raw_probabilities.items()}

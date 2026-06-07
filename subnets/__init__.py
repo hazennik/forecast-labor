@@ -20,6 +20,14 @@ from subnets.scoring_shim import (
     ScoringResult,
     SubnetScoringShim,
 )
+from subnets.payload_signing import (
+    PayloadSignature,
+    PayloadSigningError,
+    build_signed_envelope,
+    sign_payload,
+    verify_payload_signature,
+    verify_signed_envelope,
+)
 from subnets.scheduler import SchedulerError, SubmissionWindow, SubnetScheduler
 
 __all__ = [
@@ -27,6 +35,8 @@ __all__ = [
     "AdapterNotRegisteredError",
     "AdapterRegistrationError",
     "BaseSubnetAdapter",
+    "PayloadSignature",
+    "PayloadSigningError",
     "ProbabilityValidationResult",
     "ScoringError",
     "ScoringResult",
@@ -39,7 +49,11 @@ __all__ = [
     "SchedulerError",
     "SubmissionWindow",
     "SubnetScheduler",
+    "build_signed_envelope",
     "create_default_registry",
+    "sign_payload",
+    "verify_payload_signature",
+    "verify_signed_envelope",
     "load_subnet_config",
     "subnet_config_from_mapping",
 ]

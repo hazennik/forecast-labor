@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: SN41 dry-run adapter added ✅ | Full Docker suite passing: 1456 passed, 4 skipped)
+Last Updated: 2026-06-07 (Phase 7 Subnet Integration IN PROGRESS: SN41 payload builder, signing boundary, and submission scripts added ✅ | Full Docker suite passing: 1468 passed, 4 skipped)
 
-## ⏳ PHASE 7 IN PROGRESS: Subnet Integration (Adapter Pattern) (2026-06-06)
+## ⏳ PHASE 7 IN PROGRESS: Subnet Integration (Adapter Pattern) (2026-06-07)
 
-**Status:** IN PROGRESS - base subnet adapter package, abstract interface, shared submission dataclasses, subnet config template, config loader, adapter registry, active subnet selection, scheduler, scoring shim, SN41 config, SN41 event catalog, and SN41 dry-run adapter are implemented  
-**Completion:** Phase 7.1 base adapter interface, Phase 7.2 registry/configuration loading, Phase 7.3 scheduler, Phase 7.4 scoring shim, and initial SN41 dry-run adapter slices implemented ✅  
+**Status:** IN PROGRESS - base subnet adapter package, abstract interface, shared submission dataclasses, subnet config template, config loader, adapter registry, active subnet selection, scheduler, scoring shim, SN41 config, SN41 event catalog, SN41 payload builder, payload signing boundary, SN41 dry-run adapter, and subnet submission scripts are implemented  
+**Completion:** Phase 7.1 base adapter interface, Phase 7.2 registry/configuration loading, Phase 7.3 scheduler, Phase 7.4 scoring shim, SN41 payload builder/signing boundary, and initial SN41 dry-run adapter + submission-script slices implemented ✅  
 **Breaking Changes:** NONE - additive subnet adapter package and template config
 
 ### Completed This Session
@@ -32,6 +32,12 @@ Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: SN41 dry-run a
 - ✅ Added `subnets/sn41/` with event catalog helpers and `SN41Adapter` for deterministic JSON payload building, offline validation, and dry-run submission telemetry.
 - ✅ Added default registry wiring so `ACTIVE_SUBNET=sn41` resolves to `SN41Adapter`.
 - ✅ Added focused SN41 adapter tests under `tests/subnets/sn41/`.
+- ✅ Extracted `subnets/sn41/payload_builder.py` for deterministic SN41 payload construction and validation.
+- ✅ Added `subnets/payload_signing.py` for offline HMAC signing, verification, and signed-envelope checks before network submission.
+- ✅ Updated `SN41Adapter` to delegate payload work to the builder and enforce the signing boundary during dry-run submit.
+- ✅ Added `scripts/make_subnet_payload.py` for config-driven payload generation from prediction JSON.
+- ✅ Added `scripts/submit_to_subnet.py` for dry-run submission through the active adapter with window checks.
+- ✅ Added focused payload builder and signing boundary tests under `tests/subnets/`.
 
 ### Validation
 
@@ -75,10 +81,16 @@ Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: SN41 dry-run a
 - ✅ Result: **43 passed in 0.27s**
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1456 passed, 4 skipped, 320 warnings in 536.44s**
+- ✅ `docker compose exec etl pytest tests/subnets tests/test_phase_6a_deployment.py -q`
+- ✅ Result: **55 passed in 0.22s**
+- ✅ `docker compose exec etl black --check subnets tests/subnets scripts/make_subnet_payload.py scripts/submit_to_subnet.py tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl ruff check subnets tests/subnets scripts/make_subnet_payload.py scripts/submit_to_subnet.py tests/test_phase_6a_deployment.py`
+- ✅ `docker compose exec etl pytest -q`
+- ✅ Result: **1468 passed, 4 skipped, 320 warnings in 494.50s**
 
 ### Next Action
 
-Continue SN41 implementation with payload builder extraction, signing-boundary tests, and submission-script wiring before any live network submission.
+Wire submission telemetry into `subnets.submission_log`, add live-network submission behind an explicit feature flag, and document SN41 adapter usage in `docs/SUBNET_INTEGRATION.md`.
 
 ## ✅ PHASE 6A COMPLETE: API & Two-Zone Architecture (2026-06-06)
 
