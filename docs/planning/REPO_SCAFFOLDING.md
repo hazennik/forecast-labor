@@ -2,7 +2,7 @@ Full-scope repo scaffolding you can paste straight into your README. It includes
 
 forecast-labor/
 ├─ README.md                      # Project overview, quick start, links to docs
-├─ LICENSE                        # Proprietary license (All Rights Reserved)
+├─ LICENSE.txt                    # MIT License
 ├─ .gitignore                     # Ignore /data, secrets, artifacts, venv, etc.
 ├─ .env.example                   # Template env vars for local & server
 ├─ docker-compose.yml             # Multi-service local stack (minio, pg, mlflow, x13, api, dashboards, miner)

@@ -88,15 +88,9 @@ make test
 
 ⸻
 
-✅ License
+## License
 
-All rights reserved. Unauthorized use prohibited.
-
-⸻
-
-✅ Contact
-
-For private licensing or institutional access, contact the repository owner.
+MIT License. See [LICENSE.txt](LICENSE.txt).
 
 # ✅ Versioned Roadmap (Clear + Achievable)**
 
