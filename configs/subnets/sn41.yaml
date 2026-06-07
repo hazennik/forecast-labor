@@ -1,0 +1,63 @@
+subnet_id: sn41
+name: Labor Market Forecasting
+netuid: 41
+adapter_version: 0.1.0
+
+events:
+  - event_id: nfp_next_release
+    event_name: Nonfarm Payrolls Next Release
+    target: NFP
+    release_date: 2026-07-02
+    release_time: "08:30"
+    timezone: America/New_York
+    units: jobs
+    bins:
+      - label: below_0k
+        lower: null
+        upper: 0
+      - label: 0k_to_50k
+        lower: 0
+        upper: 50000
+      - label: 50k_to_100k
+        lower: 50000
+        upper: 100000
+      - label: 100k_to_150k
+        lower: 100000
+        upper: 150000
+      - label: 150k_to_200k
+        lower: 150000
+        upper: 200000
+      - label: 200k_to_300k
+        lower: 200000
+        upper: 300000
+      - label: above_300k
+        lower: 300000
+        upper: null
+
+cadence:
+  type: monthly
+  window_open: T-5d
+  window_close: T-1d
+  submission_timezone: America/New_York
+
+scoring:
+  metric: log_score
+  probability_tolerance: 0.001
+  probability_floor: 0.000000000001
+  calibration_weight: 0.3
+  variance_penalty: 0.2
+
+network:
+  endpoint: wss://entrypoint-finney.opentensor.ai
+  timeout_seconds: 30
+  retries: 3
+  backoff: exponential
+
+submission:
+  payload_format: json
+  requires_signature: true
+  dry_run_supported: true
+
+metadata:
+  owner: forecast-labor
+  description: Initial SN41 adapter configuration for offline payload validation.

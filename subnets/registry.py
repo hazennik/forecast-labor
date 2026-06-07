@@ -6,6 +6,7 @@ from typing import Callable, Dict, Sequence
 
 from subnets.base_adapter import BaseSubnetAdapter, SubnetConfig
 from subnets.config import DEFAULT_CONFIG_DIR, SubnetConfigError, load_subnet_config
+from subnets.sn41.adapter import SN41Adapter
 
 
 AdapterFactory = Callable[[SubnetConfig], BaseSubnetAdapter]
@@ -82,3 +83,13 @@ class SubnetRegistry:
     def registered_subnets(self) -> Sequence[str]:
         """Return registered subnet IDs in deterministic order."""
         return tuple(sorted(self._factories))
+
+
+def create_default_registry(
+    config_dir: Path = DEFAULT_CONFIG_DIR,
+    active_subnet_env: str = "ACTIVE_SUBNET",
+) -> SubnetRegistry:
+    """Create a registry with built-in subnet adapters registered."""
+    registry = SubnetRegistry(config_dir=config_dir, active_subnet_env=active_subnet_env)
+    registry.register_adapter("sn41", SN41Adapter)
+    return registry

@@ -139,11 +139,12 @@ def test_phase_6a_final_status_points_to_phase_7_adapter_work() -> None:
     assert "PHASE 7 IN PROGRESS: Subnet Integration (Adapter Pattern)" in status_doc
     assert (
         "Phase 7.1 base adapter interface, Phase 7.2 registry/configuration loading, "
-        "Phase 7.3 scheduler, and Phase 7.4 scoring shim" in status_doc
+        "Phase 7.3 scheduler, Phase 7.4 scoring shim, and initial SN41 dry-run adapter"
+        in status_doc
     )
     assert "PHASE 6A COMPLETE: API & Two-Zone Architecture" in status_doc
     assert "**Completion:** Phase 6A 100%" in status_doc
-    assert "Restore Docker validation" in status_doc
+    assert "Continue SN41 implementation with payload builder extraction" in status_doc
     assert "**Current Phase:** Phase 7 in progress" in docs_readme
     assert "**Phase 6A:** API & Two-Zone Architecture (100%)" in docs_readme
     assert "**Phase 7:** Subnet Integration (Adapter Pattern)" in docs_readme

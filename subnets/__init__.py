@@ -12,6 +12,7 @@ from subnets.registry import (
     AdapterNotRegisteredError,
     AdapterRegistrationError,
     SubnetRegistry,
+    create_default_registry,
 )
 from subnets.scoring_shim import (
     ProbabilityValidationResult,
@@ -38,6 +39,7 @@ __all__ = [
     "SchedulerError",
     "SubmissionWindow",
     "SubnetScheduler",
+    "create_default_registry",
     "load_subnet_config",
     "subnet_config_from_mapping",
 ]
