@@ -1,11 +1,11 @@
 # Implementation Status
 
-Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: scheduler added ✅ | Full Docker suite passing: 1442 passed, 4 skipped)
+Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: scoring shim added ✅ | Docker validation blocked: daemon unavailable)
 
 ## ⏳ PHASE 7 IN PROGRESS: Subnet Integration (Adapter Pattern) (2026-06-06)
 
-**Status:** IN PROGRESS - base subnet adapter package, abstract interface, shared submission dataclasses, subnet config template, config loader, adapter registry, active subnet selection, scheduler, and focused adapter contract tests are implemented  
-**Completion:** Phase 7.1 base adapter interface, Phase 7.2 registry/configuration loading, and Phase 7.3 scheduler slices complete ✅  
+**Status:** IN PROGRESS - base subnet adapter package, abstract interface, shared submission dataclasses, subnet config template, config loader, adapter registry, active subnet selection, scheduler, scoring shim, and focused adapter contract tests are implemented  
+**Completion:** Phase 7.1 base adapter interface, Phase 7.2 registry/configuration loading, Phase 7.3 scheduler, and Phase 7.4 scoring shim slices implemented ✅  
 **Breaking Changes:** NONE - additive subnet adapter package and template config
 
 ### Completed This Session
@@ -24,6 +24,9 @@ Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: scheduler adde
 - ✅ Added `subnets/scheduler.py` for config-driven submission windows across adapters.
 - ✅ Added `SubmissionWindow` and `SubnetScheduler` for open-window checks, next-window selection, and `should_submit()` decisions.
 - ✅ Added focused scheduler tests under `tests/subnets/` for multi-subnet ordering, cadence offsets, and invalid window config.
+- ✅ Added `subnets/scoring_shim.py` for subnet-agnostic probability validation, normalization, observed-bin lookup, and log-score calculation.
+- ✅ Added `ProbabilityValidationResult`, `ScoringResult`, and `SubnetScoringShim` package exports.
+- ✅ Added focused scoring shim tests under `tests/subnets/` for coherent probabilities, label/value errors, normalization, log scoring, probability floors, unsupported metrics, and invalid bins.
 
 ### Validation
 
@@ -51,10 +54,18 @@ Last Updated: 2026-06-06 (Phase 7 Subnet Integration IN PROGRESS: scheduler adde
 - ✅ Result: **29 passed in 0.17s**
 - ✅ `docker compose exec etl pytest -q`
 - ✅ Result: **1442 passed, 4 skipped, 320 warnings in 502.14s**
+- ✅ `python3 -m py_compile subnets/scoring_shim.py subnets/__init__.py tests/subnets/test_scoring_shim.py`
+- ✅ Direct `python3` scoring smoke check: **scoring smoke passed**
+- ⚠️ `docker compose up -d etl && docker compose exec etl pytest tests/subnets -q`
+- ⚠️ Blocked: **Cannot connect to the Docker daemon at unix:///Users/ryan/.docker/run/docker.sock**
+- ⚠️ `python3 -m pytest tests/subnets -q`
+- ⚠️ Blocked locally: missing project dependencies (`sqlalchemy`, `pydantic`)
+- ⚠️ `python3 -m black --check ... && python3 -m ruff check ...`
+- ⚠️ Blocked locally: `black` is not installed
 
 ### Next Action
 
-Continue **Phase 7.4: Scoring Shim**, then implement the SN41 adapter.
+Restore Docker validation and run `docker compose exec etl pytest tests/subnets tests/test_phase_6a_deployment.py -q`, targeted Black/Ruff, and the full Docker suite before proceeding to the SN41 adapter.
 
 ## ✅ PHASE 6A COMPLETE: API & Two-Zone Architecture (2026-06-06)
 

@@ -13,6 +13,12 @@ from subnets.registry import (
     AdapterRegistrationError,
     SubnetRegistry,
 )
+from subnets.scoring_shim import (
+    ProbabilityValidationResult,
+    ScoringError,
+    ScoringResult,
+    SubnetScoringShim,
+)
 from subnets.scheduler import SchedulerError, SubmissionWindow, SubnetScheduler
 
 __all__ = [
@@ -20,10 +26,14 @@ __all__ = [
     "AdapterNotRegisteredError",
     "AdapterRegistrationError",
     "BaseSubnetAdapter",
+    "ProbabilityValidationResult",
+    "ScoringError",
+    "ScoringResult",
     "SubmissionKeyPaths",
     "SubmissionResult",
     "SubnetConfigError",
     "SubnetConfig",
+    "SubnetScoringShim",
     "SubnetRegistry",
     "SchedulerError",
     "SubmissionWindow",
